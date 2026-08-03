@@ -230,6 +230,33 @@ chore(ci): met en cache les dépendances du workflow
 Toute issue **doit** porter un module, un type et une milestone. Une issue sans milestone
 n'entre pas dans le mois.
 
+## 8 bis. Automatisation de la release
+
+Deux workflows évitent d'avoir à se souvenir de la procédure. Ils sont volontairement
+partiels : **ce qui demande un jugement humain reste manuel**.
+
+| Workflow | Déclencheur | Ce qu'il fait |
+|---|---|---|
+| [`rappel-release.yml`](../.github/workflows/rappel-release.yml) | jeudi 18:00 (Casablanca) + manuel | Ouvre l'issue « Préparer la release vX.Y.Z » avec la procédure complète en cases à cocher, assignée à `platform`. Calcule la version suivante à partir du dernier tag. N'ouvre rien si l'issue existe déjà. |
+| [`tag-release.yml`](../.github/workflows/tag-release.yml) | fusion dans `main` | Détecte `release: X.Y.Z` ou `hotfix/X.Y.Z` dans le message de fusion, pose le tag annoté `vX.Y.Z` et publie la release GitHub avec ses notes générées. Ne fait rien si le tag existe. |
+
+### Ce qui n'est pas automatisé, et pourquoi
+
+**La création de la branche et de la pull request de release.** Une pull request ouverte
+par le `GITHUB_TOKEN` **ne déclenche pas les workflows** — la vérification obligatoire
+`Validation du site statique` ne se lancerait jamais et la pull request resterait bloquée
+sans que personne ne comprenne pourquoi. Deux commandes à la main valent mieux qu'un
+blocage inexplicable un vendredi soir.
+
+**Le report vers `develop`.** Il demande de vérifier ce qui a réellement été corrigé
+pendant le gel. Le workflow se contente d'afficher un rappel dans le résumé d'exécution.
+
+### Permissions
+
+Le réglage du dépôt reste `default_workflow_permissions: read`. Chaque workflow demande
+explicitement le strict nécessaire : `issues: write` pour le rappel, `contents: write`
+pour le tag. Aucun secret n'est utilisé, le `GITHUB_TOKEN` intégré suffit.
+
 ## 9. GitHub Projects
 
 Tableau `Assistant Juridique — 4 semaines`, vue Board avec les colonnes :
