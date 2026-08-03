@@ -57,7 +57,7 @@ multi-mots, filtres par membre et par statut, accordéons, export PDF, raccourci
 Aucune installation, aucun gestionnaire de paquets, aucune compilation.
 
 ```bash
-git clone <url-du-depot>
+git clone https://github.com/CloudMind-Group/assistant-juridique-mlops.git
 cd assistant-juridique-mlops
 git checkout develop   # branche de travail par defaut
 ```
@@ -197,7 +197,7 @@ sont dans [`docs/GITHUB.md`](docs/GITHUB.md).
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture MLOps, flux de données, décisions techniques.
 - [`docs/TEAM.md`](docs/TEAM.md) — rôles détaillés, matrice RACI et interfaces entre modules.
-- [`docs/GITHUB.md`](docs/GITHUB.md) — rôles et permissions GitHub, protection de `main`, cycle de vie d'une pull request.
+- [`docs/GITHUB.md`](docs/GITHUB.md) — organisation, équipes et permissions, protection des branches, GitFlow, cycle de vie d'une pull request.
 
 ---
 
