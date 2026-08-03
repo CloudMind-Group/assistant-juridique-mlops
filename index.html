@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloudMind Group — Assistant Juridique Intelligent | Architecture MLOps</title>
+<meta name="description" content="Architecture MLOps, matrice RACI et suivi de projet de l'Assistant Juridique Intelligent (LLM / RAG) — CloudMind Group, 8 ingénieurs, 8 modules.">
+<meta name="author" content="CloudMind Group">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#05070f">
+<meta property="og:title" content="Assistant Juridique Intelligent — Architecture MLOps">
+<meta property="og:description" content="Pipeline MLOps de bout en bout : ingestion juridique, RAG, CI/CD, serving, observabilité et conformité.">
+<meta property="og:type" content="website">
+
+<!-- Thème appliqué avant le premier rendu pour éviter tout flash -->
+<script>try{var t=localStorage.getItem('cm-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components.css">
+<link rel="stylesheet" href="assets/css/sections.css">
+</head>
+<body>
+<div class="rail" id="rail"></div>
+
+<!-- ===== ICON SPRITE ===== -->
+<svg style="display:none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="var(--accent)"/><stop offset="55%" stop-color="var(--accent-2)"/><stop offset="100%" stop-color="var(--accent-3)"/>
+  </linearGradient>
+</defs>
+<g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-kanban" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="2"/><rect x="10" y="3" width="5" height="12" rx="2"/><rect x="17" y="3" width="4" height="8" rx="2"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 20v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1A4 4 0 0 1 16 11"/></symbol>
+<symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+<symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 4.5a3 3 0 0 0-5.5 1.7A3 3 0 0 0 4 12a3 3 0 0 0 2 4.5A3 3 0 0 0 12 19.5Z"/><path d="M12 4.5A3 3 0 0 1 17.5 6.2 3 3 0 0 1 20 12a3 3 0 0 1-2 4.5A3 3 0 0 1 12 19.5Z"/></symbol>
+<symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6.5L4.6 18A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-3L14 9.5V3"/><path d="M7.5 15h9"/></symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24"><path d="M5 15c-1.5 1.5-2 6-2 6s4.5-.5 6-2c.8-.8.8-2.2 0-3s-2.2-.8-4-1Z"/><path d="M18.5 3.5c-4 0-7.5 2-10 6l-2 3 5 5 3-2c4-2.5 6-6 6-10 0-1-1-2-2-2Z"/><circle cx="15" cy="9" r="1.6"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6 6.5h.01M6 17.5h.01"/></symbol>
+<symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+<symbol id="i-activity" viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12.2 19"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/></symbol>
+<symbol id="i-git" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="9" r="3"/><path d="M6 9v6m9-3.5a9 9 0 0 1-9 6"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15v3M12 9v9M17 5v13"/></symbol>
+<symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 3v18M7 21h10M12 6 5 8l-2.5 6a4 4 0 0 0 5 0L5 8m14 0-2.5 6a4 4 0 0 0 5 0L19 8l-7-2"/></symbol>
+<symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M18.5 15.5 19 17l1.5.5L19 18l-.5 1.5L18 18l-1.5-.5L18 17Z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3 12h5l2 3h4l2-3h5"/><path d="M5.5 5h13l2.5 7v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6l2.5-7Z"/></symbol>
+</g>
+</svg>
+
+<!-- ===== TOP BAR ===== -->
+<header class="topbar" id="topbar">
+  <div class="shell topbar-in">
+    <a class="brand" href="#top">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5a3.8 3.8 0 0 1-.6 8.5H7Z"/><path d="M9.5 13.5h5M12 11v5"/></svg></span>
+      <span class="brand-txt"><strong>CloudMind Group</strong><span>MLOps Engineering</span></span>
+    </a>
+    <nav class="nav">
+      <a href="#equipe">Équipe &amp; Modules</a>
+      <a href="#roles">Rôles &amp; RACI</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#pipeline">Workflow</a>
+      <a href="#metriques">Métriques</a>
+      <a href="#livrables">Livrables</a>
+    </nav>
+    <button class="icon-btn" id="printBtn" title="Exporter en PDF / Imprimer" aria-label="Imprimer"><svg><use href="#i-print"/></svg></button>
+    <button class="icon-btn" id="themeBtn" title="Basculer le thème" aria-label="Basculer le thème">
+      <svg class="i-sun"><use href="#i-sun"/></svg><svg class="i-moon"><use href="#i-moon"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<main id="top">
+<section class="hero">
+  <div class="shell">
+    <div class="hero-badges rv">
+      <span class="chip s-ok"><i class="dot pulse"></i> Sprint 3 · Actif</span>
+      <span class="chip"><svg style="width:13px;height:13px" ><use href="#i-users"/></svg> 8 Ingénieurs</span>
+      <span class="chip"><svg style="width:13px;height:13px"><use href="#i-layers"/></svg> 8 Modules MLOps</span>
+      <span class="chip"><svg style="width:13px;height:13px"><use href="#i-scale"/></svg> Domaine Juridique · RAG</span>
+      <span class="chip mono">v1.4.0-rc</span>
+    </div>
+    <h1 class="rv">Assistant Juridique Intelligent<span class="l2 grad-text">Architecture MLOps de bout en bout</span></h1>
+    <p class="hero-lead rv">
+      Plateforme d'IA générative dédiée au traitement de documents juridiques : ingestion et OCR de corpus légaux,
+      indexation vectorielle, génération augmentée par récupération (RAG), industrialisation CI/CD, exposition via API,
+      supervision de la dérive et conformité RGPD. Cette page consolide la <b>répartition des responsabilités</b>,
+      le <b>flux de données</b> et les <b>objectifs mesurables</b> de l'équipe CloudMind.
+    </p>
+    <div class="hero-cta rv">
+      <a class="btn btn-primary" href="#equipe"><svg><use href="#i-users"/></svg> Voir la matrice des tâches</a>
+      <a class="btn btn-ghost" href="#pipeline"><svg><use href="#i-layers"/></svg> Explorer le pipeline</a>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </div>
+</section>
+
+<!-- ===== ÉQUIPE / MATRICE ===== -->
+<section class="sec" id="equipe">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Matrice de responsabilités · RACI simplifié</div>
+        <h2 class="sec-title">Répartition des <span class="grad-text">8 modules</span> MLOps</h2>
+        <p class="sec-sub">Chaque ingénieur pilote un module du cycle de vie (Lead / Accountable) et intervient en support sur les modules adjacents. Filtrez par membre ou par statut, recherchez un outil, puis dépliez une carte pour consulter les sous-tâches et livrables.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Mode d'affichage">
+        <button id="viewGrid" aria-pressed="true"><svg><use href="#i-grid"/></svg> Grille</button>
+        <button id="viewKanban" aria-pressed="false"><svg><use href="#i-kanban"/></svg> Kanban</button>
+      </div>
+    </div>
+
+    <div class="toolbar glass rv">
+      <label class="search">
+        <svg><use href="#i-search"/></svg>
+        <input id="q" type="search" placeholder="Rechercher un membre, un module, une tâche ou un outil (MLflow, Qdrant, Docker…)" aria-label="Recherche">
+        <kbd>/</kbd>
+      </label>
+      <div class="seg" role="group" aria-label="Filtrer par statut">
+        <button class="fstatus" data-status="all" aria-pressed="true">Tous</button>
+        <button class="fstatus" data-status="done" aria-pressed="false"><i class="dot s-ok"></i> Terminé</button>
+        <button class="fstatus" data-status="progress" aria-pressed="false"><i class="dot s-run"></i> En cours</button>
+        <button class="fstatus" data-status="planned" aria-pressed="false"><i class="dot s-plan"></i> Planifié</button>
+      </div>
+      <button class="fchip" id="toggleAll"><svg style="width:13px;height:13px"><use href="#i-expand"/></svg> Tout déplier</button>
+    </div>
+
+    <div class="filters rv" id="memberFilters"></div>
+    <div class="count-line rv"><span id="resultCount">8 modules affichés</span><span class="line"></span><button class="fchip" id="resetBtn"><svg style="width:12px;height:12px"><use href="#i-refresh"/></svg> Réinitialiser</button></div>
+    <div class="board view-grid" id="board"></div>
+  </div>
+</section>
+
+
+<!-- ===== RÔLES & RACI ===== -->
+<section class="sec" id="roles">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Gouvernance des rôles</div>
+        <h2 class="sec-title">Matrice <span class="grad-text">RACI</span> de l'équipe</h2>
+        <p class="sec-sub">Un pilote unique par module (A), des contributeurs identifiés sur les interfaces techniques (C), le reste de l'équipe informé aux jalons (I). Cette lecture croisée garantit qu'aucun module n'est orphelin et qu'aucune dépendance n'est implicite.</p>
+      </div>
+    </div>
+    <div class="flow-legend rv" id="raciLegend"></div>
+    <div class="glass table-wrap rv" id="raciWrap"></div>
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE / STACK ===== -->
+<section class="sec" id="architecture">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Stack technique</div>
+        <h2 class="sec-title">Socle technologique <span class="grad-text">par couche</span></h2>
+        <p class="sec-sub">Standardisation des outils sur l'ensemble du cycle de vie, du versioning de données jusqu'à l'observabilité en production.</p>
+      </div>
+    </div>
+    <div class="glass table-wrap rv">
+      <table class="stack-table">
+        <thead><tr><th>Couche</th><th>Technologies</th><th>Rôle dans le pipeline</th><th>Responsable</th></tr></thead>
+        <tbody id="stackBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PIPELINE / WORKFLOW ===== -->
+<section class="sec" id="pipeline">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Workflow MLOps</div>
+        <h2 class="sec-title">Du corpus juridique brut à la <span class="grad-text">réponse supervisée</span></h2>
+        <p class="sec-sub">Flux de bout en bout : chaque étape indique son propriétaire, ses outils et sa position dans la chaîne d'automatisation. La boucle de rétroaction referme le cycle vers la ré-indexation et le ré-entraînement.</p>
+      </div>
+    </div>
+    <div class="flow glass rv">
+      <div class="flow-legend">
+        <span class="chip"><i class="dot" style="color:var(--accent)"></i> Chaîne principale</span>
+        <span class="chip"><i class="dot" style="color:var(--accent-3)"></i> Boucle de rétroaction</span>
+        <span class="chip"><i class="dot" style="color:var(--accent-2)"></i> Couches transverses</span>
+      </div>
+      <div class="flow-grid" id="flowRow1"></div>
+      <div class="flow-arrows"><i></i><i></i><i></i><i></i></div>
+      <div class="flow-grid" id="flowRow2"></div>
+      <div class="feedback">
+        <svg><use href="#i-refresh"/></svg>
+        <b>Boucle de rétroaction continue</b>
+        <span class="arrow-back"></span>
+        <span>Feedback utilisateurs + alertes de dérive → re-labellisation → ré-indexation vectorielle → nouveau run d'entraînement → re-déploiement automatisé.</span>
+      </div>
+      <div class="lanes" id="lanes"></div>
+    </div>
+  </div>
+</section>
+<!-- ===== MÉTRIQUES ===== -->
+<section class="sec" id="metriques">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Tableau de bord projet</div>
+        <h2 class="sec-title">Métriques cibles &amp; <span class="grad-text">état du déploiement</span></h2>
+        <p class="sec-sub">Objectifs de qualité, de performance et de fiabilité définis avec les parties prenantes métier (cabinets partenaires) et suivis en continu via MLflow et Grafana.</p>
+      </div>
+      <span class="chip s-run"><i class="dot pulse"></i> Staging validé · Production planifiée</span>
+    </div>
+
+    <div class="metrics">
+      <!-- Gauge global -->
+      <div class="mcard glass rv" style="--c1:var(--accent);--c2:var(--accent-2)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-target"/></svg></span><div><h4>Avancement global</h4><p>Moyenne pondérée des 8 modules</p></div></div>
+        <div class="gauge">
+          <div class="gauge-c">
+            <svg viewBox="0 0 120 120">
+              <circle class="g-track" cx="60" cy="60" r="50"/>
+              <circle class="g-val" id="gaugeArc" cx="60" cy="60" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+            </svg>
+            <div class="gauge-num"><div><span id="gaugeVal">0%</span><span>Complété</span></div></div>
+          </div>
+          <div style="flex:1">
+            <div class="metric-row"><div class="metric-l">Modules terminés<small>Recette fonctionnelle signée</small></div><div class="metric-v s-ok" id="cDone">0</div></div>
+            <div class="metric-row"><div class="metric-l">Modules en cours<small>Sprint actif</small></div><div class="metric-v s-run" id="cRun">0</div></div>
+            <div class="metric-row"><div class="metric-l">Modules planifiés<small>Backlog priorisé</small></div><div class="metric-v s-plan" id="cPlan">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Qualité modèle -->
+      <div class="mcard glass rv" style="--c1:var(--accent-2);--c2:var(--accent-3)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-brain"/></svg></span><div><h4>Qualité du modèle</h4><p>Benchmark interne · 1 200 Q/R juridiques annotées</p></div></div>
+        <div class="mini-bars" id="qualityBars"></div>
+      </div>
+
+      <!-- Performance -->
+      <div class="mcard glass rv" style="--c1:var(--run);--c2:var(--accent)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-bolt"/></svg></span><div><h4>Performance &amp; SLO</h4><p>Cibles de service en production</p></div></div>
+        <div class="metric-row"><div class="metric-l">Latence P95 (réponse complète)<small>RAG + génération, streaming activé</small></div><div class="metric-v">&lt; 2.5<small>secondes</small></div></div>
+        <div class="metric-row"><div class="metric-l">Latence P50 recherche vectorielle<small>Top-k = 8, index HNSW</small></div><div class="metric-v">&lt; 120<small>ms</small></div></div>
+        <div class="metric-row"><div class="metric-l">Débit soutenu<small>Charge nominale multi-tenant</small></div><div class="metric-v">80<small>req/s</small></div></div>
+        <div class="metric-row"><div class="metric-l">Disponibilité mensuelle<small>SLO API publique</small></div><div class="metric-v s-ok">99.5<small>%</small></div></div>
+        <div class="metric-row"><div class="metric-l">Taux de cache (Redis)<small>Questions récurrentes</small></div><div class="metric-v">≥ 35<small>%</small></div></div>
+      </div>
+
+      <!-- Fiabilité / gouvernance -->
+      <div class="mcard glass rv" style="--c1:var(--ok);--c2:var(--accent-2)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-shield"/></svg></span><div><h4>Fiabilité &amp; conformité</h4><p>Garde-fous juridiques et RGPD</p></div></div>
+        <div class="metric-row"><div class="metric-l">Taux d'hallucination toléré<small>Réponse non sourcée détectée</small></div><div class="metric-v">&lt; 3<small>%</small></div></div>
+        <div class="metric-row"><div class="metric-l">Citations vérifiables<small>Chaque réponse référence ses sources</small></div><div class="metric-v s-ok">100<small>%</small></div></div>
+        <div class="metric-row"><div class="metric-l">Anonymisation PII<small>Rappel sur jeu de test annoté</small></div><div class="metric-v">≥ 98<small>% recall</small></div></div>
+        <div class="metric-row"><div class="metric-l">Couverture de tests<small>Unitaires + intégration CI</small></div><div class="metric-v">≥ 85<small>%</small></div></div>
+        <div class="metric-row"><div class="metric-l">Fenêtre de détection de dérive<small>Alerte Prometheus → Slack</small></div><div class="metric-v">&lt; 24<small>heures</small></div></div>
+      </div>
+
+      <!-- Volumétrie -->
+      <div class="mcard glass rv" style="--c1:var(--accent-3);--c2:var(--accent)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-db"/></svg></span><div><h4>Volumétrie du corpus</h4><p>Sources juridiques indexées</p></div></div>
+        <div class="metric-row"><div class="metric-l">Documents juridiques ingérés<small>Codes, jurisprudence, contrats types</small></div><div class="metric-v">42 800</div></div>
+        <div class="metric-row"><div class="metric-l">Chunks vectorisés<small>512 tokens · chevauchement 64</small></div><div class="metric-v">1.9<small>millions</small></div></div>
+        <div class="metric-row"><div class="metric-l">Dimension d'embedding<small>Modèle multilingue FR/AR</small></div><div class="metric-v">1024</div></div>
+        <div class="metric-row"><div class="metric-l">Versions de dataset (DVC)<small>Traçabilité complète</small></div><div class="metric-v">14</div></div>
+        <div class="metric-row"><div class="metric-l">Runs d'expérimentation MLflow<small>Fine-tuning + prompts</small></div><div class="metric-v">137</div></div>
+      </div>
+
+      <!-- Roadmap -->
+      <div class="mcard glass rv" style="--c1:var(--plan);--c2:var(--accent-2)">
+        <div class="mcard-h"><span class="mi"><svg><use href="#i-clock"/></svg></span><div><h4>Feuille de route</h4><p>Jalons de livraison</p></div></div>
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== LIVRABLES ===== -->
+<section class="sec" id="livrables">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Definition of Done</div>
+        <h2 class="sec-title">Livrables attendus <span class="grad-text">en fin de projet</span></h2>
+        <p class="sec-sub">Artefacts versionnés, reproductibles et documentés, condition de clôture du projet.</p>
+      </div>
+    </div>
+    <div class="deliv-grid rv" id="delivGrid"></div>
+  </div>
+</section>
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="shell">
+    <div class="foot">
+      <div>
+        <a class="brand" href="#top" style="margin-bottom:14px">
+          <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5a3.8 3.8 0 0 1-.6 8.5H7Z"/><path d="M9.5 13.5h5M12 11v5"/></svg></span>
+          <span class="brand-txt"><strong>CloudMind Group</strong><span>MLOps Engineering</span></span>
+        </a>
+        <p>Équipe pluridisciplinaire de 8 ingénieurs dédiée à l'industrialisation d'un assistant juridique augmenté par IA générative — de l'ingestion documentaire à la supervision en production.</p>
+      </div>
+      <div><h5>Équipe</h5><ul id="footTeam"></ul></div>
+      <div>
+        <h5>Navigation</h5>
+        <ul>
+          <li><a href="#equipe" style="text-decoration:none">Matrice des tâches</a></li>
+          <li><a href="#architecture" style="text-decoration:none">Stack technique</a></li>
+          <li><a href="#pipeline" style="text-decoration:none">Workflow MLOps</a></li>
+          <li><a href="#metriques" style="text-decoration:none">Métriques &amp; SLO</a></li>
+          <li><a href="#livrables" style="text-decoration:none">Livrables</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <span>© 2026 CloudMind Group — Assistant Juridique Intelligent · Document interne de pilotage</span>
+      <span class="mono">Build v1.4.0-rc · Dernière mise à jour : 03/08/2026</span>
+    </div>
+  </div>
+</footer>
+
+<button class="totop" id="totop" aria-label="Retour en haut"><svg><use href="#i-up"/></svg></button>
+
+<noscript>
+  <div style="max-width:900px;margin:24px auto;padding:18px 22px;border:1px solid var(--stroke);border-radius:16px;background:var(--surface);color:var(--txt-2)">
+    <b style="color:var(--txt)">JavaScript est désactivé.</b> La matrice des tâches, la matrice RACI et le workflow sont générés dynamiquement&nbsp;: activez JavaScript pour consulter la page complète.
+  </div>
+</noscript>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/render.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
