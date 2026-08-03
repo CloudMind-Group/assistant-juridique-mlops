@@ -3,37 +3,38 @@
 # Toute pull request touchant un chemin ci-dessous requiert la revue du ou des
 # propriétaires correspondants. La dernière règle qui correspond l'emporte.
 #
-# ⚠️  Remplacez les identifiants @prenom-nom par les vrais pseudos GitHub
-#     de l'équipe (docs/GITHUB.md, section « Comptes »).
+# Les identifiants ci-dessous sont les comptes GitHub réels de l'équipe
+# (voir docs/GITHUB.md, section « Comptes »). Un propriétaire n'est pris en
+# compte que s'il a accepté l'invitation et dispose d'un accès en écriture.
 # =============================================================================
 
 # Par défaut : revue par les mainteneurs du dépôt
-*                           @salma-elouarrate @youssefelalem
+*                           @salmaelouarrate @youssefelalem
 
 # --- Documentation projet ----------------------------------------------------
-/README.md                  @salma-elouarrate @taha-kachmar
-/docs/ARCHITECTURE.md       @imane-ibnchakroune @salma-elouarrate
-/docs/TEAM.md               @taha-kachmar
-/docs/GITHUB.md             @salma-elouarrate
+/README.md                  @salmaelouarrate @taha588
+/docs/ARCHITECTURE.md       @ima-cs @salmaelouarrate
+/docs/TEAM.md               @taha588
+/docs/GITHUB.md             @salmaelouarrate
 
 # --- Données du tableau de bord ----------------------------------------------
 # Chaque pilote valide les lignes de son module ; la revue est collective car
 # le fichier est unique.
-/assets/js/data.js          @douae-moussaoui @imane-ibnchakroune @amal-elguerdani @salma-elouarrate @nouhaila-fadli @oumaima-jeraidi @youssefelalem @taha-kachmar
+/assets/js/data.js          @DOUAEM449 @ima-cs @amal4567 @salmaelouarrate @nouhailafad @Oumaimajeraidi @youssefelalem @taha588
 
 # --- Couche de présentation --------------------------------------------------
-/assets/css/               @oumaima-jeraidi
-/assets/js/render.js       @oumaima-jeraidi
-/assets/js/app.js          @oumaima-jeraidi @youssefelalem
-/index.html                @oumaima-jeraidi
+/assets/css/               @Oumaimajeraidi
+/assets/js/render.js       @Oumaimajeraidi
+/assets/js/app.js          @Oumaimajeraidi @youssefelalem
+/index.html                @Oumaimajeraidi
 
 # --- Chaîne d'intégration et configuration -----------------------------------
-/.github/                  @salma-elouarrate
-/.github/workflows/        @salma-elouarrate
-/.editorconfig             @salma-elouarrate
-/.gitignore                @salma-elouarrate
-/.gitattributes            @salma-elouarrate
+/.github/                  @salmaelouarrate
+/.github/workflows/        @salmaelouarrate
+/.editorconfig             @salmaelouarrate
+/.gitignore                @salmaelouarrate
+/.gitattributes            @salmaelouarrate
 
 # --- Sécurité et conformité --------------------------------------------------
-/LICENSE                   @taha-kachmar
-/SECURITY.md               @taha-kachmar
+/LICENSE                   @taha588
+/SECURITY.md               @taha588

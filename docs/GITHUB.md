@@ -8,19 +8,19 @@ Les règles ci-dessous ne sont pas négociables sur `main` et `develop`.
 
 ## 1. Comptes de l'équipe
 
-> À compléter par chaque membre avant la fin de la semaine 1, puis à répercuter dans
-> [`.github/CODEOWNERS`](../.github/CODEOWNERS).
+Les huit comptes sont invités sur le dépôt et repris dans
+[`.github/CODEOWNERS`](../.github/CODEOWNERS).
 
-| Membre | Pseudo GitHub (à confirmer) | Module piloté | Rôle sur le dépôt |
+| Membre | Compte GitHub | Module piloté | Rôle sur le dépôt |
 |---|---|---|---|
-| Salma El Ouarrate | `@salma-elouarrate` | M4 — CI/CD & Infrastructure | **Admin** |
+| Salma El Ouarrate | `@salmaelouarrate` | M4 — CI/CD & Infrastructure | **Admin** |
 | Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | **Maintain** |
-| Taha Kachmar | `@taha-kachmar` | M8 — Security & Compliance | **Maintain** |
-| Douae Moussaoui | `@douae-moussaoui` | M1 — Data Pipeline | Write |
-| Imane Ibnchakroune | `@imane-ibnchakroune` | M2 — Model Engineering | Write |
-| Amal El Guerdani | `@amal-elguerdani` | M3 — Tracking & Registry | Write |
-| Nouhaila Fadli | `@nouhaila-fadli` | M5 — API & Serving | Write |
-| Oumaima Jeraidi | `@oumaima-jeraidi` | M6 — UI/UX & Frontend | Write |
+| Taha Kachmar | `@taha588` | M8 — Security & Compliance | **Maintain** |
+| Douae Moussaoui | `@DOUAEM449` | M1 — Data Pipeline | Write |
+| Imane Ibnchakroune | `@ima-cs` | M2 — Model Engineering | Write |
+| Amal El Guerdani | `@amal4567` | M3 — Tracking & Registry | Write |
+| Nouhaila Fadli | `@nouhailafad` | M5 — API & Serving | Write |
+| Oumaima Jeraidi | `@Oumaimajeraidi` | M6 — UI/UX & Frontend | Write |
 | Encadrant / référent métier | `@encadrant` | — | Read (+ Triage) |
 
 ## 2. Signification des rôles GitHub
