@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comment on travaille — CloudMind-Group</title>
+<style>
+:root{
+  --bg:#0b0f1a; --card:rgba(255,255,255,.045); --stroke:rgba(255,255,255,.10);
+  --txt:#eef2fb; --txt2:#a8b3cf; --txt3:#6f7c9b;
+  --a:#7c8cff; --b:#22d3ee; --c:#e879f9;
+  --ok:#34d399; --warn:#fbbf24; --bad:#f87171;
+  --mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:light){
+  :root{--bg:#f4f6fb;--card:rgba(255,255,255,.8);--stroke:rgba(15,23,42,.10);
+        --txt:#0b1220;--txt2:#475069;--txt3:#78829d;--a:#4f46e5;--b:#0891b2;--c:#c026d3;
+        --ok:#059669;--warn:#b45309;--bad:#dc2626;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.65;font-size:15px}
+body::before{content:'';position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(50vw 40vw at 10% -5%,rgba(99,102,241,.22),transparent 60%),
+             radial-gradient(45vw 38vw at 95% 5%,rgba(34,211,238,.16),transparent 60%);}
+.wrap{max-width:900px;margin:0 auto;padding:clamp(28px,5vw,64px) clamp(18px,4vw,32px) 80px}
+h1{font-size:clamp(28px,5vw,42px);letter-spacing:-.03em;margin:0 0 10px;line-height:1.1}
+h2{font-size:clamp(19px,3vw,24px);letter-spacing:-.02em;margin:52px 0 14px;display:flex;align-items:center;gap:11px}
+h2 .n{width:28px;height:28px;flex:none;border-radius:9px;display:grid;place-items:center;
+  font-family:var(--mono);font-size:13px;font-weight:700;color:#fff;background:linear-gradient(140deg,var(--a),var(--b))}
+h3{font-size:16px;margin:26px 0 8px}
+p{margin:0 0 12px;color:var(--txt2)}
+.grad{background:linear-gradient(100deg,var(--a),var(--b) 55%,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:16.5px;color:var(--txt2);max-width:62ch}
+.card{background:var(--card);border:1px solid var(--stroke);border-radius:18px;padding:20px 22px;margin:16px 0;backdrop-filter:blur(14px)}
+code{font-family:var(--mono);font-size:.87em;background:var(--card);border:1px solid var(--stroke);border-radius:6px;padding:1px 6px}
+pre{position:relative;margin:12px 0;background:var(--card);border:1px solid var(--stroke);border-radius:14px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.7}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+pre .cm{color:var(--txt3)}
+.copy{position:absolute;top:10px;right:10px;border:1px solid var(--stroke);background:var(--bg);color:var(--txt3);
+  border-radius:8px;padding:4px 10px;font-size:11px;font-family:var(--sans);cursor:pointer;opacity:0;transition:.2s}
+pre:hover .copy{opacity:1}
+.copy:hover{color:var(--txt)}
+.copy.ok{color:var(--ok);border-color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0}
+th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);
+   padding:0 10px 9px;border-bottom:1px solid var(--stroke)}
+td{padding:10px;border-bottom:1px solid var(--stroke);color:var(--txt2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--txt);font-weight:600;white-space:nowrap}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;
+  border:1px solid var(--stroke);color:var(--txt2)}
+.tag.a{color:var(--a);border-color:var(--a)} .tag.b{color:var(--b);border-color:var(--b)}
+.note{border-left:3px solid var(--b);padding:12px 16px;margin:16px 0;background:var(--card);border-radius:0 12px 12px 0;font-size:14px}
+.note.warn{border-left-color:var(--warn)}
+.note.bad{border-left-color:var(--bad)}
+.note b{color:var(--txt)}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps>li{counter-increment:s;position:relative;padding:0 0 4px 44px;margin-bottom:22px}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:29px;height:29px;border-radius:50%;
+  display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:700;
+  color:var(--txt);background:var(--card);border:1px solid var(--stroke)}
+.steps>li>b{display:block;font-size:15.5px;margin-bottom:4px}
+.flow{font-family:var(--mono);font-size:12.5px;line-height:1.9;white-space:pre;overflow-x:auto;color:var(--txt2)}
+.flow i{font-style:normal;color:var(--a)} .flow u{text-decoration:none;color:var(--b)}
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.team{background:var(--card);border:1px solid var(--stroke);border-radius:14px;padding:14px 16px}
+.team h4{margin:0 0 4px;font-family:var(--mono);font-size:13px;color:var(--b)}
+.team p{margin:0;font-size:12.5px}
+.team .who{margin-top:8px;font-size:12px;color:var(--txt3)}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--stroke);color:var(--txt3);font-size:13px}
+a{color:var(--b)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="tag b">CloudMind-Group · assistant-juridique-mlops</p>
+  <h1>Comment on travaille<br><span class="grad">sur ce dépôt</span></h1>
+  <p class="lead">Tout ce qu'il faut savoir pour contribuer sans casser le projet : la structure,
+  les branches, le cycle d'une pull request et la livraison hebdomadaire. Cinq minutes de lecture,
+  à faire une fois.</p>
+
+  <!-- ================= 1 ================= -->
+  <h2><span class="n">1</span> La structure</h2>
+  <p>Le dépôt appartient à l'<b>organisation</b> <code>CloudMind-Group</code>, pas à une personne.
+  Tes droits viennent de ton <b>équipe</b> — jamais d'un accès individuel.</p>
+
+  <div class="teams">
+    <div class="team"><h4>@CloudMind-Group/platform</h4><p>CI/CD, infrastructure, observabilité (M4 · M7)</p><p class="who">Salma · Youssef — <b>Admin</b></p></div>
+    <div class="team"><h4>@CloudMind-Group/data</h4><p>Données, RAG, expérimentation (M1 · M2 · M3)</p><p class="who">Douae · Imane · Amal — Write</p></div>
+    <div class="team"><h4>@CloudMind-Group/app</h4><p>API, serving, interface (M5 · M6)</p><p class="who">Nouhaila · Oumaima — Write</p></div>
+    <div class="team"><h4>@CloudMind-Group/security</h4><p>Sécurité, gouvernance, conformité (M8)</p><p class="who">Taha — Maintain</p></div>
+  </div>
+
+  <div class="note"><b>Conséquence pratique :</b> le fichier <code>CODEOWNERS</code> désigne des équipes.
+  Quand tu modifies un fichier, c'est l'équipe qui en est propriétaire qui doit relire ta pull request.</div>
+
+  <!-- ================= 2 ================= -->
+  <h2><span class="n">2</span> Les branches — GitFlow</h2>
+  <div class="card">
+    <div class="flow">main      ──●───────────────────●──────────▶   <i>production, taggée v0.2.0</i>
+             \                 /
+              \    <u>release/0.2.0</u>
+               \  /          \
+develop   ──●───●────●────────●──────────▶   <i>intégration — branche par défaut</i>
+             \      /
+              <u>feature/m1-ocr</u></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Branche</th><th>Part de</th><th>Retourne vers</th><th>Qui l'ouvre</th></tr></thead>
+    <tbody>
+      <tr><td>main</td><td>—</td><td>—</td><td>personne — protégée</td></tr>
+      <tr><td>develop</td><td>main</td><td>—</td><td>personne — protégée</td></tr>
+      <tr><td>feature/m&lt;n&gt;-sujet</td><td>develop</td><td>develop</td><td>toi, tous les jours</td></tr>
+      <tr><td>release/x.y.z</td><td>develop</td><td>main <b>et</b> develop</td><td>platform, chaque vendredi</td></tr>
+      <tr><td>hotfix/x.y.z</td><td>main</td><td>main <b>et</b> develop</td><td>platform, en urgence</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note bad"><b>Interdit :</b> pousser directement sur <code>main</code> ou <code>develop</code>.
+  Git refusera. Ce n'est pas une convention, c'est une règle appliquée par GitHub — pour tout le monde,
+  administrateurs compris.</div>
+
+  <!-- ================= 3 ================= -->
+  <h2><span class="n">3</span> Ta journée type</h2>
+  <ol class="steps">
+    <li><b>Pars toujours d'un develop à jour</b>
+      <pre><code>git checkout develop
+git pull</code></pre>
+    </li>
+    <li><b>Crée ta branche, préfixée par ton module</b>
+      <pre><code>git checkout -b feature/m2-reranking</code></pre>
+      <p><code>m1</code>…<code>m8</code> : ça rattache ta branche à ton module et à ton pilote.</p>
+    </li>
+    <li><b>Travaille et commite en petit</b>
+      <pre><code>git add -A
+git commit -m "feat(m2): ajoute le re-ranking par cross-encoder"</code></pre>
+      <p>Format : <code>type(module): description à l'infinitif</code>.<br>
+      Types : <code>feat</code> · <code>fix</code> · <code>docs</code> · <code>refactor</code> · <code>test</code> · <code>chore</code></p>
+    </li>
+    <li><b>Pousse et ouvre la pull request vers develop</b>
+      <pre><code>git push -u origin feature/m2-reranking
+gh pr create --base develop</code></pre>
+      <p>Ou depuis GitHub : le bouton « Compare &amp; pull request » apparaît tout seul.
+      Remplis le gabarit, il ne prend pas deux minutes.</p>
+    </li>
+    <li><b>Attends le feu vert, puis fusionne en squash</b>
+      <p>Deux conditions : la CI verte et une approbation de l'équipe propriétaire du fichier.
+      Ensuite, bouton <b>Squash and merge</b>, puis supprime la branche.</p>
+    </li>
+  </ol>
+
+  <!-- ================= 4 ================= -->
+  <h2><span class="n">4</span> Ce qui bloque une pull request</h2>
+  <table>
+    <thead><tr><th>Message</th><th>Ce que ça veut dire</th><th>Quoi faire</th></tr></thead>
+    <tbody>
+      <tr><td>Review required</td><td>Personne n'a encore approuvé</td><td>Demander à l'équipe propriétaire du fichier (voir <code>CODEOWNERS</code>)</td></tr>
+      <tr><td>Checks failed</td><td>La CI est rouge</td><td>Ouvrir l'onglet <b>Checks</b>, lire l'erreur, corriger, repousser</td></tr>
+      <tr><td>Conversation unresolved</td><td>Un commentaire de revue est ouvert</td><td>Répondre puis cliquer <b>Resolve conversation</b></td></tr>
+      <tr><td>Branch out of date</td><td>develop a bougé depuis</td><td><code>git pull origin develop</code> puis repousser</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>Tu ne peux pas approuver ta propre PR.</b> C'est voulu : le principe des quatre yeux.
+  Si tu es bloqué, ping le pilote concerné — il a 24 h pour relire.</div>
+
+  <!-- ================= 5 ================= -->
+  <h2><span class="n">5</span> La livraison du vendredi</h2>
+  <p>Chaque fin de semaine = une version. C'est l'équipe <code>platform</code> qui la pilote,
+  mais tout le monde doit comprendre le principe.</p>
+  <pre><code><span class="cm"># 1. on gèle ce qui est dans develop</span>
+git checkout develop &amp;&amp; git pull
+git checkout -b release/0.2.0
+git push -u origin release/0.2.0
+
+<span class="cm"># 2. plus AUCUNE nouveauté ici — uniquement des corrections de test</span>
+
+<span class="cm"># 3. on livre dans main, puis on pose l'étiquette</span>
+gh pr create --base main --title "release: 0.2.0"
+git checkout main &amp;&amp; git pull
+git tag -a v0.2.0 -m "Semaine 2 — RAG &amp; API v1"
+git push origin v0.2.0
+
+<span class="cm"># 4. on RAMÈNE les corrections dans develop</span>
+gh pr create --base develop --head release/0.2.0</code></pre>
+
+  <div class="note warn"><b>L'étape 4 est celle qu'on oublie.</b> Les corrections faites pendant le gel
+  n'existent que dans <code>release</code> et <code>main</code>. Sans ce retour, la semaine suivante
+  repart d'un <code>develop</code> qui contient encore le bug.</div>
+
+  <table>
+    <thead><tr><th>Semaine</th><th>Version</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td>v0.1.0</td><td>Cadrage, corpus initial, squelette CI, maquettes, règles RGPD</td></tr>
+      <tr><td>S2</td><td>v0.2.0</td><td>Index vectoriel, RAG v1, API et interface reliées</td></tr>
+      <tr><td>S3</td><td>v0.3.0</td><td>Évaluation RAGAS, citations, cache, premières métriques</td></tr>
+      <tr><td>S4</td><td>v1.0.0</td><td>Observabilité, sécurité, tests de charge, soutenance</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= 6 ================= -->
+  <h2><span class="n">6</span> Erreurs fréquentes</h2>
+  <table>
+    <thead><tr><th>Symptôme</th><th>Cause</th><th>Remède</th></tr></thead>
+    <tbody>
+      <tr><td>push rejeté</td><td>tu es sur <code>develop</code> ou <code>main</code></td><td><code>git checkout -b feature/…</code> puis repousser</td></tr>
+      <tr><td>conflits à la PR</td><td>branche trop vieille</td><td>rebrancher souvent : une PR = quelques jours max</td></tr>
+      <tr><td>PR énorme</td><td>trop de sujets mélangés</td><td>viser moins de 400 lignes, découper</td></tr>
+      <tr><td>CI rouge sur data.js</td><td>incohérence du modèle</td><td><code>node .github/scripts/check-data.mjs</code> en local avant de pousser</td></tr>
+      <tr><td>« Unknown owner »</td><td>quelqu'un n'a pas accepté l'invitation</td><td>accepter l'invitation de l'organisation</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ================= 7 ================= -->
+  <h2><span class="n">7</span> Aide-mémoire</h2>
+  <pre><code><span class="cm"># où j'en suis</span>
+git status ; git branch
+
+<span class="cm"># repartir proprement de develop</span>
+git checkout develop &amp;&amp; git pull &amp;&amp; git checkout -b feature/mX-sujet
+
+<span class="cm"># mettre ma branche à jour si develop a bougé</span>
+git pull origin develop
+
+<span class="cm"># vérifier le tableau de bord avant de pousser</span>
+node .github/scripts/check-data.mjs
+
+<span class="cm"># voir mes PR et leur état</span>
+gh pr status</code></pre>
+
+  <footer>
+    Références complètes : <a href="GITHUB.md">docs/GITHUB.md</a> (gouvernance) ·
+    <a href="ARCHITECTURE.md">docs/ARCHITECTURE.md</a> (pipeline MLOps) ·
+    <a href="TEAM.md">docs/TEAM.md</a> (rôles et RACI).<br>
+    En cas de doute sur un fichier : regarde <a href="../.github/CODEOWNERS">.github/CODEOWNERS</a>, il dit qui doit relire.
+  </footer>
+</div>
+
+<script>
+document.querySelectorAll('pre').forEach(pre => {
+  const b = document.createElement('button');
+  b.className = 'copy'; b.textContent = 'copier';
+  b.onclick = () => navigator.clipboard.writeText(pre.querySelector('code').innerText)
+    .then(() => { b.textContent = 'copié'; b.classList.add('ok');
+                  setTimeout(() => { b.textContent = 'copier'; b.classList.remove('ok'); }, 1400); });
+  pre.appendChild(b);
+});
+</script>
+</body>
+</html>
