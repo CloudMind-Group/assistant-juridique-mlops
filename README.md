@@ -59,6 +59,7 @@ Aucune installation, aucun gestionnaire de paquets, aucune compilation.
 ```bash
 git clone <url-du-depot>
 cd assistant-juridique-mlops
+git checkout develop   # branche de travail par defaut
 ```
 
 **Option 1 — ouverture directe :** double-cliquez sur `index.html`.
@@ -181,7 +182,9 @@ La matrice RACI et le bloc « rôle transverse » de chaque carte se régénère
 
 ## Conventions de contribution
 
-- **Branches :** `feat/<module>-<sujet>`, `fix/<sujet>`, `docs/<sujet>` — par exemple `feat/m7-drift-dashboard`.
+- **Modèle de branches : GitFlow.** `main` (production, taggée) et `develop` (intégration, branche par défaut)
+  sont permanentes ; `feature/<module>-<sujet>`, `release/<version>` et `hotfix/<version>` sont temporaires.
+  Exemple : `feature/m7-drift-dashboard`, ouverte depuis `develop`.
 - **Commits :** [Conventional Commits](https://www.conventionalcommits.org/fr/) — `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `chore:`.
 - **Revue :** toute modification de `data.js` touchant un module doit être validée par son pilote (colonne A de la matrice RACI).
 - **Style :** 2 espaces d'indentation, UTF-8, fins de ligne LF — appliqués par `.editorconfig`.
