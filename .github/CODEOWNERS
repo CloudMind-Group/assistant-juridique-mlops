@@ -8,7 +8,7 @@
 # =============================================================================
 
 # Par défaut : revue par les mainteneurs du dépôt
-*                           @salma-elouarrate @youssef-elalem
+*                           @salma-elouarrate @youssefelalem
 
 # --- Documentation projet ----------------------------------------------------
 /README.md                  @salma-elouarrate @taha-kachmar
@@ -19,12 +19,12 @@
 # --- Données du tableau de bord ----------------------------------------------
 # Chaque pilote valide les lignes de son module ; la revue est collective car
 # le fichier est unique.
-/assets/js/data.js          @douae-moussaoui @imane-ibnchakroune @amal-elguerdani @salma-elouarrate @nouhaila-fadli @oumaima-jeraidi @youssef-elalem @taha-kachmar
+/assets/js/data.js          @douae-moussaoui @imane-ibnchakroune @amal-elguerdani @salma-elouarrate @nouhaila-fadli @oumaima-jeraidi @youssefelalem @taha-kachmar
 
 # --- Couche de présentation --------------------------------------------------
 /assets/css/               @oumaima-jeraidi
 /assets/js/render.js       @oumaima-jeraidi
-/assets/js/app.js          @oumaima-jeraidi @youssef-elalem
+/assets/js/app.js          @oumaima-jeraidi @youssefelalem
 /index.html                @oumaima-jeraidi
 
 # --- Chaîne d'intégration et configuration -----------------------------------

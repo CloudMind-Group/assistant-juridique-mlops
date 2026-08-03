@@ -14,7 +14,7 @@ mais non négociables sur la branche `main`.
 | Membre | Pseudo GitHub (à confirmer) | Module piloté | Rôle sur le dépôt |
 |---|---|---|---|
 | Salma El Ouarrate | `@salma-elouarrate` | M4 — CI/CD & Infrastructure | **Admin** |
-| Youssef El Alem | `@youssef-elalem` | M7 — Monitoring & Observability | **Maintain** |
+| Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | **Maintain** |
 | Taha Kachmar | `@taha-kachmar` | M8 — Security & Compliance | **Maintain** |
 | Douae Moussaoui | `@douae-moussaoui` | M1 — Data Pipeline | Write |
 | Imane Ibnchakroune | `@imane-ibnchakroune` | M2 — Model Engineering | Write |
@@ -52,6 +52,32 @@ mais non négociables sur la branche `main`.
 
 Dans `Settings → General → Pull Requests` : ne laisser que **Squash merging**,
 et cocher *Automatically delete head branches*.
+
+### État actuel
+
+Le ruleset **« Protection de main »** est **déjà actif** sur le dépôt
+(`Settings → Rules → Rulesets`). Il applique les cinq règles suivantes :
+
+| Règle | Effet |
+|---|---|
+| `pull_request` | 1 approbation, revue des Code Owners, résolution des conversations, squash uniquement |
+| `required_status_checks` | le job `Validation du site statique` doit être vert, branche à jour |
+| `required_linear_history` | pas de commit de fusion |
+| `non_fast_forward` | force push interdit |
+| `deletion` | suppression de `main` interdite |
+
+> ⚠️ **Dérogation temporaire :** le rôle *Repository admin* dispose actuellement d'un
+> bypass (`bypass_mode: always`). Sans lui, le dépôt serait bloqué tant qu'un seul
+> compte y a accès : personne ne peut approuver sa propre PR.
+> **À supprimer dès que les huit membres sont ajoutés comme collaborateurs**
+> (`Settings → Rules → Rulesets → Protection de main → Bypass list`).
+
+### Rappel CODEOWNERS
+
+Tant que les pseudos `@prenom-nom` ne correspondent pas à des comptes réels **ayant
+accès en écriture au dépôt**, GitHub signale une erreur par ligne et la revue des
+Code Owners ne peut pas être satisfaite. Vérifiez l'état sur
+`https://github.com/<owner>/<repo>/codeowners/errors` après avoir invité l'équipe.
 
 ## 4. Convention de branches
 
