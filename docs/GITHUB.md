@@ -8,33 +8,59 @@ Les règles ci-dessous ne sont pas négociables sur `main` et `develop`.
 
 ## 1. Comptes de l'équipe
 
-> À compléter par chaque membre avant la fin de la semaine 1, puis à répercuter dans
-> [`.github/CODEOWNERS`](../.github/CODEOWNERS).
+Le dépôt appartient à l'organisation **[CloudMind-Group](https://github.com/CloudMind-Group)**.
+Les huit membres y sont invités et rattachés à une équipe : les droits découlent de
+l'équipe, jamais d'un accès individuel.
 
-| Membre | Pseudo GitHub (à confirmer) | Module piloté | Rôle sur le dépôt |
+| Membre | Compte GitHub | Module piloté | Équipe |
 |---|---|---|---|
-| Salma El Ouarrate | `@salma-elouarrate` | M4 — CI/CD & Infrastructure | **Admin** |
-| Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | **Maintain** |
-| Taha Kachmar | `@taha-kachmar` | M8 — Security & Compliance | **Maintain** |
-| Douae Moussaoui | `@douae-moussaoui` | M1 — Data Pipeline | Write |
-| Imane Ibnchakroune | `@imane-ibnchakroune` | M2 — Model Engineering | Write |
-| Amal El Guerdani | `@amal-elguerdani` | M3 — Tracking & Registry | Write |
-| Nouhaila Fadli | `@nouhaila-fadli` | M5 — API & Serving | Write |
-| Oumaima Jeraidi | `@oumaima-jeraidi` | M6 — UI/UX & Frontend | Write |
-| Encadrant / référent métier | `@encadrant` | — | Read (+ Triage) |
+| Salma El Ouarrate | `@salmaelouarrate` | M4 — CI/CD & Infrastructure | `platform` |
+| Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | `platform` |
+| Douae Moussaoui | `@DOUAEM449` | M1 — Data Pipeline | `data` |
+| Imane Ibnchakroune | `@ima-cs` | M2 — Model Engineering | `data` |
+| Amal El Guerdani | `@amal4567` | M3 — Tracking & Registry | `data` |
+| Nouhaila Fadli | `@nouhailafad` | M5 — API & Serving | `app` |
+| Oumaima Jeraidi | `@Oumaimajeraidi` | M6 — UI/UX & Frontend | `app` |
+| Taha Kachmar | `@taha588` | M8 — Security & Compliance | `security` |
+
+## 1 bis. Équipes de l'organisation
+
+Quatre équipes portent les droits. C'est le seul endroit à modifier quand quelqu'un
+rejoint ou quitte le projet : [`CODEOWNERS`](../.github/CODEOWNERS) référence les
+équipes, jamais les personnes.
+
+| Équipe | Périmètre | Membres | Droit sur le dépôt |
+|---|---|---|---|
+| `@CloudMind-Group/platform` | M4 + M7 — CI/CD, infrastructure, observabilité | salmaelouarrate *(mainteneuse)*, youssefelalem *(mainteneur)* | **Admin** |
+| `@CloudMind-Group/data` | M1 + M2 + M3 — données, RAG, expérimentation | DOUAEM449, ima-cs, amal4567 | Write |
+| `@CloudMind-Group/app` | M5 + M6 — API, serving, interface | nouhailafad, Oumaimajeraidi | Write |
+| `@CloudMind-Group/security` | M8 — sécurité, gouvernance, conformité | taha588 *(mainteneur)* | Maintain |
+
+**Ajouter un membre :**
+
+```bash
+gh api -X PUT orgs/CloudMind-Group/teams/<equipe>/memberships/<pseudo> -f role=member
+```
+
+**Retirer un membre :** le sortir de l'équipe suffit — aucun fichier à modifier.
+
+> Les accès individuels hérités du transfert (`DOUAEM449`, `ima-cs` en collaborateurs
+> directs) deviennent redondants une fois les invitations d'organisation acceptées :
+> les retirer alors depuis `Settings → Collaborators`, afin que l'appartenance à une
+> équipe reste l'unique source de droits.
 
 ## 2. Signification des rôles GitHub
 
 | Rôle | Ce qu'il permet | Attribué à | Pourquoi |
 |---|---|---|---|
-| **Admin** | Tout, y compris les réglages du dépôt, les règles de protection, les secrets et la suppression | Salma (M4) | Elle pilote la CI/CD et l'infrastructure : un seul point de responsabilité sur les réglages |
-| **Maintain** | Gérer les issues, les PR, les milestones, les paramètres non destructifs — sans accès aux secrets ni suppression | Youssef (M7), Taha (M8) | Supervision et sécurité : ils arbitrent les fusions quand Salma est indisponible |
-| **Write** | Pousser des branches, ouvrir et réviser des PR, gérer les issues | Les 5 autres pilotes | Suffisant pour contribuer ; empêche toute modification des règles |
-| **Triage** | Trier les issues et PR sans droit d'écriture sur le code | Encadrant | Suivi pédagogique sans risque |
+| **Admin** | Tout, y compris les réglages du dépôt, les règles de protection, les secrets et la suppression | équipe `platform` | Elle pilote la CI/CD et l'infrastructure : un seul point de responsabilité sur les réglages |
+| **Maintain** | Gérer les issues, les PR, les milestones, les paramètres non destructifs — sans accès aux secrets ni suppression | équipe `security` | Supervision et sécurité : ils arbitrent les fusions quand Salma est indisponible |
+| **Write** | Pousser des branches, ouvrir et réviser des PR, gérer les issues | équipes `data` et `app` | Suffisant pour contribuer ; empêche toute modification des règles |
+| **Triage** | Trier les issues et PR sans droit d'écriture sur le code | encadrant, à inviter en `outside collaborator` | Suivi pédagogique sans risque |
 | **Read** | Lecture, clone, discussions | Observateurs | — |
 
-> **Règle des deux administrateurs :** en cas d'absence de Salma, Youssef est promu Admin
-> temporairement. Ne jamais laisser le dépôt avec un seul administrateur joignable.
+> **Règle des deux administrateurs :** l'équipe `platform` compte deux mainteneurs
+> (Salma et Youssef). Ne jamais laisser l'organisation avec un seul propriétaire joignable.
 
 ## 3. Protection des branches
 
@@ -80,10 +106,10 @@ branches `feature/*`. Elle doit rester en état de fonctionner en permanence.
 
 ### Rappel CODEOWNERS
 
-Tant que les pseudos `@prenom-nom` ne correspondent pas à des comptes réels **ayant
-accès en écriture au dépôt**, GitHub signale une erreur par ligne et la revue des
-Code Owners ne peut pas être satisfaite. Vérifiez l'état sur
-`https://github.com/<owner>/<repo>/codeowners/errors` après avoir invité l'équipe.
+`CODEOWNERS` ne référence que des équipes de l'organisation, toutes dotées d'un accès
+en écriture : la revue des Code Owners est donc satisfaite dès qu'un membre de l'équipe
+concernée approuve. État des lieux à tout moment sur
+[`/codeowners/errors`](https://github.com/CloudMind-Group/assistant-juridique-mlops/codeowners/errors).
 
 ## 4. Modèle de branches — GitFlow
 
