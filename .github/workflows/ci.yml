@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Principe de moindre privilège : le job ne fait que lire le dépôt.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validation du site statique
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntaxe JavaScript
+        run: |
+          for f in assets/js/*.js; do
+            echo "→ $f"
+            node --check "$f"
+          done
+
+      - name: Cohérence du modèle de données
+        run: node .github/scripts/check-data.mjs
+
+      - name: Présence des fichiers requis
+        run: |
+          set -e
+          for f in index.html README.md LICENSE \
+                   assets/css/tokens.css assets/css/base.css \
+                   assets/css/components.css assets/css/sections.css \
+                   assets/js/data.js assets/js/render.js assets/js/app.js \
+                   docs/ARCHITECTURE.md docs/TEAM.md docs/GITHUB.md; do
+            test -f "$f" || { echo "::error::fichier manquant : $f"; exit 1; }
+          done
+
+      - name: Références locales résolues
+        run: |
+          set -e
+          grep -oE '(href|src)="(assets|docs)/[^"]+"' index.html \
+            | sed -E 's/.*="([^"]+)"/\1/' | sort -u | while read -r ref; do
+              test -f "$ref" || { echo "::error::référence cassée dans index.html : $ref"; exit 1; }
+              echo "ok → $ref"
+            done
+
+      - name: Aucun secret ni donnée sensible
+        run: |
+          if grep -rInE '(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}' \
+               --include='*.js' --include='*.html' --include='*.css' . ; then
+            echo "::error::valeur sensible potentielle détectée"
+            exit 1
+          fi
+          echo "aucune valeur sensible détectée"

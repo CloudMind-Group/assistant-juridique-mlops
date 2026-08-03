@@ -43,6 +43,7 @@ const CM = (() => {
         </span>
         <span style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none">
           <span class="status-pill ${st.pill}"><i class="dot${m.status === 'progress' ? ' pulse' : ''}"></i>${st.label}</span>
+          <span class="week-chip" title="Fenêtre d'intervention sur le planning d'un mois">${icon('i-clock', 'width:11px;height:11px')} ${esc(m.week)}</span>
           <span class="card-chev">${icon('i-chev')}</span>
         </span>
       </button>

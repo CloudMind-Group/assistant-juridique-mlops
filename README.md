@@ -3,10 +3,11 @@
 > Tableau de bord de pilotage de **CloudMind Group** : répartition des rôles, architecture MLOps
 > de bout en bout, matrice RACI et métriques cibles du projet d'assistant juridique augmenté par IA générative.
 
-![statut](https://img.shields.io/badge/sprint-3%20·%20actif-22d3ee)
+![statut](https://img.shields.io/badge/semaine-1%20%2F%204-fbbf24)
 ![modules](https://img.shields.io/badge/modules-8-6366f1)
 ![équipe](https://img.shields.io/badge/ingénieurs-8-e879f9)
 ![dépendances](https://img.shields.io/badge/dépendances-0-34d399)
+![délai](https://img.shields.io/badge/délai-1%20mois-e879f9)
 
 ---
 
@@ -20,6 +21,7 @@
 - [Stack technique du projet](#stack-technique-du-projet)
 - [Modifier le contenu](#modifier-le-contenu)
 - [Conventions de contribution](#conventions-de-contribution)
+- [Planning](#planning)
 - [Documentation](#documentation)
 
 ---
@@ -38,7 +40,7 @@ ingénieurs de l'équipe, le flux de données MLOps et les objectifs mesurables.
 
 | Section | Contenu |
 |---|---|
-| **En-tête** | Identité de l'équipe, statut du sprint, indicateurs calculés dynamiquement |
+| **En-tête** | Identité de l'équipe, semaine en cours, indicateurs calculés dynamiquement |
 | **Matrice des tâches** | 8 cartes membre : module piloté, sous-tâches, outils, contributions transverses, livrables |
 | **Matrice RACI** | Croisement membres × modules — un pilote unique (A), des contributeurs identifiés (C) |
 | **Stack technique** | Technologies par couche avec responsable désigné |
@@ -87,8 +89,15 @@ python -m http.server 8000
 │       ├── data.js            # Source de vérité : membres, modules, RACI, métriques
 │       ├── render.js          # Fonctions pures données -> HTML (aucun effet de bord)
 │       └── app.js             # État, filtrage, événements, animations
+├── .github/
+│   ├── CODEOWNERS             # Propriétaires de code -> revue obligatoire par module
+│   ├── pull_request_template.md
+│   ├── ISSUE_TEMPLATE/        # Gabarits « tâche de module » et « anomalie »
+│   ├── scripts/check-data.mjs # Validation des invariants du modèle de données
+│   └── workflows/ci.yml       # CI : syntaxe, cohérence des données, liens, secrets
 ├── docs/
 │   ├── ARCHITECTURE.md        # Architecture MLOps détaillée, flux et décisions
+│   ├── GITHUB.md              # Rôles GitHub, protection de branche, workflow de PR
 │   └── TEAM.md                # Rôles, périmètres et matrice RACI complète
 ├── .editorconfig
 ├── .gitignore
@@ -102,19 +111,34 @@ du projet ne demande donc de toucher **qu'un seul fichier**.
 
 ## Équipe et modules
 
-| Module | Périmètre | Pilote (A) | Statut |
-|---|---|---|---|
-| **M1** | Data Pipeline & Preprocessing | Douae Moussaoui | Terminé — 100 % |
-| **M2** | Model Engineering & Fine-Tuning | Imane Ibnchakroune | En cours — 78 % |
-| **M3** | Experiment Tracking & Model Registry | Amal El Guerdani | En cours — 72 % |
-| **M4** | CI/CD & Infrastructure | Salma El Ouarrate | En cours — 65 % |
-| **M5** | API & Serving Layer | Nouhaila Fadli | En cours — 70 % |
-| **M6** | UI/UX & Frontend Integration | Oumaima Jeraidi | En cours — 58 % |
-| **M7** | Model Monitoring & Observability | Youssef El Alem | Planifié — 34 % |
-| **M8** | Security, Governance & Compliance | Taha Kachmar | Planifié — 30 % |
+| Module | Périmètre | Pilote (A) | Fenêtre | Statut |
+|---|---|---|---|---|
+| **M1** | Data Pipeline & Preprocessing | Douae Moussaoui | S1 → S2 | En cours |
+| **M2** | Model Engineering & Fine-Tuning | Imane Ibnchakroune | S1 → S3 | Planifié |
+| **M3** | Experiment Tracking & Model Registry | Amal El Guerdani | S2 → S4 | Planifié |
+| **M4** | CI/CD & Infrastructure | Salma El Ouarrate | S1 → S4 | En cours |
+| **M5** | API & Serving Layer | Nouhaila Fadli | S2 → S3 | Planifié |
+| **M6** | UI/UX & Frontend Integration | Oumaima Jeraidi | S1 → S4 | En cours |
+| **M7** | Model Monitoring & Observability | Youssef El Alem | S3 → S4 | Planifié |
+| **M8** | Security, Governance & Compliance | Taha Kachmar | S1 → S4 | En cours |
 
 Chaque membre pilote un module **et** contribue à trois ou quatre modules adjacents.
 Le détail des interfaces figure dans [`docs/TEAM.md`](docs/TEAM.md).
+
+## Planning
+
+Le projet est contraint à **un mois**. Les huit modules avancent en parallèle,
+avec un jalon ferme en fin de chaque semaine.
+
+| Semaine | Jalon | Modules actifs |
+|---|---|---|
+| **S1** | Cadrage, corpus initial, squelette CI/Docker, maquettes, règles RGPD | M1 · M2 · M4 · M6 · M8 |
+| **S2** | Index vectoriel, RAG v1 tracée dans MLflow, API et interface reliées | M1 · M2 · M3 · M4 · M5 · M6 · M8 |
+| **S3** | Évaluation RAGAS, citations, cache et streaming, premières métriques | M2 · M3 · M4 · M5 · M6 · M7 · M8 |
+| **S4** | Observabilité, sécurité, tests de charge, déploiement, soutenance | M3 · M4 · M6 · M7 · M8 |
+
+**Chemin critique :** `M1 (corpus) → M2 (index + RAG) → M5 (API) → M6 (interface)`.
+M1 livre un corpus réduit mais complet dès **J+4** pour débloquer M2.
 
 ## Stack technique du projet
 
@@ -163,10 +187,14 @@ La matrice RACI et le bloc « rôle transverse » de chaque carte se régénère
 - **Style :** 2 espaces d'indentation, UTF-8, fins de ligne LF — appliqués par `.editorconfig`.
 - **Zéro dépendance :** aucune bibliothèque externe ni étape de build ne doit être introduite sans décision d'équipe.
 
+Les règles complètes (rôles GitHub, protection de `main`, gabarits, étiquettes, milestones)
+sont dans [`docs/GITHUB.md`](docs/GITHUB.md).
+
 ## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture MLOps, flux de données, décisions techniques.
 - [`docs/TEAM.md`](docs/TEAM.md) — rôles détaillés, matrice RACI et interfaces entre modules.
+- [`docs/GITHUB.md`](docs/GITHUB.md) — rôles et permissions GitHub, protection de `main`, cycle de vie d'une pull request.
 
 ---
 

@@ -232,3 +232,11 @@ html[data-theme="light"] .i-sun{display:none} html[data-theme="light"] .i-moon{d
 .totop.on{opacity:1;pointer-events:auto;transform:none}
 .totop:hover{color:var(--txt);transform:translateY(-2px)}
 .totop svg{width:18px;height:18px}
+
+/* ============================ FENÊTRE PLANNING ============================ */
+.week-chip{
+  display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:var(--r-full);
+  border:1px solid var(--stroke);background:var(--surface-2);
+  font-family:var(--font-mono);font-size:10px;font-weight:600;color:var(--txt-3);white-space:nowrap;
+}
+.week-chip svg{color:var(--c1)}

@@ -1,6 +1,8 @@
 # Équipe, rôles et matrice RACI
 
-CloudMind Group — 8 ingénieurs, 8 modules MLOps.
+CloudMind Group — 8 ingénieurs, 8 modules MLOps, **un mois de réalisation**.
+
+Pour les rôles et permissions sur le dépôt GitHub, voir [GITHUB.md](GITHUB.md).
 
 ---
 
@@ -143,7 +145,7 @@ intègre les scans dans la CI de M4 · audite les journaux de M7.
 | Rituel | Fréquence | Participants |
 |---|---|---|
 | Point d'avancement | quotidien, 15 min | toute l'équipe |
-| Revue de sprint | bimensuelle | toute l'équipe + référent métier |
+| Revue hebdomadaire de jalon | fin de chaque semaine (S1 à S4) | toute l'équipe + référent métier |
 | Revue d'architecture | par jalon | pilotes concernés (A) et contributeurs (C) |
 | Comité de promotion de modèle | à la demande | M2, M3, M4, M8 |
 | Revue de sécurité | mensuelle | M8 + pilotes concernés |

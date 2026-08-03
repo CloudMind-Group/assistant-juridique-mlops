@@ -149,10 +149,20 @@ Fenêtre cible entre la détection d'une dérive et le déploiement correctif : 
 
 ## 7. Feuille de route
 
-| Sprint | Périmètre | État |
-|---|---|---|
-| S1 | Cadrage & fondations de données | Terminé |
-| S2 | Socle RAG & expérimentation | Terminé |
-| S3 | Industrialisation, serving & interface | En cours |
-| S4 | Observabilité & durcissement sécurité | Planifié |
-| S5 | Mise en production & transfert | Planifié |
+**Contrainte : le projet doit être livré en un mois.** Les huit modules avancent donc en
+parallèle, avec des jalons hebdomadaires fermes.
+
+| Semaine | Périmètre | Modules actifs | État |
+|---|---|---|---|
+| **S1** | Cadrage, corpus initial, squelette CI/Docker, maquettes, règles RGPD | M1 · M2 · M4 · M6 · M8 | En cours |
+| **S2** | Index vectoriel, RAG v1 tracée dans MLflow, API et interface reliées | M1 · M2 · M3 · M4 · M5 · M6 · M8 | Planifié |
+| **S3** | Évaluation RAGAS, citations, cache et streaming, premières métriques | M2 · M3 · M4 · M5 · M6 · M7 · M8 | Planifié |
+| **S4** | Observabilité, sécurité, tests de charge, déploiement, soutenance | M3 · M4 · M6 · M7 · M8 | Planifié |
+
+### Chemin critique
+
+`M1 (corpus) → M2 (index + RAG) → M5 (API) → M6 (interface)`
+
+Tout retard sur M1 en semaine 1 décale mécaniquement la démonstration de bout en bout.
+M1 livre donc un **corpus réduit mais complet** dès J+4 pour débloquer M2, puis enrichit
+le volume en semaine 2.

@@ -12,16 +12,16 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:14,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Connecteurs d\'ingestion multi-sources (Légifrance, portails officiels, dépôts PDF/DOCX internes)',1],
-      ['Pipeline OCR pour documents scannés + correction orthographique juridique (Tesseract / PaddleOCR)',1],
-      ['Nettoyage et normalisation : suppression d\'en-têtes, dé-duplication, segmentation par articles et alinéas',1],
-      ['Stratégie de chunking sémantique (512 tokens, chevauchement 64) préservant la structure légale',1],
-      ['Génération des embeddings multilingues FR/AR et export vers le magasin vectoriel',1],
-      ['Versioning des datasets avec DVC + stockage distant S3/MinIO et Data Cards documentées',1],
-      ['Tests de qualité de données automatisés (Great Expectations) branchés sur la CI',1]
+      ['Pipeline OCR pour documents scannés + correction orthographique juridique (Tesseract / PaddleOCR)',0],
+      ['Nettoyage et normalisation : suppression d\'en-têtes, dé-duplication, segmentation par articles et alinéas',0],
+      ['Stratégie de chunking sémantique (512 tokens, chevauchement 64) préservant la structure légale',0],
+      ['Génération des embeddings multilingues FR/AR et export vers le magasin vectoriel',0],
+      ['Versioning des datasets avec DVC + stockage distant S3/MinIO et Data Cards documentées',0],
+      ['Tests de qualité de données automatisés (Great Expectations) branchés sur la CI',0]
     ],
     tools:['Python','Apache Airflow','DVC','Pandas','Tesseract OCR','LangChain Splitters','Great Expectations','MinIO / S3'],
     collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD). Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
@@ -30,13 +30,13 @@ const MEMBERS = [
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
     module:'Module 2 · Model Engineering & Fine-Tuning', icon:'i-brain',
-    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:78,
+    c1:'#22d3ee', c2:'#818cf8', status:'planned', progress:0,
     desc:"Conception de l'architecture RAG, indexation vectorielle, ingénierie de prompts et fine-tuning léger du LLM sur le domaine juridique.",
     subs:[
-      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',1],
-      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',1],
-      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',1],
-      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',1],
+      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',0],
+      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',0],
+      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',0],
+      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',0],
       ['Fine-tuning paramétrique efficace (LoRA / QLoRA) sur corpus annoté questions-réponses',0],
       ['Compression du contexte et stratégie anti-hallucination (grounding strict sur sources)',0],
       ['Optimisation d\'inférence : quantification, batching et streaming des jetons',0]
@@ -48,13 +48,13 @@ const MEMBERS = [
   {
     id:'M3', name:'Amal El Guerdani', role:'MLOps Engineer — Lead Expérimentation',
     module:'Module 3 · Experiment Tracking & Model Registry', icon:'i-flask',
-    c1:'#a78bfa', c2:'#22d3ee', status:'progress', progress:72,
+    c1:'#a78bfa', c2:'#22d3ee', status:'planned', progress:0,
     desc:"Traçabilité complète des expérimentations, registre de modèles gouverné et cadre d'évaluation reproductible des réponses juridiques.",
     subs:[
-      ['Déploiement du serveur MLflow (backend PostgreSQL + artefacts S3) pour toute l\'équipe',1],
-      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',1],
-      ['Model Registry avec cycle de promotion Staging → Production et validation à deux approbations',1],
-      ['Suite d\'évaluation RAG : fidélité, pertinence du contexte, exactitude des citations (RAGAS)',1],
+      ['Déploiement du serveur MLflow (backend PostgreSQL + artefacts S3) pour toute l\'équipe',0],
+      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',0],
+      ['Model Registry avec cycle de promotion Staging → Production et validation à deux approbations',0],
+      ['Suite d\'évaluation RAG : fidélité, pertinence du contexte, exactitude des citations (RAGAS)',0],
       ['Benchmark « LLM-as-a-judge » sur 1 200 questions juridiques annotées par des experts',0],
       ['Comparaison automatisée des expérimentations et rapports de régression par pull request',0],
       ['Model Cards documentant limites, biais et périmètre d\'usage de chaque version',0]
@@ -66,12 +66,12 @@ const MEMBERS = [
   {
     id:'M4', name:'Salma El Ouarrate', role:'DevOps / Platform Engineer — Lead CI/CD',
     module:'Module 4 · CI/CD & Infrastructure', icon:'i-git',
-    c1:'#34d399', c2:'#22d3ee', status:'progress', progress:65,
+    c1:'#34d399', c2:'#22d3ee', status:'progress', progress:14,
     desc:"Industrialisation : conteneurisation, intégration et déploiement continus, orchestration et infrastructure reproductible.",
     subs:[
       ['Images Docker multi-stage optimisées pour l\'API, les workers et l\'interface',1],
-      ['Pipelines GitHub Actions : lint, tests, scan de vulnérabilités, build et publication d\'images',1],
-      ['Environnements isolés dev / staging / production avec promotion contrôlée',1],
+      ['Pipelines GitHub Actions : lint, tests, scan de vulnérabilités, build et publication d\'images',0],
+      ['Environnements isolés dev / staging / production avec promotion contrôlée',0],
       ['Orchestration Kubernetes (Helm) avec autoscaling horizontal des pods d\'inférence',0],
       ['Infrastructure as Code (Terraform) et gestion centralisée des secrets',0],
       ['Déploiement progressif canari avec retour arrière automatique sur échec de santé',0],
@@ -84,13 +84,13 @@ const MEMBERS = [
   {
     id:'M5', name:'Nouhaila Fadli', role:'Backend Engineer — Lead API & Serving',
     module:'Module 5 · API & Serving Layer', icon:'i-server',
-    c1:'#f59e0b', c2:'#f472b6', status:'progress', progress:70,
+    c1:'#f59e0b', c2:'#f472b6', status:'planned', progress:0,
     desc:"Exposition du modèle via une API asynchrone performante, sécurisée, mise en cache et documentée.",
     subs:[
-      ['Service FastAPI : endpoints de requête, d\'upload documentaire et de gestion des conversations',1],
-      ['Réponses en streaming (SSE) pour restituer la génération jeton par jeton',1],
-      ['Authentification JWT + OAuth2, rôles et gestion des sessions utilisateur',1],
-      ['Mise en cache sémantique Redis des questions récurrentes et des embeddings',1],
+      ['Service FastAPI : endpoints de requête, d\'upload documentaire et de gestion des conversations',0],
+      ['Réponses en streaming (SSE) pour restituer la génération jeton par jeton',0],
+      ['Authentification JWT + OAuth2, rôles et gestion des sessions utilisateur',0],
+      ['Mise en cache sémantique Redis des questions récurrentes et des embeddings',0],
       ['Traitement asynchrone des documents volumineux via file de tâches Celery',0],
       ['Limitation de débit, quotas par client et gestion d\'erreurs normalisée',0],
       ['Documentation OpenAPI, SDK client et tests de charge (Locust)',0]
@@ -102,12 +102,12 @@ const MEMBERS = [
   {
     id:'M6', name:'Oumaima Jeraidi', role:'Frontend Engineer — Lead UI/UX',
     module:'Module 6 · UI/UX & Frontend Integration', icon:'i-layout',
-    c1:'#e879f9', c2:'#818cf8', status:'progress', progress:58,
+    c1:'#e879f9', c2:'#818cf8', status:'progress', progress:14,
     desc:"Expérience utilisateur du chatbot juridique : conversation, dépôt de documents, restitution des sources et tableau de bord.",
     subs:[
       ['Système de design et maquettes haute-fidélité (parcours consultation et analyse de contrat)',1],
-      ['Interface conversationnelle avec rendu en flux et historique persistant',1],
-      ['Composant d\'upload de documents avec prévisualisation et suivi de traitement',1],
+      ['Interface conversationnelle avec rendu en flux et historique persistant',0],
+      ['Composant d\'upload de documents avec prévisualisation et suivi de traitement',0],
       ['Affichage des sources citées avec renvoi vers l\'extrait exact du texte de loi',0],
       ['Tableau de bord utilisateur : historique, documents analysés, export PDF des réponses',0],
       ['Accessibilité RGAA/WCAG 2.1 AA, mode sombre et internationalisation FR/AR',0],
@@ -120,11 +120,11 @@ const MEMBERS = [
   {
     id:'M7', name:'Youssef El Alem', role:'SRE / ML Observability — Lead Monitoring',
     module:'Module 7 · Model Monitoring & Observability', icon:'i-activity',
-    c1:'#22d3ee', c2:'#34d399', status:'planned', progress:34,
+    c1:'#22d3ee', c2:'#34d399', status:'planned', progress:0,
     desc:"Supervision du système et du modèle en production : dérive, qualité des réponses, latence, coûts et boucle de rétroaction.",
     subs:[
-      ['Instrumentation Prometheus : latence, débit, taux d\'erreur, consommation de jetons',1],
-      ['Tableaux de bord Grafana par domaine (API, retriever, LLM, infrastructure)',1],
+      ['Instrumentation Prometheus : latence, débit, taux d\'erreur, consommation de jetons',0],
+      ['Tableaux de bord Grafana par domaine (API, retriever, LLM, infrastructure)',0],
       ['Détection de dérive des données et des embeddings (Evidently) sur les requêtes entrantes',0],
       ['Surveillance de la qualité des réponses en production (échantillonnage + juge automatique)',0],
       ['Traçage distribué de bout en bout des requêtes RAG (OpenTelemetry)',0],
@@ -138,11 +138,11 @@ const MEMBERS = [
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',
     module:'Module 8 · Security, Governance & Compliance', icon:'i-shield',
-    c1:'#f472b6', c2:'#f59e0b', status:'planned', progress:30,
+    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:14,
     desc:"Protection des données juridiques sensibles, conformité RGPD, contrôle d'accès et documentation d'ensemble du système.",
     subs:[
       ['Cartographie des données à caractère personnel et registre des traitements RGPD',1],
-      ['Moteur de rédaction/anonymisation des entités sensibles avant indexation (Presidio)',1],
+      ['Moteur de rédaction/anonymisation des entités sensibles avant indexation (Presidio)',0],
       ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents',0],
       ['Chiffrement au repos et en transit, rotation des secrets et gestion des clés',0],
       ['Journalisation d\'audit immuable des accès et des réponses générées',0],
@@ -174,8 +174,8 @@ const LANES = [
 
 const STACK = [
   ['Données & Ingestion','Airflow · DVC · Pandas · Tesseract · MinIO','Collecte, nettoyage, OCR et versioning du corpus juridique',0],
-  ['Vectorisation & RAG','Qdrant · ChromaDB · LangChain · LlamaIndex','Indexation sémantique et récupération augmentée de contexte',1],
-  ['Modélisation','Hugging Face · PyTorch · PEFT/LoRA · Transformers','Adaptation du LLM au vocabulaire et au raisonnement juridiques',1],
+  ['Vectorisation & RAG','Qdrant · ChromaDB · LangChain · LlamaIndex','Indexation sémantique et récupération augmentée de contexte',0],
+  ['Modélisation','Hugging Face · PyTorch · PEFT/LoRA · Transformers','Adaptation du LLM au vocabulaire et au raisonnement juridiques',0],
   ['Expérimentation','MLflow · RAGAS · Optuna · Weights & Biases','Traçabilité des runs, évaluation et registre de modèles',2],
   ['CI/CD & Infrastructure','Docker · GitHub Actions · Kubernetes · Terraform','Industrialisation, reproductibilité et déploiement continu',3],
   ['Serving & API','FastAPI · Redis · Celery · PostgreSQL','Exposition performante, asynchrone et sécurisée du modèle',4],
@@ -193,11 +193,10 @@ const QUALITY = [
 ];
 
 const TIMELINE = [
-  ['Terminé','S1 — Cadrage & Data Foundation','Corpus juridique ingéré, nettoyé, versionné et validé par les experts métier.','var(--ok)'],
-  ['Terminé','S2 — Socle RAG & Expérimentation','Index vectoriel opérationnel, première chaîne RAG évaluée et tracée dans MLflow.','var(--ok)'],
-  ['En cours','S3 — Industrialisation & Serving','CI/CD, API FastAPI, interface conversationnelle et fine-tuning LoRA.','var(--run)'],
-  ['Planifié','S4 — Observabilité & Durcissement','Supervision de la dérive, contrôles de sécurité, audit RGPD et tests de charge.','var(--plan)'],
-  ['Planifié','S5 — Mise en production','Déploiement canari, transfert de compétences et documentation finale.','var(--plan)']
+  ['En cours','Semaine 1 — Cadrage & socle',"Corpus initial ingéré, nettoyé et versionné · squelette CI/Docker · maquettes de l'interface · règles d'anonymisation arrêtées.",'var(--run)'],
+  ['Planifié','Semaine 2 — RAG & API v1',"Index vectoriel opérationnel, première chaîne RAG tracée dans MLflow, API et interface conversationnelle reliées de bout en bout.",'var(--plan)'],
+  ['Planifié','Semaine 3 — Qualité & optimisation',"Évaluation RAGAS, citations sourcées, cache sémantique et streaming, premières métriques de supervision.",'var(--plan)'],
+  ['Planifié','Semaine 4 — Durcissement & livraison',"Observabilité complète, contrôles de sécurité, tests de charge, déploiement et soutenance finale.",'var(--plan)']
 ];
 
 const DELIVERABLES = [
@@ -241,3 +240,10 @@ function raciRole(member, moduleId){
   if (member.id === moduleId) return 'A';
   return member.supports.includes(moduleId) ? 'C' : 'I';
 }
+
+/* Fenêtre d'intervention de chaque module sur le planning d'un mois (4 semaines). */
+const WEEKS = {
+  M1:'S1 → S2', M2:'S1 → S3', M3:'S2 → S4', M4:'S1 → S4',
+  M5:'S2 → S3', M6:'S1 → S4', M7:'S3 → S4', M8:'S1 → S4'
+};
+MEMBERS.forEach(m => { m.week = WEEKS[m.id]; });

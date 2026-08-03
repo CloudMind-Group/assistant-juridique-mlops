@@ -1,0 +1,39 @@
+# =============================================================================
+# CODEOWNERS — CloudMind Group
+# Toute pull request touchant un chemin ci-dessous requiert la revue du ou des
+# propriétaires correspondants. La dernière règle qui correspond l'emporte.
+#
+# ⚠️  Remplacez les identifiants @prenom-nom par les vrais pseudos GitHub
+#     de l'équipe (docs/GITHUB.md, section « Comptes »).
+# =============================================================================
+
+# Par défaut : revue par les mainteneurs du dépôt
+*                           @salma-elouarrate @youssef-elalem
+
+# --- Documentation projet ----------------------------------------------------
+/README.md                  @salma-elouarrate @taha-kachmar
+/docs/ARCHITECTURE.md       @imane-ibnchakroune @salma-elouarrate
+/docs/TEAM.md               @taha-kachmar
+/docs/GITHUB.md             @salma-elouarrate
+
+# --- Données du tableau de bord ----------------------------------------------
+# Chaque pilote valide les lignes de son module ; la revue est collective car
+# le fichier est unique.
+/assets/js/data.js          @douae-moussaoui @imane-ibnchakroune @amal-elguerdani @salma-elouarrate @nouhaila-fadli @oumaima-jeraidi @youssef-elalem @taha-kachmar
+
+# --- Couche de présentation --------------------------------------------------
+/assets/css/               @oumaima-jeraidi
+/assets/js/render.js       @oumaima-jeraidi
+/assets/js/app.js          @oumaima-jeraidi @youssef-elalem
+/index.html                @oumaima-jeraidi
+
+# --- Chaîne d'intégration et configuration -----------------------------------
+/.github/                  @salma-elouarrate
+/.github/workflows/        @salma-elouarrate
+/.editorconfig             @salma-elouarrate
+/.gitignore                @salma-elouarrate
+/.gitattributes            @salma-elouarrate
+
+# --- Sécurité et conformité --------------------------------------------------
+/LICENSE                   @taha-kachmar
+/SECURITY.md               @taha-kachmar
