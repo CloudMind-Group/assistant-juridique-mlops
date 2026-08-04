@@ -1,0 +1,20 @@
+stages:
+  ingest:
+    cmd: python -m src.m1_ingestion.ingest --raw-dir data/raw --out-dir data/processed
+    deps:
+      - src/m1_ingestion/ingest.py
+      - src/m1_ingestion/metadata_schema.py
+      - data/raw
+    outs:
+      - data/processed/documents
+      - data/processed/metadata.jsonl
+
+  quality_check:
+    cmd: python -m src.m1_ingestion.quality --processed-dir data/processed --fail-on-error
+    deps:
+      - src/m1_ingestion/quality.py
+      - src/m1_ingestion/metadata_schema.py
+      - data/processed/documents
+      - data/processed/metadata.jsonl
+    outs:
+      - data/processed/quality_report.json

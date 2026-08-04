@@ -24,6 +24,12 @@ python -m src.m1_ingestion.dataset_generator --count 60
 
 # 2. run the ingestion pipeline
 python -m src.m1_ingestion.ingest --raw-dir data/raw --out-dir data/processed
+
+# 3. run the data quality check (writes data/processed/quality_report.json)
+python -m src.m1_ingestion.quality --processed-dir data/processed --fail-on-error
+
+# or run both as a DVC pipeline:
+dvc repro
 ```
 
 ## Input layout expected in `data/raw/`
@@ -81,10 +87,36 @@ for r in records:
     # -> chunk / embed / index `text` using `r` as metadata
 ```
 
+## Data quality
+
+`quality.py` re-validates `data/processed/metadata.jsonl` after ingestion:
+non-empty text, required fields (`title`, `date`, `source`) present, full
+`DocumentMetadata` schema/format validation, and token-length bounds
+(5–20,000 whitespace tokens). It writes `data/processed/quality_report.json`
+(per-document pass/fail + errors/warnings, plus a summary). Run with
+`--fail-on-error` in CI/DVC/Airflow to hard-fail the pipeline on any bad
+document.
+
+## PII / RGPD (collaboration with Taha)
+
+`anonymization_schema.py` defines the Pydantic rule schema (`PIIPattern`,
+`AnonymizationRuleSet`) used to detect and mask PII in raw legal text —
+Moroccan CIN, phone numbers, emails, civility-prefixed names (fr/ar), and
+postal addresses — via `detect_pii()` / `anonymize_text()`. This is a
+regex-based reference implementation; Taha's team can extend `DEFAULT_RULES`
+or swap in an NER-backed rule without touching the ingestion pipeline.
+
+## Orchestration
+
+- `dvc.yaml` (repo root) — 2-stage pipeline: `ingest` then `quality_check`, run with `dvc repro`.
+- `dags/legal_ingest_v2.py` — Airflow DAG `legal_ingest_v2`, `@daily`: `run_ingestion -> run_quality_check -> notify_m2_imane`. The last task writes `data/processed/READY_FOR_M2.flag` only if the quality check passed with 0 failures.
+
 ## Files in this package
 
 - `metadata_schema.py` — Pydantic `DocumentMetadata` model (single source of truth for the schema above).
 - `ingest.py` — extraction, cleaning, validation, and `data/processed/` export. CLI entrypoint: `python -m src.m1_ingestion.ingest`.
+- `quality.py` — data quality checks + `quality_report.json`. CLI entrypoint: `python -m src.m1_ingestion.quality`.
+- `anonymization_schema.py` — PII detection/masking rule schema (RGPD, with Taha).
 - `dataset_generator.py` — generates the synthetic 50–100 doc sample corpus into `data/raw/` for offline testing. Output is gitignored (`data/raw/*`), never commit generated files.
 
 ## Notes
