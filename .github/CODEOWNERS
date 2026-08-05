@@ -33,6 +33,16 @@
 /.gitignore                 @CloudMind-Group/platform
 /.gitattributes             @CloudMind-Group/platform
 
+# --- Modules MLOps et Pipeline Python ----------------------------------------
+/src/m1_ingestion/          @CloudMind-Group/data
+/src/                       @CloudMind-Group/data @CloudMind-Group/app
+/dags/                      @CloudMind-Group/data @CloudMind-Group/platform
+/data/                      @CloudMind-Group/data
+/dvc.yaml                   @CloudMind-Group/data
+/dvc.lock                   @CloudMind-Group/data
+/requirements.txt           @CloudMind-Group/data @CloudMind-Group/platform
+
 # --- Sécurité et conformité --------------------------------------------------
 /LICENSE                    @CloudMind-Group/security
 /SECURITY.md                @CloudMind-Group/security
+

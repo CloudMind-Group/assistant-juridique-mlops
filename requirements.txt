@@ -1,0 +1,11 @@
+pydantic>=2.5
+PyMuPDF>=1.23
+python-docx>=1.1
+pytesseract>=0.3.10
+Pillow>=10.0
+requests>=2.31
+
+# Orchestration / versioning (only needed to run dags/legal_ingest_v2.py
+# and `dvc repro` — not required for `python -m src.m1_ingestion.*` CLIs)
+# apache-airflow>=2.8
+# dvc>=3.0

@@ -18,3 +18,17 @@ dist/
 # Environnements
 .env
 .env.local
+
+# Ignorer les données
+data/raw/*
+data/interim/*
+data/processed/*
+
+# Ne pas ignorer les .gitkeep pour garder la structure
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Ignorer les dossiers python
+__pycache__/
+*.pyc
