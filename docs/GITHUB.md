@@ -34,7 +34,7 @@ rejoint ou quitte le projet : [`CODEOWNERS`](../.github/CODEOWNERS) référence 
 | `@CloudMind-Group/platform` | M4 + M7 — CI/CD, infrastructure, observabilité | salmaelouarrate *(mainteneuse)*, youssefelalem *(mainteneur)* | **Admin** |
 | `@CloudMind-Group/data` | M1 + M2 + M3 — données, RAG, expérimentation | DOUAEM449, ima-cs, amal4567 | Write |
 | `@CloudMind-Group/app` | M5 + M6 — API, serving, interface | nouhailafad, Oumaimajeraidi | Write |
-| `@CloudMind-Group/security` | M8 — sécurité, gouvernance, conformité | taha588 *(mainteneur)* | Maintain |
+| `@CloudMind-Group/security` | M8 — sécurité, gouvernance, conformité | taha588 *(mainteneur)*, youssefelalem | Maintain |
 
 **Ajouter un membre :**
 
@@ -43,6 +43,28 @@ gh api -X PUT orgs/CloudMind-Group/teams/<equipe>/memberships/<pseudo> -f role=m
 ```
 
 **Retirer un membre :** le sortir de l'équipe suffit — aucun fichier à modifier.
+
+### Le propriétaire de l'organisation est membre implicite de toutes les équipes
+
+GitHub inscrit automatiquement le propriétaire de l'organisation comme *mainteneur* de
+chaque équipe, sans qu'on l'y ajoute. Vérifiable à tout moment :
+
+```bash
+gh api orgs/CloudMind-Group/teams/data/memberships/youssefelalem
+# -> role=maintainer, state=active — alors qu'il n'a jamais été ajouté à `data`
+```
+
+**Conséquence :** il satisfait à lui seul la revue des Code Owners de n'importe quel
+chemin du dépôt. Pratique au démarrage, dangereux ensuite — la revue croisée se réduit
+à un tampon unique.
+
+> **Règle d'équipe :** le propriétaire n'use de ce droit que si aucun membre de l'équipe
+> concernée n'a relu la pull request **sous 24 h**. Le relecteur par défaut reste le
+> pilote du module, conformément à la colonne **A** de la matrice RACI.
+
+Corollaire à ne pas oublier : le propriétaire ne peut pas approuver ses propres pull
+requests. Tout ce qu'il écrit doit être relu par quelqu'un d'autre — c'est la seule
+garantie que le principe des quatre yeux tienne aussi pour lui.
 
 > Les accès individuels hérités du transfert (`DOUAEM449`, `ima-cs` en collaborateurs
 > directs) deviennent redondants une fois les invitations d'organisation acceptées :
@@ -229,6 +251,33 @@ chore(ci): met en cache les dépendances du workflow
 
 Toute issue **doit** porter un module, un type et une milestone. Une issue sans milestone
 n'entre pas dans le mois.
+
+## 8 bis. Automatisation de la release
+
+Deux workflows évitent d'avoir à se souvenir de la procédure. Ils sont volontairement
+partiels : **ce qui demande un jugement humain reste manuel**.
+
+| Workflow | Déclencheur | Ce qu'il fait |
+|---|---|---|
+| [`rappel-release.yml`](../.github/workflows/rappel-release.yml) | jeudi 18:00 (Casablanca) + manuel | Ouvre l'issue « Préparer la release vX.Y.Z » avec la procédure complète en cases à cocher, assignée à `platform`. Calcule la version suivante à partir du dernier tag. N'ouvre rien si l'issue existe déjà. |
+| [`tag-release.yml`](../.github/workflows/tag-release.yml) | fusion dans `main` | Détecte `release: X.Y.Z` ou `hotfix/X.Y.Z` dans le message de fusion, pose le tag annoté `vX.Y.Z` et publie la release GitHub avec ses notes générées. Ne fait rien si le tag existe. |
+
+### Ce qui n'est pas automatisé, et pourquoi
+
+**La création de la branche et de la pull request de release.** Une pull request ouverte
+par le `GITHUB_TOKEN` **ne déclenche pas les workflows** — la vérification obligatoire
+`Validation du site statique` ne se lancerait jamais et la pull request resterait bloquée
+sans que personne ne comprenne pourquoi. Deux commandes à la main valent mieux qu'un
+blocage inexplicable un vendredi soir.
+
+**Le report vers `develop`.** Il demande de vérifier ce qui a réellement été corrigé
+pendant le gel. Le workflow se contente d'afficher un rappel dans le résumé d'exécution.
+
+### Permissions
+
+Le réglage du dépôt reste `default_workflow_permissions: read`. Chaque workflow demande
+explicitement le strict nécessaire : `issues: write` pour le rappel, `contents: write`
+pour le tag. Aucun secret n'est utilisé, le `GITHUB_TOKEN` intégré suffit.
 
 ## 9. GitHub Projects
 
