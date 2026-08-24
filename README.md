@@ -195,7 +195,6 @@ sont dans [`docs/GITHUB.md`](docs/GITHUB.md).
 
 ## Documentation
 
-- [`docs/workflow.html`](docs/workflow.html) — **guide de prise en main visuel** : structure, branches, cycle d'une PR, livraison hebdomadaire. À ouvrir dans un navigateur, c'est le point de départ pour toute l'équipe.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture MLOps, flux de données, décisions techniques.
 - [`docs/TEAM.md`](docs/TEAM.md) — rôles détaillés, matrice RACI et interfaces entre modules.
 - [`docs/GITHUB.md`](docs/GITHUB.md) — organisation, équipes et permissions, protection des branches, GitFlow, cycle de vie d'une pull request.

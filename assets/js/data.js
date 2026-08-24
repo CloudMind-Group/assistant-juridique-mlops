@@ -12,16 +12,16 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:14,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Connecteurs d\'ingestion multi-sources (Légifrance, portails officiels, dépôts PDF/DOCX internes)',1],
-      ['Pipeline OCR pour documents scannés + correction orthographique juridique (Tesseract / PaddleOCR)',1],
-      ['Nettoyage et normalisation : suppression d\'en-têtes, dé-duplication, segmentation par articles et alinéas',1],
-      ['Stratégie de chunking sémantique (512 tokens, chevauchement 64) préservant la structure légale',1],
-      ['Génération des embeddings multilingues FR/AR et export vers le magasin vectoriel',1],
-      ['Versioning des datasets avec DVC + stockage distant S3/MinIO et Data Cards documentées',1],
-      ['Tests de qualité de données automatisés (Great Expectations) branchés sur la CI',1]
+      ['Pipeline OCR pour documents scannés + correction orthographique juridique (Tesseract / PaddleOCR)',0],
+      ['Nettoyage et normalisation : suppression d\'en-têtes, dé-duplication, segmentation par articles et alinéas',0],
+      ['Stratégie de chunking sémantique (512 tokens, chevauchement 64) préservant la structure légale',0],
+      ['Génération des embeddings multilingues FR/AR et export vers le magasin vectoriel',0],
+      ['Versioning des datasets avec DVC + stockage distant S3/MinIO et Data Cards documentées',0],
+      ['Tests de qualité de données automatisés (Great Expectations) branchés sur la CI',0]
     ],
     tools:['Python','Apache Airflow','DVC','Pandas','Tesseract OCR','LangChain Splitters','Great Expectations','MinIO / S3'],
     collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD). Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",

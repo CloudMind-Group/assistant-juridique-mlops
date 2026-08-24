@@ -51,5 +51,5 @@ stages:
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 3e528ce8b652ddcd7777381f1c7eaf1c
+      md5: ded33f39d4a9e07ba2eb74b44eaf5f40
       size: 7857

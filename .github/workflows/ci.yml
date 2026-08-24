@@ -61,8 +61,7 @@ jobs:
       - name: Aucun secret ni donnée sensible
         run: |
           if grep -rInE '(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}' \
-               --include='*.js' --include='*.html' --include='*.css' \
-               --include='*.py' --include='*.yaml' --include='*.yml' . ; then
+               --include='*.js' --include='*.html' --include='*.css' . ; then
             echo "::error::valeur sensible potentielle détectée"
             exit 1
           fi

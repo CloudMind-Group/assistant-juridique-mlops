@@ -22,11 +22,7 @@ dist/
 # Ignorer les données
 data/raw/*
 data/interim/*
-feature/m1-data-ingestion
-
-
-
-develop
+data/processed/*
 
 # Ne pas ignorer les .gitkeep pour garder la structure
 !data/raw/.gitkeep

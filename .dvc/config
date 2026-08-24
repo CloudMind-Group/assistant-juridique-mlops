@@ -1,0 +1,5 @@
+[core]
+    remote = s3remote
+['remote "s3remote"']
+    url = s3://assistant-juridique-mlops-dvc/dvc-store
+    region = eu-west-3
