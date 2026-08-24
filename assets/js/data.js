@@ -12,20 +12,20 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:43,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
-      ['Connecteurs d\'ingestion multi-sources (Légifrance, portails officiels, dépôts PDF/DOCX internes)',1],
-      ['Pipeline OCR pour documents scannés + correction orthographique juridique (Tesseract / PaddleOCR)',1],
-      ['Nettoyage et normalisation : suppression d\'en-têtes, dé-duplication, segmentation par articles et alinéas',1],
-      ['Stratégie de chunking sémantique (512 tokens, chevauchement 64) préservant la structure légale',1],
-      ['Génération des embeddings multilingues FR/AR et export vers le magasin vectoriel',1],
-      ['Versioning des datasets avec DVC + stockage distant S3/MinIO et Data Cards documentées',1],
-      ['Tests de qualité de données automatisés (Great Expectations) branchés sur la CI',1]
+      ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
+      ['Corpus de test synthétique généré (50-100 documents FR/AR) pour débloquer M2 sans attendre la collecte réelle',1],
+      ['Versioning DVC local (dvc.yaml + dvc.lock) et contrôles de qualité automatisés configurables',1],
+      ['Pipeline OCR pour documents scannés (Tesseract / PaddleOCR) — dépendance déclarée, non encore branchée',0],
+      ['Dé-duplication et segmentation par articles et alinéas — nettoyage actuel limité à la normalisation de base',0],
+      ['Anonymisation des données personnelles (schéma défini avec Taha) — non encore appliquée avant indexation',0],
+      ['Stockage distant S3/MinIO, chunking sémantique, embeddings et intégration Great Expectations en CI',0]
     ],
-    tools:['Python','Apache Airflow','DVC','Pandas','Tesseract OCR','LangChain Splitters','Great Expectations','MinIO / S3'],
-    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD). Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> orchestré quotidiennement','Registre <code>dvc.yaml</code> + 14 versions de dataset traçables','Rapport de qualité de données automatisé par exécution']
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR (à intégrer)','Great Expectations (à intégrer)','MinIO / S3 (à intégrer)'],
+    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD) — l'intégration entre les deux reste à finaliser. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné localement','Rapport de qualité de données généré à chaque exécution']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
