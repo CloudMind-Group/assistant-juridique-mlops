@@ -1,9 +1,4 @@
 [core]
     remote = dagshub
-['remote "s3remote"']
-    url = s3://assistant-juridique-mlops-dvc/dvc-store
-    region = eu-west-3
-['remote "gdrive"']
-    url = gdrive://1owyU5mNDTxaI1fk-UIKvDsmU9LT42ckY
-['remote "dagshub"']
+[remote "dagshub"]
     url = https://dagshub.com/DOUAEM449/assistant-juridique-mlops.dvc
