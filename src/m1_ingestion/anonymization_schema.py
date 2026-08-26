@@ -38,7 +38,15 @@ class MaskingStrategy(str, Enum):
 
 
 class PIIPattern(BaseModel):
-    """A single detection rule: PII type + regex + how to mask a match."""
+    """A single detection rule: PII type + regex + how to mask a match.
+
+    A rule may expose a named group ``(?P<pii>...)``. When present, only that
+    group is masked and the surrounding context is preserved — this is what
+    lets a rule anchor on a legal marker without destroying it. For instance
+    ``"Le salarié Youssef Idrissi"`` becomes ``"Le salarié [NOM]"``: the role,
+    which carries the legal meaning, survives. Rules without the group mask
+    the whole match.
+    """
 
     pii_type: PIIType
     description: str = Field(..., min_length=1)
@@ -65,10 +73,15 @@ class PIIPattern(BaseModel):
 
 
 class PIIMatch(BaseModel):
+    """A detected span. ``start``/``end`` delimit what will actually be masked
+    — the ``pii`` group when the rule defines one, the whole match otherwise.
+    """
+
     pii_type: PIIType
     value: str
     start: int
     end: int
+    rule_index: int
     rule_description: str
 
 
@@ -85,11 +98,33 @@ class AnonymizationRuleSet(BaseModel):
 # Default rule set for Moroccan legal documents (fr/ar mixed corpora).
 # --------------------------------------------------------------------------
 
+# Identifiers that share the CIN's shape (letters + 5-6 digits) but designate a
+# case, a company or a publication — never a person. Masking them would corrupt
+# the citation the assistant is supposed to produce, so they are excluded from
+# the context-free CIN rule.
+LEGAL_REF_PREFIXES = ("RC", "BO", "RG", "TP", "IF", "ICE", "TVA", "CNSS", "AMO")
+
 DEFAULT_RULES: list[PIIPattern] = [
     PIIPattern(
         pii_type=PIIType.CIN,
-        description="Carte d'Identité Nationale marocaine (ex: AB123456, A-123456)",
-        regex=r"\b[A-Za-z]{1,2}[\s\-]?\d{5,6}\b",
+        description="CIN annoncée par sa mention (ex: « CIN n° AB123456 », « البطاقة الوطنية AB123456 »)",
+        regex=(
+            r"(?:C\.?\s?I\.?\s?N\.?\s?E?\.?"
+            r"|carte\s+(?:nationale|d'identit[ée])(?:\s+d'identit[ée])?"
+            r"(?:\s+nationale)?(?:\s+[ée]lectronique)?"
+            r"|بطاقة\s+التعريف\s+الوطنية|البطاقة\s+الوطنية)"
+            r"\s*(?:n[°o]|رقم)?\s*:?\s*(?P<pii>[A-Za-z]{1,2}[\s\-]?\d{5,6})\b"
+        ),
+        masking_strategy=MaskingStrategy.PLACEHOLDER,
+        placeholder="[CIN]",
+    ),
+    PIIPattern(
+        pii_type=PIIType.CIN,
+        description="CIN isolée, sans mention (ex: AB123456)",
+        # Uppercase and unseparated, so a lowercase preposition followed by a
+        # number ("de 150000 dirhams") is not mistaken for an ID. The negative
+        # lookahead drops case/company/publication references.
+        regex=r"\b(?!(?:" + "|".join(LEGAL_REF_PREFIXES) + r")\d)[A-Z]{1,2}\d{5,6}\b",
         masking_strategy=MaskingStrategy.PLACEHOLDER,
         placeholder="[CIN]",
     ),
@@ -116,6 +151,40 @@ DEFAULT_RULES: list[PIIPattern] = [
         placeholder="[NOM]",
     ),
     PIIPattern(
+        pii_type=PIIType.NOM,
+        description="Nom précédé de sa qualité procédurale (ex: « le salarié Youssef Idrissi »)",
+        # The role marker is matched but left in place — only the group is
+        # masked. "Le salarié X" -> "Le salarié [NOM]" keeps the legal fact.
+        regex=(
+            r"(?i:demandeur|demanderesse|d[ée]fendeur|d[ée]fenderesse"
+            r"|requ[ée]rante?|salari[ée]e?|t[ée]moin|appelante?|intim[ée]e?"
+            r"|employ[ée]e?|pr[ée]venue?|inculp[ée]e?)"
+            r"\s*:?\s+(?P<pii>[A-ZÀ-Ý][\wà-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wà-ÿ'\-]+){0,2})"
+        ),
+        masking_strategy=MaskingStrategy.PLACEHOLDER,
+        placeholder="[NOM]",
+    ),
+    PIIPattern(
+        pii_type=PIIType.NOM,
+        description="Partie introduite par « ENTRE » dans un contrat ou un jugement",
+        regex=(
+            r"\bENTRE\s*:?\s*"
+            r"(?P<pii>[A-ZÀ-Ý][\wà-ÿ'\-]+(?:\s+[A-ZÀ-Ý][\wà-ÿ'\-]+){0,2})"
+        ),
+        masking_strategy=MaskingStrategy.PLACEHOLDER,
+        placeholder="[NOM]",
+    ),
+    PIIPattern(
+        pii_type=PIIType.NOM,
+        description="اسم مسبوق بصفته في الدعوى (المدعي، الشاهد، الأجير...)",
+        regex=(
+            r"(?:الشاهد|المدعى\s+عليه|المدعي|الطالب|المطلوب|الأجير|المشغل|المتهم)"
+            r"\s*:?\s*(?P<pii>[؀-ۿ]{2,}(?:\s+[؀-ۿ]{2,}){0,2})"
+        ),
+        masking_strategy=MaskingStrategy.PLACEHOLDER,
+        placeholder="[NOM]",
+    ),
+    PIIPattern(
         pii_type=PIIType.ADRESSE,
         description="Adresse postale marocaine (Rue/Avenue/Hay/Quartier/Lotissement/Résidence + libellé)",
         regex=r"\b(?:Rue|Avenue|Bd|Boulevard|Hay|Quartier|Lotissement|R[ée]sidence|Angle)\s+"
@@ -136,20 +205,28 @@ DEFAULT_RULE_SET = AnonymizationRuleSet(rules=DEFAULT_RULES)
 
 
 def detect_pii(text: str, rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET) -> list[PIIMatch]:
-    """Return every PII match found in `text`, ordered by position."""
+    """Return every PII match found in `text`, ordered by position.
+
+    Ties are broken by span length, longest first, so that when two rules fire
+    at the same offset the more complete one is the one applied.
+    """
     matches: list[PIIMatch] = []
-    for rule in rule_set.rules:
-        for m in rule.compiled().finditer(text):
+    for index, rule in enumerate(rule_set.rules):
+        compiled = rule.compiled()
+        targets_group = "pii" in compiled.groupindex
+        for m in compiled.finditer(text):
+            start, end = (m.span("pii") if targets_group else m.span())
             matches.append(
                 PIIMatch(
                     pii_type=rule.pii_type,
-                    value=m.group(0),
-                    start=m.start(),
-                    end=m.end(),
+                    value=text[start:end],
+                    start=start,
+                    end=end,
+                    rule_index=index,
                     rule_description=rule.description,
                 )
             )
-    return sorted(matches, key=lambda mm: mm.start)
+    return sorted(matches, key=lambda mm: (mm.start, -(mm.end - mm.start)))
 
 
 def _mask_value(value: str, rule: PIIPattern) -> str:
@@ -159,33 +236,44 @@ def _mask_value(value: str, rule: PIIPattern) -> str:
             return rule.placeholder
         return f"{digits[:2]}{'*' * (len(digits) - 4)}{digits[-2:]}"
     if rule.masking_strategy == MaskingStrategy.HASH:
-        return f"[{rule.pii_type.value.upper()}_{abs(hash(value)) % 100000:05d}]"
+        # `use_enum_values` stores pii_type as a plain string, so read it as one.
+        return f"[{str(rule.pii_type).upper()}_{abs(hash(value)) % 100000:05d}]"
     # REDACT_FULL and PLACEHOLDER both collapse to the configured placeholder.
     return rule.placeholder
 
 
-def anonymize_text(text: str, rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET) -> str:
-    """Apply every rule in `rule_set` and return the masked text.
+def anonymize_document(
+    text: str, rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET
+) -> tuple[str, list[PIIMatch]]:
+    """Mask `text` and return it along with the spans that were actually masked.
 
     Rules are applied left-to-right over non-overlapping spans found on the
     original text, so masking one match never shifts the offsets used to
-    detect the next one.
+    detect the next one. Overlapping detections are reported by
+    :func:`detect_pii` but only the retained ones are returned here, which
+    makes the second element usable as an audit trail of the masking.
     """
     matches = detect_pii(text, rule_set)
     if not matches:
-        return text
+        return text, []
 
-    rule_by_description = {r.description: r for r in rule_set.rules}
+    applied: list[PIIMatch] = []
     out: list[str] = []
     cursor = 0
     last_end = -1
     for match in matches:
         if match.start < last_end:
             continue  # skip overlapping match (already covered)
-        rule = rule_by_description[match.rule_description]
+        rule = rule_set.rules[match.rule_index]
         out.append(text[cursor:match.start])
         out.append(_mask_value(match.value, rule))
+        applied.append(match)
         cursor = match.end
         last_end = match.end
     out.append(text[cursor:])
-    return "".join(out)
+    return "".join(out), applied
+
+
+def anonymize_text(text: str, rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET) -> str:
+    """Mask `text` and return it. Thin wrapper over :func:`anonymize_document`."""
+    return anonymize_document(text, rule_set)[0]

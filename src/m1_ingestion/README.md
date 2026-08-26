@@ -67,8 +67,8 @@ Each line of `metadata.jsonl` validates against
 
 | field       | type   | notes                                              |
 |-------------|--------|-----------------------------------------------------|
-| `doc_id`    | str    | unique, matches `documents/<doc_id>.txt`             |
-| `title`     | str    |                                                       |
+| `doc_id`    | str    | unique, matches `documents/<doc_id>.txt`. Format `<source_slug>-<sha1[:16]>`, e.g. `jurisprudence-a1b2c3d4e5f60718`. **Never derived from the file name** — see PII section |
+| `title`     | str    | from the sidecar when provided; otherwise `"<Source> — <date>"`, never the file name |
 | `source`    | str    | `"Bulletin Officiel"` \| `"Jurisprudence"` \| `"Contrat Type"` |
 | `date`      | str    | `YYYY-MM-DD` or `YYYY`                               |
 | `category`  | str    | free-text legal category                             |
@@ -97,14 +97,42 @@ non-empty text, required fields (`title`, `date`, `source`) present, full
 `--fail-on-error` in CI/DVC/Airflow to hard-fail the pipeline on any bad
 document.
 
-## PII / RGPD (collaboration with Taha)
+## PII / RGPD (owner: Taha — M8)
 
-`anonymization_schema.py` defines the Pydantic rule schema (`PIIPattern`,
-`AnonymizationRuleSet`) used to detect and mask PII in raw legal text —
-Moroccan CIN, phone numbers, emails, civility-prefixed names (fr/ar), and
-postal addresses — via `detect_pii()` / `anonymize_text()`. This is a
-regex-based reference implementation; Taha's team can extend `DEFAULT_RULES`
-or swap in an NER-backed rule without touching the ingestion pipeline.
+**Anonymisation runs inside the pipeline, between cleaning and writing.**
+Nothing in `data/processed/` — text or metadata — is expected to contain
+personal data.
+
+`anonymization_schema.py` defines the rule schema (`PIIPattern`,
+`AnonymizationRuleSet`) and the default rules covering Moroccan CIN, phone
+numbers, emails, names (by civility, by procedural role, and after `ENTRE`,
+fr/ar) and postal addresses. `ingest.py` calls `anonymize_document()`, which
+returns the masked text plus the list of spans it masked — the per-run count
+is logged and surfaced in `IngestResult.pii_masked`.
+
+Two design points worth knowing before you build on this:
+
+- **Legal references are protected.** Docket, registry and Bulletin Officiel
+  numbers share the CIN's shape, so masking them would destroy the citations
+  M2 is meant to produce. Rules that anchor on a marker mask only their
+  `(?P<pii>...)` group, so `"Le salarié X"` becomes `"Le salarié [NOM]"` and
+  the legal fact survives. `tests/test_anonymization.py` locks this down.
+- **The identifier is not derived from the file name.** A document collected
+  as `arret_ahmed_benali_2024.pdf` would otherwise carry a real name into
+  `doc_id` and `title`, and from there into your vector store and into the
+  citations shown to end users — surviving any masking applied to the text.
+
+`--no-anonymize` exists for local debugging only; it logs a warning and must
+never be used on a real corpus.
+
+This remains a regex-based implementation. Recall on names written without a
+civility or a role marker is limited; replacing `DEFAULT_RULES` with an
+NER-backed detector is planned and requires no change to `ingest.py`.
+
+> **For M2:** if a document must later be removed for a person exercising
+> their right to erasure, the index has to support deleting a single
+> `doc_id`. Please design for that from the start — retrofitting it means
+> rebuilding the index.
 
 ## Orchestration
 

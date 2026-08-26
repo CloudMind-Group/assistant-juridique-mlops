@@ -15,6 +15,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Garde-fou M8 : vérifie qu'aucune donnée personnelle ne peut atteindre
+  # data/processed/, et qu'aucune règle de masquage n'abîme les références
+  # légales. Une régression ici est silencieuse en production — d'où le test.
+  tests-python:
+    name: Tests du pipeline d'ingestion
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installation des dépendances de test
+        run: |
+          python -m pip install --upgrade pip
+          pip install pydantic pytest
+
+      - name: Tests d'anonymisation
+        run: python -m pytest tests/ -v
+
   validate:
     name: Validation du site statique
     runs-on: ubuntu-latest
