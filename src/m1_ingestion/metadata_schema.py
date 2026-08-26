@@ -51,6 +51,27 @@ class DocumentMetadata(BaseModel):
         ..., description="Path to the clean text file, relative to repo root"
     )
 
+    # --- Ingestion/quality tracking fields (additive, all optional with
+    # defaults) --------------------------------------------------------
+    # Added for per-document pipeline observability. Existing consumers that
+    # only read the fields above (doc_id/title/source/date/category/
+    # language/file_path) are unaffected — nothing above was renamed or
+    # made required. Coordinate with Imane (M2) before relying on these in
+    # her indexing pipeline.
+    original_filename: str = Field(default="", description="Source file name in data/raw/")
+    source_format: str = Field(default="", description="Original file extension, e.g. '.pdf'")
+    extraction_method: str = Field(
+        default="",
+        description="How text was obtained: 'text' | 'pdf_direct' | 'ocr_pdf' | 'ocr_image'",
+    )
+    char_count_raw: int = Field(default=0, ge=0, description="Chars before cleaning")
+    word_count_raw: int = Field(default=0, ge=0, description="Words before cleaning")
+    char_count_clean: int = Field(default=0, ge=0, description="Chars in the saved (clean+anonymized) text")
+    word_count_clean: int = Field(default=0, ge=0, description="Words in the saved (clean+anonymized) text")
+    anonymized: bool = Field(default=False, description="Whether anonymize_text() was applied")
+    status: str = Field(default="SUCCESS", description="'SUCCESS' — only successful docs reach metadata.jsonl")
+    processed_at: str = Field(default="", description="ISO-8601 UTC timestamp of processing")
+
     model_config = {"use_enum_values": True}
 
     @field_validator("doc_id")
