@@ -9,41 +9,49 @@ stages:
       md5: 0d40eabaff7af1124037c63ef0a645b5.dir
       size: 36970
       nfiles: 121
+    - path: src/m1_ingestion/anonymization_schema.py
+      hash: md5
+      md5: 32acdc4ae3ec8be1df68920678c130d7
+      size: 11242
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: 3e7399ef885e6a3c0492072251cc4195
-      size: 8460
+      md5: c215376d1d13b3e314edf7d712f5ccd1
+      size: 22014
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
-      md5: 82b2b22d00d51cda3931afb2712c9a0a
-      size: 2643
+      md5: d127a9a4744ba49891a1761dc99942f2
+      size: 4257
     outs:
     - path: data/processed/documents
       hash: md5
-      md5: fc4a204091872a1ff093e51a3a262ac5.dir
-      size: 23590
+      md5: ee26870e4043cc614abe877d2ded8f24.dir
+      size: 22892
       nfiles: 60
+    - path: data/processed/ingestion_report.json
+      hash: md5
+      md5: 5a8d197509b4cfdd1b9efc837e2743dc
+      size: 313
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 87f5d2a2e6aaaed7bdc1e815265a4ad4
-      size: 15760
+      md5: b61e553fa45b45141591d8ffdf6d5203
+      size: 29189
   quality_check:
     cmd: python -m src.m1_ingestion.quality --processed-dir data/processed 
       --fail-on-error
     deps:
     - path: data/processed/documents
       hash: md5
-      md5: fc4a204091872a1ff093e51a3a262ac5.dir
-      size: 23590
+      md5: ee26870e4043cc614abe877d2ded8f24.dir
+      size: 22892
       nfiles: 60
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 87f5d2a2e6aaaed7bdc1e815265a4ad4
-      size: 15760
+      md5: b61e553fa45b45141591d8ffdf6d5203
+      size: 29189
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
-      md5: 82b2b22d00d51cda3931afb2712c9a0a
-      size: 2643
+      md5: d127a9a4744ba49891a1761dc99942f2
+      size: 4257
     - path: src/m1_ingestion/quality.py
       hash: md5
       md5: 230a7a80cd4b834b9e9358945df53e55
@@ -51,5 +59,5 @@ stages:
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: ded33f39d4a9e07ba2eb74b44eaf5f40
+      md5: 3e26c9ba9c73aaef6f43928149990dde
       size: 7857
