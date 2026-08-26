@@ -58,7 +58,9 @@ class DocumentMetadata(BaseModel):
     # language/file_path) are unaffected — nothing above was renamed or
     # made required. Coordinate with Imane (M2) before relying on these in
     # her indexing pipeline.
-    original_filename: str = Field(default="", description="Source file name in data/raw/")
+    # No `original_filename` field: the raw file name routinely carries a
+    # party's name (see ingest.make_doc_id) and must never reach the
+    # metadata index, even as a debugging convenience.
     source_format: str = Field(default="", description="Original file extension, e.g. '.pdf'")
     extraction_method: str = Field(
         default="",

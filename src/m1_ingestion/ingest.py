@@ -1,21 +1,29 @@
 """
 Module 1 — Ingestion pipeline.
 
-Reads raw legal documents from ``data/raw/<source_slug>/``, extracts text
-(.txt/.pdf/.docx/.png/.jpg/.jpeg — with OCR fallback for scanned PDFs and
-image-only documents), cleans it, anonymizes PII, attaches/validates
-metadata, and writes the result to ``data/processed/`` in the format
-Module 2 (Imane) consumes for indexing. See README.md in this package for
-the output contract.
+Reads raw legal documents from ``data/raw/<source_slug>/`` (.txt/.pdf/.docx/
+.png/.jpg/.jpeg — with OCR fallback for scanned PDFs and image-only
+documents), extracts text, cleans it, **removes personal data**, attaches/
+validates metadata, and writes the result to ``data/processed/`` in the
+format Module 2 (Imane) consumes for indexing. See README.md in this
+package for the output contract.
 
 Pipeline flow per document:
     Raw file -> extract (direct text, or OCR fallback) -> clean_text
-             -> anonymize_text -> write data/processed/documents/<doc_id>.txt
+             -> anonymize_document -> build_metadata -> write
+
+Anonymisation runs between cleaning and writing, so personal data never
+reaches ``data/processed/`` and therefore never reaches indexing. This
+placement is deliberate: once M2 has chunked and embedded a document,
+removing an individual from the index is no longer a text edit but an index
+rebuild. Owner of the rules: M8 (Taha) — see
+:mod:`src.m1_ingestion.anonymization_schema`.
 
 Usage:
     python -m src.m1_ingestion.ingest
     python -m src.m1_ingestion.ingest --raw-dir data/raw --out-dir data/processed
     python -m src.m1_ingestion.ingest --ocr-lang fra+ara --min-direct-text-chars 20
+    python -m src.m1_ingestion.ingest --no-anonymize   # local debugging only
 """
 
 from __future__ import annotations
@@ -33,7 +41,7 @@ from typing import Optional
 
 from pydantic import ValidationError
 
-from src.m1_ingestion.anonymization_schema import anonymize_text
+from src.m1_ingestion.anonymization_schema import anonymize_document
 from src.m1_ingestion.metadata_schema import DocumentMetadata, Language, SourceType
 
 logger = logging.getLogger("m1_ingestion.ingest")
@@ -78,6 +86,7 @@ class IngestResult:
     processed: int = 0
     skipped: int = 0
     failed: int = 0
+    pii_masked: int = 0
     extraction_methods: dict[str, int] = field(default_factory=dict)
     errors: list[dict[str, str]] = field(default_factory=list)
 
@@ -274,10 +283,30 @@ def detect_language(text: str) -> Language:
     return Language.AR if _ARABIC_RE.search(text) else Language.FR
 
 
-def make_doc_id(source_file: Path) -> str:
-    digest = hashlib.sha1(str(source_file.resolve()).encode("utf-8")).hexdigest()[:10]
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", source_file.stem).strip("-").lower()[:40]
-    return f"{slug}-{digest}"
+def source_slug(source_file: Path, raw_dir: Path) -> str:
+    """Return the source folder name, or 'document' for a file dropped in the root.
+
+    Folder names are one of the three fixed source types, so they are safe to
+    surface — unlike the file name, which is chosen by whoever collected the
+    document and routinely carries a party's name.
+    """
+    try:
+        parent = source_file.relative_to(raw_dir).parts[0]
+    except (ValueError, IndexError):
+        return "document"
+    return parent.lower() if parent.lower() in FOLDER_TO_SOURCE else "document"
+
+
+def make_doc_id(source_file: Path, raw_dir: Path) -> str:
+    """Build an identifier that carries no personal data.
+
+    The file name is deliberately excluded: an ``arret_ahmed_benali_2024.pdf``
+    would otherwise put a real name into the doc_id, which propagates into the
+    metadata index, into M2's vector store, and finally into the citations the
+    assistant shows to end users — surviving any masking applied to the text.
+    """
+    digest = hashlib.sha1(str(source_file.resolve()).encode("utf-8")).hexdigest()[:16]
+    return f"{source_slug(source_file, raw_dir)}-{digest}"
 
 
 def load_sidecar_metadata(source_file: Path) -> dict:
@@ -306,11 +335,11 @@ def build_metadata(
     out_dir: Path,
     clean_content: str,
     *,
-    extraction: ExtractionOutcome,
-    anonymized: bool,
+    extraction: Optional[ExtractionOutcome] = None,
+    anonymized: bool = False,
 ) -> DocumentMetadata:
     overrides = load_sidecar_metadata(source_file)
-    doc_id = overrides.get("doc_id") or make_doc_id(source_file)
+    doc_id = overrides.get("doc_id") or make_doc_id(source_file, raw_dir)
     source = overrides.get("source") or infer_source(source_file, raw_dir)
     if source is None:
         raise ValueError(
@@ -319,20 +348,29 @@ def build_metadata(
             f"or provide a {source_file.name}.meta.json sidecar."
         )
     language = overrides.get("language") or detect_language(clean_content).value
+    date = str(overrides.get("date") or "1900")
     processed_path = out_dir / "documents" / f"{doc_id}.txt"
 
-    raw_text = extraction.text
+    # No title override: fall back to source + date rather than the file name,
+    # which would leak a party's name into every citation (see make_doc_id).
+    title = overrides.get("title") or f"{SourceType(source).value} — {date}"
+
+    # `extraction` is optional so build_metadata keeps working as a plain
+    # 4-positional-arg call (used e.g. directly in tests) without an
+    # ExtractionOutcome on hand — counts then fall back to clean_content.
+    raw_text = extraction.text if extraction is not None else clean_content
+    extraction_method = extraction.method if extraction is not None else ""
+
     return DocumentMetadata(
         doc_id=doc_id,
-        title=overrides.get("title") or source_file.stem.replace("_", " ").title(),
+        title=title,
         source=source,
-        date=str(overrides.get("date") or "1900"),
+        date=date,
         category=overrides.get("category") or "non_categorise",
         language=language,
         file_path=str(processed_path.as_posix()),
-        original_filename=source_file.name,
         source_format=source_file.suffix.lower(),
-        extraction_method=extraction.method,
+        extraction_method=extraction_method,
         char_count_raw=len(raw_text),
         word_count_raw=len(raw_text.split()),
         char_count_clean=len(clean_content),
@@ -344,13 +382,26 @@ def build_metadata(
 
 
 class IngestionPipeline:
-    """Scans data/raw, extracts + cleans + anonymizes text, writes output."""
+    """Scans data/raw, extracts + cleans + anonymises text, validates
+    metadata, writes output.
 
-    def __init__(self, raw_dir: Path, out_dir: Path):
+    `anonymise` defaults to True and should stay that way outside of local
+    debugging: disabling it writes personal data into data/processed/, which
+    is the exact outcome the pipeline exists to prevent.
+    """
+
+    def __init__(self, raw_dir: Path, out_dir: Path, anonymise: bool = True):
         self.raw_dir = raw_dir
         self.out_dir = out_dir
+        self.anonymise = anonymise
         self.documents_dir = out_dir / "documents"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
+        if not anonymise:
+            logger.warning(
+                "ANONYMISATION DISABLED - personal data will be written to %s. "
+                "Never use this mode on a real corpus.",
+                self.documents_dir,
+            )
 
     def discover_files(self) -> list[Path]:
         if not self.raw_dir.exists():
@@ -362,26 +413,32 @@ class IngestionPipeline:
             if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
         )
 
-    def process_file(self, source_file: Path) -> DocumentMetadata:
+    def process_file(self, source_file: Path) -> tuple[DocumentMetadata, int]:
         extraction = extract_text_from_file(source_file)
         cleaned = clean_text(extraction.text)
         if not cleaned:
             raise ValueError(f"{source_file} produced empty text after cleaning")
 
-        anonymized_text = anonymize_text(cleaned)
-        was_anonymized = anonymized_text != cleaned
+        masked_count = 0
+        if self.anonymise:
+            cleaned, applied = anonymize_document(cleaned)
+            masked_count = len(applied)
+            if not cleaned:
+                raise ValueError(f"{source_file} produced empty text after anonymisation")
 
+        # Metadata (language, doc_id, title) is derived from the anonymised
+        # text so downstream consumers never see the original.
         metadata = build_metadata(
             source_file,
             self.raw_dir,
             self.out_dir,
-            anonymized_text,
+            cleaned,
             extraction=extraction,
-            anonymized=was_anonymized,
+            anonymized=masked_count > 0,
         )
         target = self.documents_dir / f"{metadata.doc_id}.txt"
-        target.write_text(anonymized_text, encoding="utf-8")
-        return metadata
+        target.write_text(cleaned, encoding="utf-8")
+        return metadata, masked_count
 
     def run(self) -> IngestResult:
         result = IngestResult()
@@ -389,7 +446,7 @@ class IngestionPipeline:
 
         for source_file in self.discover_files():
             try:
-                metadata = self.process_file(source_file)
+                metadata, masked_count = self.process_file(source_file)
             except (ExtractionError, ValueError) as exc:
                 logger.error("Skipping %s: %s", source_file, exc)
                 result.skipped += 1
@@ -408,20 +465,26 @@ class IngestionPipeline:
 
             all_metadata.append(metadata)
             result.processed += 1
+            result.pii_masked += masked_count
             result.extraction_methods[metadata.extraction_method] = (
                 result.extraction_methods.get(metadata.extraction_method, 0) + 1
             )
             logger.info(
-                "Ingested %s -> %s (%s)", source_file, metadata.doc_id, metadata.extraction_method
+                "Ingested %s -> %s (%s, %d PII masked)",
+                source_file,
+                metadata.doc_id,
+                metadata.extraction_method,
+                masked_count,
             )
 
         self._write_metadata_index(all_metadata)
         self._write_ingestion_report(result)
         logger.info(
-            "Ingestion complete: %d processed, %d skipped, %d failed",
+            "Ingestion complete: %d processed, %d skipped, %d failed, %d PII masked",
             result.processed,
             result.skipped,
             result.failed,
+            result.pii_masked,
         )
         return result
 
@@ -434,7 +497,8 @@ class IngestionPipeline:
 
     def _write_ingestion_report(self, result: IngestResult) -> None:
         """Ingestion-stage summary: files processed/skipped/failed, success
-        rate, extraction method breakdown, and per-file error log.
+        rate, PII masking count, extraction method breakdown, and per-file
+        error log.
 
         Written to `ingestion_report.json`, deliberately *not*
         `quality_report.json` — that file is already owned by
@@ -454,6 +518,7 @@ class IngestionPipeline:
             "skipped": result.skipped,
             "failed": result.failed,
             "success_rate": success_rate,
+            "pii_masked": result.pii_masked,
             "extraction_methods": result.extraction_methods,
             "errors": result.errors,
         }
@@ -475,6 +540,14 @@ def parse_args() -> argparse.Namespace:
         default=MIN_DIRECT_TEXT_CHARS,
         help="Below this many chars, a PDF's direct text layer triggers OCR fallback.",
     )
+    parser.add_argument(
+        "--no-anonymize",
+        action="store_true",
+        help=(
+            "Write the text without removing personal data. Local debugging only "
+            "— never on a real corpus."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -487,7 +560,11 @@ def main() -> IngestResult:
     global MIN_DIRECT_TEXT_CHARS
     MIN_DIRECT_TEXT_CHARS = args.min_direct_text_chars
 
-    pipeline = IngestionPipeline(raw_dir=args.raw_dir, out_dir=args.out_dir)
+    pipeline = IngestionPipeline(
+        raw_dir=args.raw_dir,
+        out_dir=args.out_dir,
+        anonymise=not args.no_anonymize,
+    )
     return pipeline.run()
 
 
