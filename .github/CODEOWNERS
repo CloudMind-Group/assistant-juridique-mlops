@@ -1,39 +1,48 @@
 # =============================================================================
-# CODEOWNERS — CloudMind Group
-# Toute pull request touchant un chemin ci-dessous requiert la revue du ou des
-# propriétaires correspondants. La dernière règle qui correspond l'emporte.
+# CODEOWNERS — CloudMind-Group
+# Toute pull request touchant un chemin ci-dessous requiert la revue de la ou
+# des équipes propriétaires. La dernière règle qui correspond l'emporte.
 #
-# ⚠️  Remplacez les identifiants @prenom-nom par les vrais pseudos GitHub
-#     de l'équipe (docs/GITHUB.md, section « Comptes »).
+# Les propriétaires sont des ÉQUIPES de l'organisation, pas des individus :
+# ajouter ou retirer quelqu'un d'une équipe suffit, ce fichier ne bouge pas.
+# Composition des équipes : docs/GITHUB.md, section « Équipes ».
 # =============================================================================
 
-# Par défaut : revue par les mainteneurs du dépôt
-*                           @salma-elouarrate @youssefelalem
+# Par défaut : l'équipe plateforme
+*                           @CloudMind-Group/platform
 
 # --- Documentation projet ----------------------------------------------------
-/README.md                  @salma-elouarrate @taha-kachmar
-/docs/ARCHITECTURE.md       @imane-ibnchakroune @salma-elouarrate
-/docs/TEAM.md               @taha-kachmar
-/docs/GITHUB.md             @salma-elouarrate
+/README.md                  @CloudMind-Group/platform @CloudMind-Group/security
+/docs/ARCHITECTURE.md       @CloudMind-Group/data @CloudMind-Group/platform
+/docs/TEAM.md               @CloudMind-Group/security
+/docs/GITHUB.md             @CloudMind-Group/platform
 
 # --- Données du tableau de bord ----------------------------------------------
-# Chaque pilote valide les lignes de son module ; la revue est collective car
-# le fichier est unique.
-/assets/js/data.js          @douae-moussaoui @imane-ibnchakroune @amal-elguerdani @salma-elouarrate @nouhaila-fadli @oumaima-jeraidi @youssefelalem @taha-kachmar
+# Fichier unique partagé par les huit modules : revue des quatre équipes.
+/assets/js/data.js          @CloudMind-Group/data @CloudMind-Group/app @CloudMind-Group/platform @CloudMind-Group/security
 
 # --- Couche de présentation --------------------------------------------------
-/assets/css/               @oumaima-jeraidi
-/assets/js/render.js       @oumaima-jeraidi
-/assets/js/app.js          @oumaima-jeraidi @youssefelalem
-/index.html                @oumaima-jeraidi
+/assets/css/                @CloudMind-Group/app
+/assets/js/render.js        @CloudMind-Group/app
+/index.html                 @CloudMind-Group/app
+/assets/js/app.js           @CloudMind-Group/app @CloudMind-Group/platform
 
 # --- Chaîne d'intégration et configuration -----------------------------------
-/.github/                  @salma-elouarrate
-/.github/workflows/        @salma-elouarrate
-/.editorconfig             @salma-elouarrate
-/.gitignore                @salma-elouarrate
-/.gitattributes            @salma-elouarrate
+/.github/                   @CloudMind-Group/platform
+/.editorconfig              @CloudMind-Group/platform
+/.gitignore                 @CloudMind-Group/platform
+/.gitattributes             @CloudMind-Group/platform
+
+# --- Modules MLOps et Pipeline Python ----------------------------------------
+/src/m1_ingestion/          @CloudMind-Group/data
+/src/                       @CloudMind-Group/data @CloudMind-Group/app
+/dags/                      @CloudMind-Group/data @CloudMind-Group/platform
+/data/                      @CloudMind-Group/data
+/dvc.yaml                   @CloudMind-Group/data
+/dvc.lock                   @CloudMind-Group/data
+/requirements.txt           @CloudMind-Group/data @CloudMind-Group/platform
 
 # --- Sécurité et conformité --------------------------------------------------
-/LICENSE                   @taha-kachmar
-/SECURITY.md               @taha-kachmar
+/LICENSE                    @CloudMind-Group/security
+/SECURITY.md                @CloudMind-Group/security
+

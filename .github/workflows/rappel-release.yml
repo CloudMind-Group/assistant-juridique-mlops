@@ -1,0 +1,117 @@
+name: Rappel de release
+
+# Ouvre automatiquement l'issue de préparation de la release, chaque jeudi.
+# Le projet tient en quatre semaines : une version mineure par semaine.
+on:
+  schedule:
+    - cron: '0 17 * * 4'   # jeudi 17:00 UTC = 18:00 à Casablanca
+  workflow_dispatch:        # déclenchement manuel, utile pour tester
+
+# Moindre privilège : ce job n'écrit que des issues.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  rappel:
+    name: Ouvrir l'issue de préparation
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - name: Calculer la prochaine version
+        id: version
+        run: |
+          dernier=$(gh api "repos/$REPO/tags" --paginate --jq '.[].name' \
+                    | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -z "$dernier" ]; then
+            suivante="0.1.0"
+          else
+            base=${dernier#v}
+            majeur=${base%%.*}
+            reste=${base#*.}
+            mineur=${reste%%.*}
+            suivante="$majeur.$((mineur + 1)).0"
+          fi
+          echo "derniere=${dernier:-aucune}" >> "$GITHUB_OUTPUT"
+          echo "suivante=$suivante"          >> "$GITHUB_OUTPUT"
+          echo "Dernière version : ${dernier:-aucune} → prochaine : $suivante"
+
+      - name: Ouvrir l'issue si elle n'existe pas déjà
+        env:
+          V: ${{ steps.version.outputs.suivante }}
+          PRECEDENTE: ${{ steps.version.outputs.derniere }}
+        run: |
+          titre="Préparer la release v$V"
+
+          existante=$(gh issue list --repo "$REPO" --state open \
+                        --search "\"$titre\" in:title" --json number --jq '.[0].number // ""')
+          if [ -n "$existante" ]; then
+            echo "L'issue #$existante existe déjà — rien à faire."
+            exit 0
+          fi
+
+          cat > /tmp/corps.md <<EOF
+          La semaine se termine : il est temps de livrer la version **v$V**.
+          Version précédente : \`$PRECEDENTE\`.
+
+          Responsable : @CloudMind-Group/platform
+
+          ### 1. Geler le périmètre
+
+          \`\`\`bash
+          git checkout develop && git pull
+          git checkout -b release/$V
+          git push -u origin release/$V
+          \`\`\`
+
+          À partir d'ici, **plus aucune nouveauté** sur cette branche : uniquement
+          les corrections trouvées pendant les tests. Les fonctionnalités continuent
+          d'arriver dans \`develop\` sans gêner la livraison.
+
+          - [ ] Branche \`release/$V\` créée
+          - [ ] Tableau de bord à jour dans \`assets/js/data.js\` (statuts et sous-tâches de la semaine)
+          - [ ] \`node .github/scripts/check-data.mjs\` passe en local
+          - [ ] Documentation à jour si le fonctionnement a changé
+
+          ### 2. Livrer dans \`main\`
+
+          \`\`\`bash
+          gh pr create --base main --title "release: $V"
+          \`\`\`
+
+          - [ ] Pull request ouverte vers \`main\`
+          - [ ] CI verte
+          - [ ] Approbation obtenue
+          - [ ] Fusionnée **en merge commit** (pas en squash — c'est la règle sur \`main\`)
+
+          > Le tag \`v$V\` et la release GitHub sont créés **automatiquement**
+          > à la fusion, par le workflow \`Tag de release\`. Rien à faire à la main.
+
+          ### 3. Ramener les corrections dans \`develop\`
+
+          \`\`\`bash
+          gh pr create --base develop --head release/$V \
+            --title "chore: reporte les corrections de $V dans develop"
+          \`\`\`
+
+          - [ ] Pull request de report ouverte **et fusionnée**
+
+          ⚠️ Étape la plus oubliée de GitFlow. Sans elle, les corrections faites
+          pendant le gel n'existent que dans \`main\` : la semaine suivante repart
+          d'un \`develop\` qui contient encore le bug.
+
+          ---
+          <sub>Issue ouverte automatiquement par \`.github/workflows/rappel-release.yml\`.
+          Procédure détaillée : <code>docs/GITHUB.md</code> et <code>docs/workflow.html</code>.</sub>
+          EOF
+
+          # supprime l'indentation du heredoc
+          sed -i 's/^          //' /tmp/corps.md
+
+          gh issue create --repo "$REPO" \
+            --title "$titre" \
+            --body-file /tmp/corps.md \
+            --assignee youssefelalem,salmaelouarrate

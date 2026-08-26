@@ -1,99 +1,209 @@
 # Gouvernance GitHub — CloudMind Group
 
 Rôles, permissions et règles de collaboration sur le dépôt.
-Projet contraint à **4 semaines** : les règles ci-dessous sont volontairement légères,
-mais non négociables sur la branche `main`.
+Projet contraint à **4 semaines**. Modèle de branches retenu : **GitFlow**.
+Les règles ci-dessous ne sont pas négociables sur `main` et `develop`.
 
 ---
 
 ## 1. Comptes de l'équipe
 
-> À compléter par chaque membre avant la fin de la semaine 1, puis à répercuter dans
-> [`.github/CODEOWNERS`](../.github/CODEOWNERS).
+Le dépôt appartient à l'organisation **[CloudMind-Group](https://github.com/CloudMind-Group)**.
+Les huit membres y sont invités et rattachés à une équipe : les droits découlent de
+l'équipe, jamais d'un accès individuel.
 
-| Membre | Pseudo GitHub (à confirmer) | Module piloté | Rôle sur le dépôt |
+| Membre | Compte GitHub | Module piloté | Équipe |
 |---|---|---|---|
-| Salma El Ouarrate | `@salma-elouarrate` | M4 — CI/CD & Infrastructure | **Admin** |
-| Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | **Maintain** |
-| Taha Kachmar | `@taha-kachmar` | M8 — Security & Compliance | **Maintain** |
-| Douae Moussaoui | `@douae-moussaoui` | M1 — Data Pipeline | Write |
-| Imane Ibnchakroune | `@imane-ibnchakroune` | M2 — Model Engineering | Write |
-| Amal El Guerdani | `@amal-elguerdani` | M3 — Tracking & Registry | Write |
-| Nouhaila Fadli | `@nouhaila-fadli` | M5 — API & Serving | Write |
-| Oumaima Jeraidi | `@oumaima-jeraidi` | M6 — UI/UX & Frontend | Write |
-| Encadrant / référent métier | `@encadrant` | — | Read (+ Triage) |
+| Salma El Ouarrate | `@salmaelouarrate` | M4 — CI/CD & Infrastructure | `platform` |
+| Youssef El Alem | `@youssefelalem` | M7 — Monitoring & Observability | `platform` |
+| Douae Moussaoui | `@DOUAEM449` | M1 — Data Pipeline | `data` |
+| Imane Ibnchakroune | `@ima-cs` | M2 — Model Engineering | `data` |
+| Amal El Guerdani | `@amal4567` | M3 — Tracking & Registry | `data` |
+| Nouhaila Fadli | `@nouhailafad` | M5 — API & Serving | `app` |
+| Oumaima Jeraidi | `@Oumaimajeraidi` | M6 — UI/UX & Frontend | `app` |
+| Taha Kachmar | `@taha588` | M8 — Security & Compliance | `security` |
+
+## 1 bis. Équipes de l'organisation
+
+Quatre équipes portent les droits. C'est le seul endroit à modifier quand quelqu'un
+rejoint ou quitte le projet : [`CODEOWNERS`](../.github/CODEOWNERS) référence les
+équipes, jamais les personnes.
+
+| Équipe | Périmètre | Membres | Droit sur le dépôt |
+|---|---|---|---|
+| `@CloudMind-Group/platform` | M4 + M7 — CI/CD, infrastructure, observabilité | salmaelouarrate *(mainteneuse)*, youssefelalem *(mainteneur)* | **Admin** |
+| `@CloudMind-Group/data` | M1 + M2 + M3 — données, RAG, expérimentation | DOUAEM449, ima-cs, amal4567 | Write |
+| `@CloudMind-Group/app` | M5 + M6 — API, serving, interface | nouhailafad, Oumaimajeraidi | Write |
+| `@CloudMind-Group/security` | M8 — sécurité, gouvernance, conformité | taha588 *(mainteneur)*, youssefelalem | Maintain |
+
+**Ajouter un membre :**
+
+```bash
+gh api -X PUT orgs/CloudMind-Group/teams/<equipe>/memberships/<pseudo> -f role=member
+```
+
+**Retirer un membre :** le sortir de l'équipe suffit — aucun fichier à modifier.
+
+### Le propriétaire de l'organisation est membre implicite de toutes les équipes
+
+GitHub inscrit automatiquement le propriétaire de l'organisation comme *mainteneur* de
+chaque équipe, sans qu'on l'y ajoute. Vérifiable à tout moment :
+
+```bash
+gh api orgs/CloudMind-Group/teams/data/memberships/youssefelalem
+# -> role=maintainer, state=active — alors qu'il n'a jamais été ajouté à `data`
+```
+
+**Conséquence :** il satisfait à lui seul la revue des Code Owners de n'importe quel
+chemin du dépôt. Pratique au démarrage, dangereux ensuite — la revue croisée se réduit
+à un tampon unique.
+
+> **Règle d'équipe :** le propriétaire n'use de ce droit que si aucun membre de l'équipe
+> concernée n'a relu la pull request **sous 24 h**. Le relecteur par défaut reste le
+> pilote du module, conformément à la colonne **A** de la matrice RACI.
+
+Corollaire à ne pas oublier : le propriétaire ne peut pas approuver ses propres pull
+requests. Tout ce qu'il écrit doit être relu par quelqu'un d'autre — c'est la seule
+garantie que le principe des quatre yeux tienne aussi pour lui.
+
+> Les accès individuels hérités du transfert (`DOUAEM449`, `ima-cs` en collaborateurs
+> directs) deviennent redondants une fois les invitations d'organisation acceptées :
+> les retirer alors depuis `Settings → Collaborators`, afin que l'appartenance à une
+> équipe reste l'unique source de droits.
 
 ## 2. Signification des rôles GitHub
 
 | Rôle | Ce qu'il permet | Attribué à | Pourquoi |
 |---|---|---|---|
-| **Admin** | Tout, y compris les réglages du dépôt, les règles de protection, les secrets et la suppression | Salma (M4) | Elle pilote la CI/CD et l'infrastructure : un seul point de responsabilité sur les réglages |
-| **Maintain** | Gérer les issues, les PR, les milestones, les paramètres non destructifs — sans accès aux secrets ni suppression | Youssef (M7), Taha (M8) | Supervision et sécurité : ils arbitrent les fusions quand Salma est indisponible |
-| **Write** | Pousser des branches, ouvrir et réviser des PR, gérer les issues | Les 5 autres pilotes | Suffisant pour contribuer ; empêche toute modification des règles |
-| **Triage** | Trier les issues et PR sans droit d'écriture sur le code | Encadrant | Suivi pédagogique sans risque |
+| **Admin** | Tout, y compris les réglages du dépôt, les règles de protection, les secrets et la suppression | équipe `platform` | Elle pilote la CI/CD et l'infrastructure : un seul point de responsabilité sur les réglages |
+| **Maintain** | Gérer les issues, les PR, les milestones, les paramètres non destructifs — sans accès aux secrets ni suppression | équipe `security` | Supervision et sécurité : ils arbitrent les fusions quand Salma est indisponible |
+| **Write** | Pousser des branches, ouvrir et réviser des PR, gérer les issues | équipes `data` et `app` | Suffisant pour contribuer ; empêche toute modification des règles |
+| **Triage** | Trier les issues et PR sans droit d'écriture sur le code | encadrant, à inviter en `outside collaborator` | Suivi pédagogique sans risque |
 | **Read** | Lecture, clone, discussions | Observateurs | — |
 
-> **Règle des deux administrateurs :** en cas d'absence de Salma, Youssef est promu Admin
-> temporairement. Ne jamais laisser le dépôt avec un seul administrateur joignable.
+> **Règle des deux administrateurs :** l'équipe `platform` compte deux mainteneurs
+> (Salma et Youssef). Ne jamais laisser l'organisation avec un seul propriétaire joignable.
 
-## 3. Protection de la branche `main`
+## 3. Protection des branches
 
-À activer dans `Settings → Branches → Add branch protection rule`, motif `main` :
+Deux branches sont permanentes et protégées par des *rulesets*
+(`Settings → Rules → Rulesets`), tous deux **actifs**.
 
-- [x] **Require a pull request before merging** — aucun `push` direct sur `main`
-- [x] **Require approvals : 1** (2 pour `assets/js/data.js` et `.github/`)
-- [x] **Require review from Code Owners** — s'appuie sur `.github/CODEOWNERS`
-- [x] **Dismiss stale approvals when new commits are pushed**
-- [x] **Require status checks to pass** → job `validate` du workflow CI
-- [x] **Require conversation resolution before merging**
-- [x] **Require linear history** — fusion en *squash* uniquement
-- [ ] *Allow force pushes* — désactivé
-- [ ] *Allow deletions* — désactivé
+### `main` — branche de production
 
-Dans `Settings → General → Pull Requests` : ne laisser que **Squash merging**,
-et cocher *Automatically delete head branches*.
-
-### État actuel
-
-Le ruleset **« Protection de main »** est **déjà actif** sur le dépôt
-(`Settings → Rules → Rulesets`). Il applique les cinq règles suivantes :
+Ne reçoit **que** des branches `release/*` et `hotfix/*`. Chaque fusion correspond à
+une version livrée et doit être suivie d'un tag `vX.Y.Z`.
 
 | Règle | Effet |
 |---|---|
-| `pull_request` | 1 approbation, revue des Code Owners, résolution des conversations, squash uniquement |
+| `pull_request` | 1 approbation, revue des Code Owners, conversations résolues, **merge commit** uniquement |
 | `required_status_checks` | le job `Validation du site statique` doit être vert, branche à jour |
-| `required_linear_history` | pas de commit de fusion |
 | `non_fast_forward` | force push interdit |
-| `deletion` | suppression de `main` interdite |
+| `deletion` | suppression interdite |
 
-> ⚠️ **Dérogation temporaire :** le rôle *Repository admin* dispose actuellement d'un
-> bypass (`bypass_mode: always`). Sans lui, le dépôt serait bloqué tant qu'un seul
-> compte y a accès : personne ne peut approuver sa propre PR.
-> **À supprimer dès que les huit membres sont ajoutés comme collaborateurs**
-> (`Settings → Rules → Rulesets → Protection de main → Bypass list`).
+> `required_linear_history` est **volontairement absent** : GitFlow impose des commits de
+> fusion (`--no-ff`) pour conserver la trace de chaque branche intégrée.
+
+### `develop` — branche d'intégration
+
+Branche par défaut du dépôt : c'est là que partent et que reviennent toutes les
+branches `feature/*`. Elle doit rester en état de fonctionner en permanence.
+
+| Règle | Effet |
+|---|---|
+| `pull_request` | 1 approbation, revue des Code Owners, conversations résolues, merge ou squash |
+| `required_status_checks` | le job `Validation du site statique` doit être vert, branche à jour |
+| `non_fast_forward` | force push interdit |
+| `deletion` | suppression interdite |
+
+> ⚠️ **Dérogation temporaire :** le rôle *Repository admin* dispose d'un bypass
+> (`bypass_mode: always`) sur les deux rulesets. Sans lui, le dépôt serait bloqué tant
+> qu'un seul compte y a accès : personne ne peut approuver sa propre PR.
+> **À supprimer dès que les huit membres sont ajoutés comme collaborateurs.**
+
+### Réglages de fusion
+
+`Settings → General → Pull Requests` : *Merge commits* et *Squash merging* activés,
+*Rebase merging* désactivé, *Automatically delete head branches* coché.
 
 ### Rappel CODEOWNERS
 
-Tant que les pseudos `@prenom-nom` ne correspondent pas à des comptes réels **ayant
-accès en écriture au dépôt**, GitHub signale une erreur par ligne et la revue des
-Code Owners ne peut pas être satisfaite. Vérifiez l'état sur
-`https://github.com/<owner>/<repo>/codeowners/errors` après avoir invité l'équipe.
+`CODEOWNERS` ne référence que des équipes de l'organisation, toutes dotées d'un accès
+en écriture : la revue des Code Owners est donc satisfaite dès qu'un membre de l'équipe
+concernée approuve. État des lieux à tout moment sur
+[`/codeowners/errors`](https://github.com/CloudMind-Group/assistant-juridique-mlops/codeowners/errors).
 
-## 4. Convention de branches
+## 4. Modèle de branches — GitFlow
 
 ```
-main                     ← protégée, toujours déployable
-├── feat/m1-ingestion-pdf
-├── feat/m5-cache-redis
-├── fix/m6-citation-overflow
-├── docs/architecture-rag
-└── chore/ci-cache-node
+main      ──●───────────────────────●──────────●──▶   production, taggée vX.Y.Z
+             \                     /          /
+              \        release/1.0.0         /
+               \      /          \          /
+develop   ──●───●────●────●────────●────────●──▶      intégration continue
+             \      /     \      /
+              feature/m1-ocr      feature/m5-cache
+                                              ▲
+                                       hotfix/1.0.1 ──▶ main + develop
 ```
 
-Format : `<type>/<module>-<sujet-court>` en minuscules, avec `m1`…`m8` pour rattacher la
-branche à son module — le rattachement rend le tableau de bord GitHub Projects lisible d'un coup d'œil.
+| Branche | Part de | Retourne vers | Durée de vie |
+|---|---|---|---|
+| `main` | — | — | permanente |
+| `develop` | `main` | — | permanente |
+| `feature/<module>-<sujet>` | `develop` | `develop` | quelques jours |
+| `release/<version>` | `develop` | `main` **et** `develop` | fin de semaine |
+| `hotfix/<version>` | `main` | `main` **et** `develop` | quelques heures |
 
-Types autorisés : `feat`, `fix`, `docs`, `refactor`, `style`, `test`, `chore`.
+Exemples : `feature/m1-ingestion-pdf`, `feature/m5-cache-redis`,
+`release/0.2.0`, `hotfix/0.2.1`.
+
+Le préfixe de module (`m1`…`m8`) reste obligatoire sur les branches `feature/*` :
+il rattache la branche à son pilote dans la matrice RACI et rend le tableau
+GitHub Projects lisible d'un coup d'œil.
+
+### Cycle d'une fonctionnalité
+
+```bash
+git checkout develop && git pull
+git checkout -b feature/m2-reranking
+# ... commits ...
+git push -u origin feature/m2-reranking
+gh pr create --base develop            # revue du pilote M2, CI verte, fusion
+```
+
+### Cycle d'une livraison hebdomadaire
+
+Chaque fin de semaine (S1 à S4) correspond à une version. La branche `release/*`
+gèle le périmètre : seules les corrections y sont admises, jamais de nouveauté.
+
+```bash
+git checkout develop && git pull
+git checkout -b release/0.2.0
+# corrections de dernière minute uniquement
+gh pr create --base main --title "release: 0.2.0"    # après fusion :
+git tag -a v0.2.0 -m "Semaine 2 — RAG & API v1" && git push origin v0.2.0
+gh pr create --base develop --head release/0.2.0     # report des corrections
+```
+
+### Correctif urgent
+
+```bash
+git checkout main && git pull
+git checkout -b hotfix/0.2.1
+# correction minimale
+gh pr create --base main      # puis report obligatoire vers develop
+```
+
+> **Règle d'or :** toute branche `release/*` ou `hotfix/*` fusionnée dans `main`
+> doit **aussi** être fusionnée dans `develop`, sinon la correction est perdue
+> à la version suivante.
+
+### Versionnage
+
+[SemVer](https://semver.org/lang/fr/) : `MAJEUR.MINEUR.CORRECTIF`.
+Sur ce projet d'un mois, une **version mineure par semaine** (`v0.1.0` → `v0.4.0`),
+la `v1.0.0` étant posée à la soutenance.
 
 ## 5. Commits
 
@@ -108,12 +218,13 @@ chore(ci): met en cache les dépendances du workflow
 
 ## 6. Cycle de vie d'une pull request
 
-1. Créer la branche depuis `main` à jour.
+1. Créer la branche depuis `develop` à jour (ou depuis `main` pour un `hotfix/*`).
 2. Ouvrir la PR **en brouillon** dès le premier commit — la visibilité prime sur la perfection.
 3. Renseigner le gabarit ([`pull_request_template.md`](../.github/pull_request_template.md)).
 4. Passer la PR en « Ready for review » et demander la revue du pilote concerné (colonne **A** de la matrice RACI).
 5. Le pilote relit sous **24 h maximum** — planning d'un mois, aucune PR ne doit dormir.
-6. Fusion en *squash* par l'auteur une fois la CI verte et l'approbation obtenue.
+6. Fusion par l'auteur une fois la CI verte et l'approbation obtenue :
+   *squash* vers `develop`, **merge commit** vers `main`.
 
 **Taille cible d'une PR : moins de 400 lignes modifiées.** Au-delà, découper.
 
@@ -133,13 +244,40 @@ chore(ci): met en cache les dépendances du workflow
 
 | Milestone | Échéance | Contenu |
 |---|---|---|
-| `S1 — Cadrage & socle` | J+7 | Corpus initial, squelette CI/Docker, maquettes, règles RGPD |
-| `S2 — RAG & API v1` | J+14 | Index vectoriel, chaîne RAG tracée, API et interface reliées |
-| `S3 — Qualité & optimisation` | J+21 | Évaluation RAGAS, citations, cache et streaming, métriques |
-| `S4 — Durcissement & livraison` | J+28 | Observabilité, sécurité, tests de charge, déploiement, soutenance |
+| `S1 — Cadrage & socle` → `v0.1.0` | J+7 | Corpus initial, squelette CI/Docker, maquettes, règles RGPD |
+| `S2 — RAG & API v1` → `v0.2.0` | J+14 | Index vectoriel, chaîne RAG tracée, API et interface reliées |
+| `S3 — Qualité & optimisation` → `v0.3.0` | J+21 | Évaluation RAGAS, citations, cache et streaming, métriques |
+| `S4 — Durcissement & livraison` → `v1.0.0` | J+28 | Observabilité, sécurité, tests de charge, déploiement, soutenance |
 
 Toute issue **doit** porter un module, un type et une milestone. Une issue sans milestone
 n'entre pas dans le mois.
+
+## 8 bis. Automatisation de la release
+
+Deux workflows évitent d'avoir à se souvenir de la procédure. Ils sont volontairement
+partiels : **ce qui demande un jugement humain reste manuel**.
+
+| Workflow | Déclencheur | Ce qu'il fait |
+|---|---|---|
+| [`rappel-release.yml`](../.github/workflows/rappel-release.yml) | jeudi 18:00 (Casablanca) + manuel | Ouvre l'issue « Préparer la release vX.Y.Z » avec la procédure complète en cases à cocher, assignée à `platform`. Calcule la version suivante à partir du dernier tag. N'ouvre rien si l'issue existe déjà. |
+| [`tag-release.yml`](../.github/workflows/tag-release.yml) | fusion dans `main` | Détecte `release: X.Y.Z` ou `hotfix/X.Y.Z` dans le message de fusion, pose le tag annoté `vX.Y.Z` et publie la release GitHub avec ses notes générées. Ne fait rien si le tag existe. |
+
+### Ce qui n'est pas automatisé, et pourquoi
+
+**La création de la branche et de la pull request de release.** Une pull request ouverte
+par le `GITHUB_TOKEN` **ne déclenche pas les workflows** — la vérification obligatoire
+`Validation du site statique` ne se lancerait jamais et la pull request resterait bloquée
+sans que personne ne comprenne pourquoi. Deux commandes à la main valent mieux qu'un
+blocage inexplicable un vendredi soir.
+
+**Le report vers `develop`.** Il demande de vérifier ce qui a réellement été corrigé
+pendant le gel. Le workflow se contente d'afficher un rappel dans le résumé d'exécution.
+
+### Permissions
+
+Le réglage du dépôt reste `default_workflow_permissions: read`. Chaque workflow demande
+explicitement le strict nécessaire : `issues: write` pour le rappel, `contents: write`
+pour le tag. Aucun secret n'est utilisé, le `GITHUB_TOKEN` intégré suffit.
 
 ## 9. GitHub Projects
 
@@ -157,6 +295,7 @@ Champs personnalisés : `Module` (M1–M8), `Pilote`, `Semaine` (S1–S4), `Esti
 
 ## 11. Mise en ligne de la page
 
-`Settings → Pages → Source: Deploy from a branch → main / (root)`.
+`Settings → Pages → Source: Deploy from a branch → **main** / (root)` —
+la page publiée reflète donc toujours la dernière version livrée, jamais `develop`.
 Le site étant statique et sans étape de build, il est publié tel quel sur
 `https://<organisation>.github.io/<depot>/`.

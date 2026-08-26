@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'release/**', 'hotfix/**']
   pull_request:
-    branches: [main]
+    branches: [main, develop, 'release/**', 'hotfix/**']
 
 # Principe de moindre privilège : le job ne fait que lire le dépôt.
 permissions:
@@ -61,7 +61,8 @@ jobs:
       - name: Aucun secret ni donnée sensible
         run: |
           if grep -rInE '(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}' \
-               --include='*.js' --include='*.html' --include='*.css' . ; then
+               --include='*.js' --include='*.html' --include='*.css' \
+               --include='*.py' --include='*.yaml' --include='*.yml' . ; then
             echo "::error::valeur sensible potentielle détectée"
             exit 1
           fi
