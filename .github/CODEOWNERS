@@ -46,6 +46,7 @@
 /LICENSE                    @CloudMind-Group/security
 /SECURITY.md                @CloudMind-Group/security
 /docs/RGPD.md               @CloudMind-Group/security
+/docs/AIPD.md               @CloudMind-Group/security
 
 # Règles d'anonymisation et leurs tests : le pipeline appartient à `data`, mais
 # ce qui définit ce qui est masqué relève de la conformité.

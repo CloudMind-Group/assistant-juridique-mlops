@@ -200,7 +200,6 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-02 | Corpus hébergé sur un compte personnel hors organisation | Élevée | M8 + M1 | S4 |
 | E-03 | Durée de conservation non définie | Moyenne | M8 | S4 |
 | E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
-| E-05 | CI : aucune analyse des dépendances ni des vulnérabilités ; le scan de secrets se limite à une recherche textuelle et ne détecterait pas une clé d'API sans mot-clé | Moyenne | M8 + M4 | S4 |
 | E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
 | E-07 | Origine des décisions de justice non arrêtée — conditionne le volume de données personnelles entrant | Moyenne | M8 + M1 | avant la première collecte réelle |
 | E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
@@ -214,6 +213,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R3 | `doc_id` et `title` dérivés du nom de fichier, propageant une identité jusque dans les citations | PR #16 |
 | E-R4 | Aucune vérification automatisée du masquage | PR #16 — 13 tests exécutés en CI |
 | E-R5 | Corpus accessible publiquement | Dépôt passé en privé le 27/08/2026 |
+| E-R6 | Aucune analyse de sécurité du code Python ni des dépendances ; le scan de secrets, limité à une recherche textuelle, ne détecterait pas une clé d'API dépourvue de mot-clé | Bandit et pip-audit ajoutés à la CI, exécutés à chaque pull request |
 
 ## 6. Preuves
 
@@ -273,7 +273,11 @@ Ce registre est revu :
 - **avant la première collecte d'un corpus réel** — révision bloquante ;
 - à la revue de sécurité mensuelle (M8 et pilotes concernés).
 
-Une analyse d'impact (AIPD) est requise : le traitement porte sur des données
-judiciaires de personnes physiques, il est automatisé, et il les restitue à un
-public. Elle s'appuiera sur le présent registre et sera rédigée avant l'ouverture
-du service. Priorité : après résolution des écarts E-01 et E-02.
+L'analyse d'impact requise par ce traitement — données judiciaires de personnes
+physiques, traitement automatisé, restitution à un public — s'appuie sur le
+présent registre et fait l'objet d'un document distinct :
+**[AIPD.md](AIPD.md)**.
+
+Elle conclut que le traitement est proportionné à sa finalité, sous une réserve
+bloquante : **l'ingestion d'un corpus judiciaire réel ne doit pas commencer
+avant la résolution des écarts E-01, E-02 et E-07.**

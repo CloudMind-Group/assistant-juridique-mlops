@@ -125,7 +125,12 @@ def make_doc_id(source_file: Path, raw_dir: Path) -> str:
     metadata index, into M2's vector store, and finally into the citations the
     assistant shows to end users — surviving any masking applied to the text.
     """
-    digest = hashlib.sha1(str(source_file.resolve()).encode("utf-8")).hexdigest()[:16]
+    # usedforsecurity=False : le condensé sert d'identifiant, pas de garantie
+    # d'intégrité. Rend l'intention explicite et lève l'alerte B324 de Bandit
+    # sans changer les doc_id déjà produits.
+    digest = hashlib.sha1(  # noqa: S324
+        str(source_file.resolve()).encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:16]
     return f"{source_slug(source_file, raw_dir)}-{digest}"
 
 
