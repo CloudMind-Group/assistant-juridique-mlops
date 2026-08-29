@@ -145,7 +145,7 @@ M1 livre un corpus réduit mais complet dès **J+4** pour débloquer M2.
 
 | Couche | Technologies |
 |---|---|
-| Données & ingestion | Airflow · DVC · Pandas · Tesseract · MinIO |
+| Données & ingestion | Airflow · DVC · Pandas · Tesseract · DAGsHub |
 | Vectorisation & RAG | Qdrant · ChromaDB · LangChain · LlamaIndex |
 | Modélisation | Hugging Face · PyTorch · PEFT/LoRA |
 | Expérimentation | MLflow · RAGAS · Optuna |
