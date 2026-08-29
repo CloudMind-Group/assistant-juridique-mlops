@@ -138,20 +138,20 @@ const MEMBERS = [
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',
     module:'Module 8 · Security, Governance & Compliance', icon:'i-shield',
-    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:14,
+    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:29,
     desc:"Protection des données juridiques sensibles, conformité RGPD, contrôle d'accès et documentation d'ensemble du système.",
     subs:[
-      ['Cartographie des données à caractère personnel et registre des traitements RGPD',1],
-      ['Moteur de rédaction/anonymisation des entités sensibles avant indexation (Presidio)',0],
-      ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents',0],
+      ['Cartographie des données à caractère personnel, registre des traitements RGPD et analyse d\'impact (AIPD) — docs/RGPD.md et docs/AIPD.md',1],
+      ['Moteur d\'anonymisation branché dans le pipeline avant indexation — détection par regex, rappel insuffisant pour un corpus réel (NER/Presidio à venir)',0],
+      ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents — en attente de l\'API de M5',0],
       ['Chiffrement au repos et en transit, rotation des secrets et gestion des clés',0],
-      ['Journalisation d\'audit immuable des accès et des réponses générées',0],
-      ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique',0],
-      ['Documentation d\'architecture, guide de contribution et politique de sécurité',0]
+      ['Journalisation d\'audit immuable des accès et des réponses générées — en attente de l\'observabilité de M7',0],
+      ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique définis — implémentation à la charge de M2, M5 et M6',1],
+      ['Documentation d\'architecture, guide de contribution et politique de sécurité — analyses Bandit/pip-audit intégrées à la CI, MkDocs restant à produire',0]
     ],
     tools:['Microsoft Presidio','Vault','OPA / Casbin','Trivy','Bandit','MkDocs','TLS / KMS'],
     collab:"Définit les règles d'anonymisation appliquées par <b>Douae</b>, valide les contrôles d'accès de <b>Nouhaila</b>, intègre les scans de sécurité dans la CI de <b>Salma</b> et audite les journaux collectés par <b>Youssef</b>.",
-    deliverables:['Registre RGPD + analyse d\'impact (AIPD)','Politique de sécurité et matrice des habilitations','Documentation technique complète (MkDocs)']
+    deliverables:['Registre RGPD + analyse d\'impact (AIPD) — livrés','Politique de sécurité et matrice des habilitations','Documentation technique complète (MkDocs)']
   }
 ];
 
