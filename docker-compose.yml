@@ -4,8 +4,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: assistant-juridique-m1
+
+    user: "${UID}:${GID}"
+
     volumes:
       - ./data:/app/data
+
     command: >
       python -m src.m1_ingestion.ingest
       --raw-dir data/raw
