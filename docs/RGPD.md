@@ -135,8 +135,20 @@ les citations affichées à l'utilisateur, en survivant à tout masquage du text
 par document et au total (`IngestResult.pii_masked`). Un jugement traité avec
 zéro masquage est un signal à examiner.
 
-**Limite connue.** Le dispositif repose sur des expressions régulières. Un nom
-écrit sans civilité ni qualité procédurale n'est pas détecté. Voir écart E-01.
+**Propagation des noms.** Les règles ancrées exigent une civilité ou une qualité
+procédurale, alors qu'une partie est introduite une fois puis désignée nue
+pendant des pages. Une seconde passe masque donc, dans le même document, toute
+autre occurrence d'un nom déjà identifié par une règle ancrée. Sur un jugement
+représentatif, le rappel sur les noms passe de 50 % à 100 % (§6). Seules les
+détections ancrées amorcent le mécanisme : un faux positif reste local au lieu
+d'être amplifié. Le vocabulaire d'institution et de procédure en est exclu, de
+sorte que « Cour », « Tribunal » ou « salarié » ne soient jamais masqués à
+l'échelle du document.
+
+**Limite connue.** Le dispositif repose sur des expressions régulières, et la
+propagation s'amorce sur les détections ancrées : un nom qui n'apparaît
+**jamais** accompagné d'une civilité ou d'une qualité procédurale échappe
+encore à la détection. Voir écart E-01.
 
 ### T-02 — Stockage et versionnement du corpus
 
@@ -196,7 +208,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
-| E-01 | Rappel limité sur les noms sans civilité ni qualité procédurale ; détection par regex, pas par NER | Élevée | M8 | S4 |
+| E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
 | E-02 | Corpus hébergé sur un compte personnel hors organisation | Élevée | M8 + M1 | S4 |
 | E-03 | Durée de conservation non définie | Moyenne | M8 | S4 |
 | E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
@@ -253,10 +265,27 @@ Aucun élément du nom de fichier n'a été propagé.
 La juridiction, le numéro de dossier, l'article, le dahir et le montant sont
 intacts. La qualité de salarié survit à la suppression du nom.
 
+**Propagation des noms** — mesure du 29/08/2026 sur un jugement représentatif
+comportant seize occurrences de noms, chacune introduite une fois puis répétée
+nue :
+
+| | occurrences restantes | rappel |
+|---|---|---|
+| Règles ancrées seules | 8 sur 16 | 50 % |
+| Avec propagation | **0 sur 16** | **100 %** |
+
+Références préservées dans les deux cas : juridiction, numéro de dossier,
+montant, article, et la dénomination sociale de la partie défenderesse — une
+personne morale n'étant pas une donnée à caractère personnel.
+
+Ce chiffre vaut pour ce document. Il ne se généralise pas : il dépend de ce que
+chaque nom soit ancré au moins une fois quelque part dans le texte.
+
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
-13 tests exécutés à chaque pull request. Dix d'entre eux vérifient que montants,
+21 tests exécutés à chaque pull request. Dix d'entre eux vérifient que montants,
 numéros de dossier et de registre, articles, dahirs et juridictions **ne sont
-pas** masqués.
+pas** masqués. Un test consigne explicitement la limite subsistante : un nom
+jamais ancré n'est pas détecté, et le jour où cela changera, ce test le dira.
 
 **Absence de données personnelles dans le corpus actuel** — vérifiée sur les
 gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).

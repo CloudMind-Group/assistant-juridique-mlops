@@ -229,3 +229,94 @@ def test_opt_out_is_honoured_and_is_the_only_way_to_keep_pii():
     with _sandbox():
         _, content = _run_pipeline(anonymise=False)
         assert "Ahmed Benali" in content
+
+
+# --------------------------------------------------------------------------
+# Name propagation
+#
+# A party is introduced once with a civility or a role, then referred to bare
+# for the rest of the decision. The anchored rules catch the introduction;
+# propagation has to catch the repetitions, which is where most of the
+# residual exposure lives.
+# --------------------------------------------------------------------------
+
+JUDGMENT_WITH_REPEATS = (
+    "ROYAUME DU MAROC - Cour d'Appel de Casablanca - Chambre sociale\n"
+    "Dossier n 45782/2024\n\n"
+    "ENTRE : Karim Alaoui, demeurant a Rabat, demandeur\n"
+    "ET : la societe Atlas Distribution, defenderesse\n\n"
+    "Attendu que Monsieur Karim Alaoui a ete engage le 3 mars 2019 ;\n"
+    "Attendu qu'Alaoui a ete licencie le 12 janvier 2024 sans procedure ;\n"
+    "Attendu que le temoin Rachid El Amrani declare avoir assiste ;\n"
+    "Attendu qu'El Amrani precise qu'aucun avertissement n'a ete remis ;\n"
+    "Attendu que Karim Alaoui reclame des dommages-interets ;\n"
+    "Par ces motifs, la Cour condamne la societe a verser a Alaoui la somme\n"
+    "de 150000 dirhams, conformement a l'article 62 du Code du Travail."
+)
+
+
+def test_repeated_bare_names_are_masked():
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    for name in ("Alaoui", "Karim", "Amrani", "Rachid"):
+        assert name not in masked, f"{name!r} survived propagation"
+
+
+def test_propagation_is_what_makes_the_difference():
+    """Without it, the repetitions go through — this is the gap it closes."""
+    unpropagated, _ = anonymize_document(
+        JUDGMENT_WITH_REPEATS, propagate_names=False
+    )
+    assert "Alaoui" in unpropagated
+    propagated, _ = anonymize_document(JUDGMENT_WITH_REPEATS, propagate_names=True)
+    assert "Alaoui" not in propagated
+
+
+def test_propagation_does_not_touch_the_legal_content():
+    """The whole point of masking more is to not start masking wrongly."""
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    for kept in (
+        "Cour d'Appel de Casablanca",
+        "Dossier n 45782",
+        "150000 dirhams",
+        "article 62 du Code du Travail",
+        "Chambre sociale",
+    ):
+        assert kept in masked, f"{kept!r} was destroyed by propagation"
+
+
+def test_company_name_is_not_propagated():
+    """A legal person is not personal data and must stay citable."""
+    assert "Atlas Distribution" in anonymize_text(JUDGMENT_WITH_REPEATS)
+
+
+def test_name_particle_is_swallowed_not_left_dangling():
+    """'El Amrani' must not come out as 'El [NOM]'."""
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    assert "El [NOM]" not in masked
+    assert "El Amrani" not in masked
+
+
+def test_multiword_name_yields_a_single_placeholder():
+    """'[NOM] [NOM]' would leak how many words the name had."""
+    assert "[NOM] [NOM]" not in anonymize_text(JUDGMENT_WITH_REPEATS)
+
+
+def test_institution_words_are_never_propagated():
+    """A name span containing a common noun must not mask it document-wide."""
+    text = (
+        "Attendu que Monsieur Karim Alaoui a saisi le Tribunal de Premiere "
+        "Instance ; Attendu que le Tribunal a statue ; la Cour confirme."
+    )
+    masked = anonymize_text(text)
+    assert masked.count("Tribunal") == 2
+    assert "Cour" in masked
+
+
+def test_known_limit_a_name_never_anchored_is_still_missed():
+    """Propagation seeds on anchored detections — no anchor, no seed.
+
+    Documented as a limitation in docs/RGPD.md and docs/AIPD.md (E-01), and
+    asserted here so that the day it changes, this test says so.
+    """
+    text = "Attendu que Youssef Idrissi a saisi la juridiction competente."
+    assert "Youssef Idrissi" in anonymize_text(text)

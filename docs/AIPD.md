@@ -71,9 +71,16 @@ et écriture ; aucune donnée personnelle n'atteint `data/processed/` ni, par
 conséquent, l'indexation. Les identifiants et titres ne dérivent pas du nom de
 fichier. 13 tests de non-régression en CI.
 
-**Risque résiduel.** Un nom écrit sans civilité ni qualité procédurale échappe
-encore à la détection par expressions régulières (écart E-01). Le passage à un
-détecteur NER est la mesure de réduction prévue.
+**Propagation des noms.** Depuis le 29/08/2026, toute occurrence d'un nom déjà
+identifié par une règle ancrée est masquée dans l'ensemble du document. C'est
+la mesure qui traite le cas dominant : une partie est introduite une fois, puis
+désignée nue pendant des pages. Mesuré sur un jugement représentatif, le rappel
+passe de 50 % à 100 % (registre, §6).
+
+**Risque résiduel.** Un nom qui n'apparaît **jamais** accompagné d'une civilité
+ou d'une qualité procédurale n'amorce pas la propagation et échappe encore à la
+détection (écart E-01). Le passage à un détecteur NER reste la mesure de
+réduction prévue.
 
 ### R-02 — Effacement devenu techniquement impossible
 
@@ -186,8 +193,14 @@ arabe. Un jugement rédigé en arabe est donc moins bien anonymisé.
 | Vraisemblance | Importante |
 
 **Mesures.** Deux règles arabes couvrent les noms précédés d'un titre ou d'une
-qualité. La parité de couverture est un objectif du passage au NER (écart E-01),
-qui doit être évalué séparément sur chaque langue.
+qualité. La propagation, elle, est **indépendante de la langue** : elle masque
+les répétitions de tout nom déjà ancré, quel que soit l'alphabet. Elle réduit
+donc l'écart sans le supprimer, puisque l'amorçage reste tributaire de règles
+ancrées plus fournies en français.
+
+La parité de couverture demeure un objectif du passage au NER (écart E-01), qui
+devra être évalué séparément sur chaque langue — un détecteur performant en
+français et muet en arabe reproduirait l'inégalité au lieu de la corriger.
 
 ### Synthèse
 
@@ -265,7 +278,7 @@ distincte, à créer lorsque M5 et M6 implémenteront le dépôt.
 
 | Réf | Action | Réduit | Responsable | Échéance |
 |---|---|---|---|---|
-| A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar | R-01, R-07 | M8 | S4 |
+| A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar. La propagation des noms (29/08/2026) a réduit l'écart sans le fermer : reste le nom jamais ancré | R-01, R-07 | M8 | S4 |
 | A-2 | Migrer le corpus vers le compte de l'organisation | R-03, R-04 | M8 + M1 | avant collecte réelle |
 | A-3 | Arrêter l'usage cible au sens du règlement IA | §4 | M8 + équipe | S4 |
 | A-4 | Définir la durée de conservation | proportionnalité | M8 | S4 |

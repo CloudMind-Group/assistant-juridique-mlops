@@ -242,8 +242,134 @@ def _mask_value(value: str, rule: PIIPattern) -> str:
     return rule.placeholder
 
 
+# --------------------------------------------------------------------------
+# Name propagation
+#
+# The anchored rules above need a civility or a procedural role to fire. In a
+# real judgment, a party is introduced once — "Monsieur Ahmed Benali" — and
+# then referred to bare for pages: "Benali soutient que…". The anchored rules
+# catch the introduction and miss every repetition, which is where most of the
+# residual exposure lives.
+#
+# Propagation closes that gap without a NER model: every token of a name found
+# by an anchored rule is masked wherever else it appears in the same document.
+# Only anchored detections seed it, so a false positive stays local instead of
+# being amplified across the text.
+# --------------------------------------------------------------------------
+
+MIN_PROPAGATION_TOKEN_LENGTH = 3
+
+# Words that may sit inside a detected name span but must never be propagated
+# on their own: honorifics carried by the civility rules, and institution or
+# procedural vocabulary that would otherwise be masked throughout the document
+# — destroying exactly the citations the corpus exists to provide.
+NON_PROPAGABLE_TOKENS = frozenset(
+    {
+        "monsieur", "madame", "mademoiselle", "maitre", "maître", "mme", "mlle",
+        "cour", "tribunal", "chambre", "conseil", "juridiction", "audience",
+        "cassation", "appel", "instance", "premiere", "première", "commerce",
+        "administratif", "social", "penal", "pénal", "civil", "royaume",
+        "maroc", "rabat", "casablanca", "fes", "fès", "marrakech", "tanger",
+        "societe", "société", "entreprise", "association", "ministere",
+        "ministère", "etat", "état", "code", "travail", "dahir", "article",
+        "loi", "decret", "décret", "arrete", "arrêté", "bulletin", "officiel",
+        "demandeur", "demanderesse", "defendeur", "défendeur", "requerant",
+        "requérant", "salarie", "salarié", "temoin", "témoin", "employeur",
+        "appelant", "intime", "intimé", "prevenu", "prévenu", "partie",
+    }
+)
+
+_NAME_TOKEN_RE = re.compile(r"[A-ZÀ-Ý][\wà-ÿ'\-]+", re.UNICODE)
+
+# Name particles common in Moroccan surnames. Too short and too frequent to
+# propagate on their own, they are swallowed when they directly precede a
+# propagated token — otherwise "El Amrani" would come out as "El [NOM]".
+# Only the capitalised form is taken, which keeps the French preposition in
+# "la demande de Benali" out of the mask.
+NAME_PARTICLES = ("El", "Ben", "Bel", "Ait", "Aït", "Ould", "Oulad", "Bou", "Abou", "Abd")
+
+PROPAGATION_RULE = PIIPattern(
+    pii_type=PIIType.NOM,
+    description="Nom déjà identifié ailleurs dans le document (propagation)",
+    regex=r"(?!x)x",  # never matched directly; spans come from propagation
+    masking_strategy=MaskingStrategy.PLACEHOLDER,
+    placeholder="[NOM]",
+)
+
+
+def _propagable_tokens(matches: list[PIIMatch], rule_set: AnonymizationRuleSet) -> set[str]:
+    """Collect the name tokens worth masking elsewhere in the document."""
+    tokens: set[str] = set()
+    for match in matches:
+        if match.pii_type != PIIType.NOM:
+            continue
+        for token in _NAME_TOKEN_RE.findall(match.value):
+            if len(token) < MIN_PROPAGATION_TOKEN_LENGTH:
+                continue
+            if token.lower() in NON_PROPAGABLE_TOKENS:
+                continue
+            tokens.add(token)
+    return tokens
+
+
+def _propagated_matches(
+    text: str, tokens: set[str], rule_index: int
+) -> list[PIIMatch]:
+    """Find every occurrence of `tokens` in `text`, as maskable spans."""
+    if not tokens:
+        return []
+    # Longest first, so "Ahmed Benali" wins over "Benali" at the same offset.
+    alternation = "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True))
+    particles = "|".join(NAME_PARTICLES)
+    pattern = re.compile(
+        rf"\b(?:(?:{particles})\s+)?(?:{alternation})\b",
+        re.UNICODE,
+    )
+    return [
+        PIIMatch(
+            pii_type=PIIType.NOM,
+            value=m.group(0),
+            start=m.start(),
+            end=m.end(),
+            rule_index=rule_index,
+            rule_description=PROPAGATION_RULE.description,
+        )
+        for m in pattern.finditer(text)
+    ]
+
+
+_NAME_GAP_RE = re.compile(r"^[\s'’-]{0,2}$", re.UNICODE)
+
+
+def _merge_adjacent_names(matches: list[PIIMatch], text: str) -> list[PIIMatch]:
+    """Fuse consecutive name spans separated only by a space or an apostrophe.
+
+    Without this, "Ahmed Benali" — two propagated tokens — would be rendered
+    as "[NOM] [NOM]", which leaks the number of words in the name and reads
+    like a bug. Sorted input is assumed.
+    """
+    merged: list[PIIMatch] = []
+    for match in matches:
+        if (
+            merged
+            and match.pii_type == PIIType.NOM
+            and merged[-1].pii_type == PIIType.NOM
+            and match.start >= merged[-1].end
+            and _NAME_GAP_RE.match(text[merged[-1].end : match.start])
+        ):
+            previous = merged[-1]
+            merged[-1] = previous.model_copy(
+                update={"end": match.end, "value": text[previous.start : match.end]}
+            )
+            continue
+        merged.append(match)
+    return merged
+
+
 def anonymize_document(
-    text: str, rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET
+    text: str,
+    rule_set: AnonymizationRuleSet = DEFAULT_RULE_SET,
+    propagate_names: bool = True,
 ) -> tuple[str, list[PIIMatch]]:
     """Mask `text` and return it along with the spans that were actually masked.
 
@@ -252,8 +378,23 @@ def anonymize_document(
     detect the next one. Overlapping detections are reported by
     :func:`detect_pii` but only the retained ones are returned here, which
     makes the second element usable as an audit trail of the masking.
+
+    With `propagate_names`, a second pass masks every other occurrence of a
+    name already identified by an anchored rule — see the note above.
     """
     matches = detect_pii(text, rule_set)
+
+    rules = list(rule_set.rules)
+    if propagate_names and matches:
+        rules.append(PROPAGATION_RULE)
+        matches = matches + _propagated_matches(
+            text, _propagable_tokens(matches, rule_set), len(rules) - 1
+        )
+        # Anchored spans must win over propagated ones at equal position, so
+        # that "Monsieur X" is masked whole rather than leaving the civility.
+        matches.sort(key=lambda mm: (mm.start, -(mm.end - mm.start), mm.rule_index))
+        matches = _merge_adjacent_names(matches, text)
+
     if not matches:
         return text, []
 
@@ -264,7 +405,7 @@ def anonymize_document(
     for match in matches:
         if match.start < last_end:
             continue  # skip overlapping match (already covered)
-        rule = rule_set.rules[match.rule_index]
+        rule = rules[match.rule_index]
         out.append(text[cursor:match.start])
         out.append(_mask_value(match.value, rule))
         applied.append(match)
