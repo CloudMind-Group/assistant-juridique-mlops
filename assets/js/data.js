@@ -12,20 +12,20 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:43,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:71,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
       ['Corpus de test synthétique généré (50-100 documents FR/AR) pour débloquer M2 sans attendre la collecte réelle',1],
       ['Versioning DVC local (dvc.yaml + dvc.lock) et contrôles de qualité automatisés configurables',1],
-      ['Pipeline OCR pour documents scannés (Tesseract / PaddleOCR) — dépendance déclarée, non encore branchée',0],
+      ['Pipeline OCR pour PDF scannés et images (Tesseract, fra+ara) avec fallback direct-texte -> OCR, dégradation sans crash si le binaire est absent',1],
       ['Dé-duplication et segmentation par articles et alinéas — nettoyage actuel limité à la normalisation de base',0],
-      ['Anonymisation des données personnelles (schéma défini avec Taha) — non encore appliquée avant indexation',0],
+      ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
       ['Stockage distant S3/MinIO, chunking sémantique, embeddings et intégration Great Expectations en CI',0]
     ],
-    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR (à intégrer)','Great Expectations (à intégrer)','MinIO / S3 (à intégrer)'],
-    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD) — l'intégration entre les deux reste à finaliser. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné localement','Rapport de qualité de données généré à chaque exécution']
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations (à intégrer)','MinIO / S3 (à intégrer)'],
+    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et applique le schéma d'anonymisation défini avec <b>Taha</b> (conformité RGPD) — règles à valider par Taha avant mise en production. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné localement','Rapport de qualité (<code>quality_report.json</code>) et rapport d\'ingestion (<code>ingestion_report.json</code>) générés à chaque exécution']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
