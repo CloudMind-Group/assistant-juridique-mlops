@@ -39,7 +39,10 @@ jobs:
       - name: Tests d'anonymisation
         run: python -m pytest tests/ -v
 
-  # de mot-clé. Ces deux analyses couvrent l'écart E-R6 du registre RGPD.
+  # Garde-fou M8 : le code Python et les dépendances n'étaient soumis à aucun
+  # contrôle de sécurité — l'étape « aucun secret » du job `validate` est une
+  # recherche textuelle qui ne détecterait pas, par exemple, une clé d'API
+  # dépourvue de mot-clé. Ces deux analyses couvrent l'écart E-R6 du registre.
   #
   # En cas d'alerte : corriger, ou justifier explicitement (`# nosec` avec un
   # motif pour Bandit, montée de version ou épinglage pour pip-audit).
