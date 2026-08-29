@@ -43,7 +43,7 @@ segmenté, versionné et contrôlé.
 - Connecteurs d'ingestion multi-sources et pipeline OCR
 - Nettoyage, dé-duplication, segmentation par articles et alinéas
 - Chunking sémantique et génération des embeddings
-- Versioning DVC, stockage S3/MinIO, Data Cards
+- Versioning DVC, stockage distant sur DAGsHub, Data Cards
 - Tests de qualité de données automatisés dans la CI
 
 **Interfaces :** fournit les datasets à M2 · applique les règles d'anonymisation de M8 ·
