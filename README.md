@@ -199,6 +199,8 @@ sont dans [`docs/GITHUB.md`](docs/GITHUB.md).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture MLOps, flux de données, décisions techniques.
 - [`docs/TEAM.md`](docs/TEAM.md) — rôles détaillés, matrice RACI et interfaces entre modules.
 - [`docs/GITHUB.md`](docs/GITHUB.md) — organisation, équipes et permissions, protection des branches, GitFlow, cycle de vie d'une pull request.
+- [`docs/RGPD.md`](docs/RGPD.md) — registre des traitements de données à caractère personnel : catégories traitées, anonymisation appliquée dans le pipeline, stockage, droits des personnes et registre des écarts.
+- [`docs/AIPD.md`](docs/AIPD.md) — analyse d'impact : risques pour les personnes et mesures qui les réduisent, classification au regard du règlement européen sur l'IA, garde-fous produit et clause de non-conseil.
 
 ---
 
