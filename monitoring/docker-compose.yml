@@ -1,0 +1,99 @@
+# Pile d'observabilité M7 — exécution locale.
+#
+# Livrable 1 du module : Prometheus + Grafana + Loki + Alertmanager.
+# `mock-exporter` produit des métriques conformes au contrat défini dans
+# docs/OBSERVABILITE.md §1, ce qui rend la pile vérifiable avant que l'API de
+# M5 existe. Le jour où M5 expose `/metrics`, il suffit de remplacer la cible
+# dans prometheus/prometheus.yml : rien d'autre ne bouge.
+#
+#   docker compose -f monitoring/docker-compose.yml up -d
+#   Grafana http://localhost:3000  ·  Prometheus http://localhost:9090
+
+name: cloudmind-observabilite
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: cm-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: cm-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # Les URL de webhook ne sont jamais versionnées : elles sont montées
+      # depuis un fichier local ignoré par Git (voir monitoring/README.md).
+      - ./alertmanager/secrets:/etc/alertmanager/secrets:ro
+    ports:
+      - "9093:9093"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: cm-loki
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: cm-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      # Journal d'audit produit par l'application (contrat §2).
+      - ./audit:/var/log/cloudmind:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: cm-grafana
+    environment:
+      # Identifiants de développement local uniquement. En déploiement réel,
+      # ces valeurs proviennent du gestionnaire de secrets de M4.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+  mock-exporter:
+    build: ./mock_exporter
+    container_name: cm-mock-exporter
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:

@@ -66,7 +66,10 @@ jobs:
           pip install bandit pip-audit
 
       - name: Analyse statique du code (Bandit)
-        run: bandit -r src dags --severity-level medium --confidence-level medium
+        # `monitoring` ajouté avec la pile d'observabilité de M7 : le code
+        # Python qui y vit doit être soumis au même contrôle que le reste,
+        # sans quoi il constituerait un angle mort de l'écart E-R6.
+        run: bandit -r src dags monitoring --severity-level medium --confidence-level medium
 
       - name: Vulnérabilités connues des dépendances (pip-audit)
         run: pip-audit -r requirements.txt --progress-spinner off
