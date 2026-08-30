@@ -110,17 +110,38 @@ main, elles sont spécifiques au domaine.
 | `ts` | string | oui | Horodatage RFC 3339 en UTC |
 | `event_id` | uuid | oui | Identifiant unique de l'événement |
 | `event_type` | enum | oui | Voir §2.4 |
-| `actor_id` | string | oui | **Pseudonyme stable** (empreinte), jamais un nom ni un e-mail |
+| `actor_id` | string | oui | **HMAC-SHA-256** de l'identifiant applicatif, clé serveur détenue par M5. Jamais un nom, un e-mail, ni un condensé nu |
 | `actor_role` | string | oui | Rôle applicatif au moment de l'action |
-| `resource_ids` | string[] | selon | `doc_id` des documents consultés |
-| `query_hash` | string | selon | SHA-256 de la question normalisée — **jamais la question** |
+| `resource_ids` | string[] | selon | `doc_id` des documents consultés — voir §2.6 |
+| `query_hash` | string | selon | **HMAC-SHA-256** de la question normalisée — jamais la question, jamais un condensé nu |
 | `answer_id` | uuid | selon | Identifiant de la réponse produite |
-| `sources_cited` | string[] | selon | `doc_id` effectivement cités dans la réponse |
+| `sources_cited` | string[] | selon | `doc_id` effectivement cités dans la réponse — voir §2.6 |
 | `model` | string | selon | Modèle ayant produit la réponse |
 | `duration_ms` | integer | non | Durée de traitement |
 | `outcome` | enum | oui | `success` \| `error` |
 | `error_code` | string | selon | Renseigné si `outcome = error` |
 | `trace_id` | string | non | Corrélation avec la trace OpenTelemetry |
+
+#### Pourquoi un HMAC et non un condensé nu
+
+Un condensé simple n'anonymise rien lorsque l'espace d'entrée est petit et énumérable, et c'est
+le cas des deux champs concernés. L'ensemble des comptes utilisateurs est connu : quiconque
+dispose du journal et de cette liste hache chaque candidat et retrouve la correspondance en
+quelques secondes. Les questions juridiques sont elles aussi fortement prévisibles — un
+dictionnaire de quelques milliers de formulations courantes suffit à confirmer qu'une question
+précise a été posée, et par qui si `actor_id` est déjà cassé. Le recoupement des deux
+reconstituerait une partie de ce que ce contrat s'interdit d'écrire.
+
+Le HMAC conserve les propriétés utiles : deux consultations identiques produisent toujours la
+même valeur, donc la corrélation et la détection d'usage anormal restent possibles. Mais sans la
+clé, aucun candidat ne peut être testé.
+
+**Détention de la clé :** M5. Elle n'est jamais écrite dans le journal ni accessible depuis le
+magasin de logs — sans quoi la protection disparaîtrait avec la première fuite de journal.
+
+**Rotation :** changer la clé rompt la corrélation avec l'historique. C'est acceptable si c'est
+décidé — après un incident, par exemple — mais jamais si c'est subi. Toute rotation doit être
+consignée avec sa date, faute de quoi une discontinuité dans le journal deviendra indéchiffrable.
 
 ### 2.3 Ce qui ne doit jamais être journalisé
 
@@ -135,6 +156,18 @@ traitement de données personnelles, alors qu'il existe précisément pour en at
 L'exigence d'A-5 — pouvoir auditer les accès au corpus et aux réponses — est satisfaite par des
 **identifiants et des empreintes**. Deux consultations identiques produisent le même `query_hash`,
 ce qui suffit à détecter un usage anormal sans conserver la moindre phrase.
+
+#### Immuabilité et droit à l'effacement
+
+Le tableau §2.1 pose l'ajout seul et une conservation de trois ans. Lu isolément, cela paraît
+contredire frontalement le droit à l'effacement — et c'est la première question qu'un contrôle
+posera.
+
+Il n'y a pas de contradiction : **ce journal ne contient aucune donnée à caractère personnel.**
+Ni nom, ni adresse électronique, ni adresse IP brute, ni texte de question — seulement des
+identifiants pseudonymes sous HMAC et des `doc_id`. Une demande d'effacement n'a donc pas d'objet
+sur ce journal, et son immuabilité sert l'obligation de rendre compte sans entrer en conflit avec
+les droits des personnes.
 
 ### 2.4 Événements minimaux
 
@@ -154,6 +187,20 @@ ce qui suffit à détecter un usage anormal sans conserver la moindre phrase.
  "answer_id":"7e08…","sources_cited":["BO-2019-4821","JUR-2021-0093"],
  "model":"legal-fr-v2","duration_ms":1840,"outcome":"success","trace_id":"b7c2…"}
 ```
+
+### 2.6 Dépendance : les `doc_id` doivent rester opaques
+
+Les champs `resource_ids` et `sources_cited` transportent des `doc_id`. Ils ne sont sûrs que
+parce que **`doc_id` ne dérive plus du nom de fichier** (PR #16, `ingest.make_doc_id`) : il est
+construit comme `<source_slug>-<sha1[:16]>` du contenu.
+
+La dépendance mérite d'être visible, car elle est facile à briser sans le vouloir. Un document
+collecté sous `arret_ahmed_benali_2024.pdf` inscrirait une identité réelle dans le nom du
+document ; le journal d'audit la propagerait à son tour, et l'interdiction du §2.3 serait
+contournée par un chemin que personne ne surveille.
+
+**Conséquence pour l'avenir :** toute proposition de rendre les `doc_id` « plus lisibles » est
+exclue par ce contrat, quelle qu'en soit la commodité.
 
 ---
 
