@@ -32,3 +32,7 @@ data/processed/*
 # Ignorer les dossiers python
 __pycache__/
 *.pyc
+# Environnements virtuels Python locaux
+.venv/
+venv/
+.python-version
