@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.0 — 27 août 2026
+**Version :** 1.1 — 29 août 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -62,11 +62,17 @@ Ce registre décrit donc le traitement **tel qu'il s'appliquera dès l'arrivée 
 corpus réel**, la chaîne technique étant déjà en place. Il est rédigé avant
 l'incident, non après.
 
-> **Décision non prise.** L'origine des décisions de justice n'est arrêtée par
-> personne à ce jour. Selon qu'elles proviennent d'un recueil déjà pseudonymisé
-> à la publication ou de pièces brutes, le volume de données personnelles
-> entrant varie du tout au tout. Cet arbitrage conditionne la charge de M8 et
-> doit être tranché avec M1 avant la première collecte (voir écart E-07).
+> **Origine des sources — décision du 29 août 2026.** Les décisions de justice
+> proviendront exclusivement de **recueils publiés dont l'identification a déjà
+> été retirée à la publication**. Les pièces brutes, archives de cabinet et
+> décisions non publiées sont écartées.
+>
+> Cela réduit fortement le volume de données personnelles entrant et fait de
+> l'anonymisation du pipeline une **seconde barrière** plutôt que l'unique.
+> Deux réserves : la pseudonymisation à la publication n'est pas exhaustive —
+> les noms subsistent fréquemment dans le corps des motifs, même en-tête traité
+> — et toute source hors de ce périmètre impose de réviser l'analyse d'impact
+> au préalable. Motivation détaillée en [AIPD.md](AIPD.md), §6.
 
 ## 3. Fiches de traitement
 
@@ -80,7 +86,7 @@ l'incident, non après.
 | **Personnes concernées** | Parties, témoins, conseils et magistrats cités dans les décisions |
 | **Responsable opérationnel** | Douae Moussaoui (M1) — règles définies par M8 |
 | **Destinataires** | M2 (indexation) → M5 (API) → M6 (interface) → utilisateur final |
-| **Durée de conservation** | **Non définie** — voir écart E-03 |
+| **Durée de conservation** | **Trois ans** à compter de l'ingestion, puis réingestion des sources toujours pertinentes (décision du 29/08/2026) |
 | **Transfert hors Maroc** | Oui — hébergement DagsHub (voir T-02) |
 
 **Mesure principale.** L'anonymisation s'exécute **dans le pipeline, entre le
@@ -156,7 +162,7 @@ encore à la détection. Voir écart E-01.
 |---|---|
 | **Finalité** | Traçabilité et reproductibilité des jeux de données |
 | **Support** | DVC — remote déclaré dans [`.dvc/config`](../.dvc/config) |
-| **Localisation** | `dagshub.com/DOUAEM449` — **compte personnel, hors organisation** |
+| **Localisation** | `dagshub.com/CloudMind-Group` — **compte de l'organisation** (migré le 29/08/2026, PR #15) |
 | **Volume** | 121 fichiers · 37 Ko · corpus synthétique |
 | **Visibilité** | **Privé** — vérifié le 27/08/2026 (voir §6) |
 | **Contrôle d'accès** | Non exerçable par l'organisation |
@@ -166,15 +172,21 @@ encore à la détection. Voir écart E-01.
 Le dépôt était public jusqu'au 27/08/2026 et a été passé en privé le jour même.
 Le corpus exposé était synthétique : aucune donnée personnelle n'a été publiée.
 
-Deux risques subsistent, indépendants du contenu :
+Le remote pointait jusqu'au 29/08/2026 vers le compte personnel de la
+responsable de M1. Deux risques en découlaient, indépendants du contenu : la
+fermeture de ce compte aurait fait perdre le corpus — `dvc.yaml` et `dvc.lock`
+pointant alors dans le vide, le pipeline cessant d'être reproductible — et les
+obligations de contrôle d'accès et de journalisation incombant à M8 n'étaient
+pas exerçables sur le compte d'un tiers.
 
-- **disponibilité** — la fermeture du compte hébergeur ferait perdre le corpus,
-  `dvc.yaml` et `dvc.lock` pointant alors dans le vide ; le pipeline cesserait
-  d'être reproductible ;
-- **maîtrise** — les obligations de contrôle d'accès et de journalisation
-  incombant à M8 ne sont pas exerçables sur le compte personnel d'un tiers.
+**Le remote a été migré vers le compte de l'organisation** (PR #15). Les deux
+risques sont levés dans leur principe : l'accès ne dépend plus d'une personne,
+et l'administration du dépôt revient à l'organisation.
 
-Voir écart E-02.
+**Reste à faire :** le contrôle d'accès par rôle et la journalisation ne sont
+pas configurés pour autant — la migration les rend possibles, elle ne les
+réalise pas. Voir écart E-04. Le chiffrement au repos demeure non documenté
+(E-06).
 
 ### T-03 — Indexation et restitution *(à venir — M2, M5, M6)*
 
@@ -209,12 +221,10 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
 | E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
-| E-02 | Corpus hébergé sur un compte personnel hors organisation | Élevée | M8 + M1 | S4 |
-| E-03 | Durée de conservation non définie | Moyenne | M8 | S4 |
 | E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
 | E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
-| E-07 | Origine des décisions de justice non arrêtée — conditionne le volume de données personnelles entrant | Moyenne | M8 + M1 | avant la première collecte réelle |
 | E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
+| E-09 | `Dockerfile` et `docker-compose.yml` ne relèvent d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, ports et secrets d'exécution échappent à la revue de conformité | Moyenne | M8 + M4 | S4 |
 
 ### Écarts résolus
 
@@ -226,6 +236,9 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R4 | Aucune vérification automatisée du masquage | PR #16 — 13 tests exécutés en CI |
 | E-R5 | Corpus accessible publiquement | Dépôt passé en privé le 27/08/2026 |
 | E-R6 | Aucune analyse de sécurité du code Python ni des dépendances ; le scan de secrets, limité à une recherche textuelle, ne détecterait pas une clé d'API dépourvue de mot-clé | Bandit et pip-audit ajoutés à la CI, exécutés à chaque pull request |
+| E-R7 | Durée de conservation non définie | Trois ans à compter de l'ingestion — décision d'équipe du 29/08/2026, motivée en [AIPD.md](AIPD.md) §6 |
+| E-R8 | Origine des décisions de justice non arrêtée | Recueils publiés déjà pseudonymisés — décision d'équipe du 29/08/2026, §1 ci-dessus |
+| E-R9 | Corpus hébergé sur un compte personnel hors organisation | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15). Le contrôle d'accès et la journalisation restent à configurer — voir E-04 |
 
 ## 6. Preuves
 
@@ -309,4 +322,6 @@ présent registre et fait l'objet d'un document distinct :
 
 Elle conclut que le traitement est proportionné à sa finalité, sous une réserve
 bloquante : **l'ingestion d'un corpus judiciaire réel ne doit pas commencer
-avant la résolution des écarts E-01, E-02 et E-07.**
+avant la résolution de l'écart E-01.** Les deux autres points de cette réserve
+sont levés : E-07 par la décision du 29/08/2026 sur l'origine des sources, E-02
+par la migration du corpus vers le compte de l'organisation.

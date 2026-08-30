@@ -1,7 +1,7 @@
 # Analyse d'impact relative à la protection des données (AIPD)
 
 **Responsable :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.0 — 27 août 2026
+**Version :** 1.1 — 29 août 2026
 **Traitement analysé :** Assistant juridique augmenté par IA générative — ingestion, indexation et restitution de textes juridiques marocains
 **Registre associé :** [`RGPD.md`](RGPD.md)
 
@@ -43,8 +43,13 @@ numéros d'articles et de dahirs, les montants et les qualités procédurales �
 tout ce qui porte la valeur juridique — et écarte les identités. Le rapport
 entre ce qui est traité et ce qui est nécessaire est donc favorable.
 
-**Durée de conservation.** Non définie à ce jour. Voir écart E-03 du registre et
-§6 ci-dessous.
+**Durée de conservation.** **Trois ans à compter de l'ingestion** (décision A-4,
+29 août 2026), avec réingestion des sources toujours pertinentes au terme.
+L'option retenue est la plus simple à démontrer face à un contrôle : une date
+d'ingestion et une règle fixe suffisent, là où une conservation liée à la
+validité des textes aurait supposé de suivre l'état d'abrogation de chaque
+source. Elle impose en contrepartie une réingestion périodique, dont
+l'automatisation revient au pipeline de M1.
 
 ## 3. Analyse des risques
 
@@ -118,10 +123,12 @@ projet, direct.
 | | |
 |---|---|
 | Gravité | Limitée *(deviendra importante avec un corpus réel)* |
-| Vraisemblance | Importante |
+| Vraisemblance sans mesure | Importante |
+| Vraisemblance après mesures | Négligeable |
 
-**Mesures.** Dépôt passé en privé le 27/08/2026. Migration vers le compte de
-l'organisation à réaliser avant la première collecte réelle (écart E-02).
+**Mesures.** Dépôt passé en privé le 27/08/2026, puis **remote DVC migré vers le
+compte de l'organisation** le 29/08/2026 (PR #15). L'accès au corpus ne dépend
+plus d'une personne, et son administration revient à l'organisation. A-2 close.
 
 ### R-04 — Accès non autorisé au corpus
 
@@ -133,9 +140,10 @@ l'intégralité du corpus. Aucun contrôle par rôle, aucun journal d'accès.
 | Gravité | Importante |
 | Vraisemblance | Limitée |
 
-**Mesures.** Le dépôt est privé. Le contrôle d'accès par rôle et la
-journalisation restent à mettre en place (écarts E-02, E-04). L'absence de
-journal empêche aujourd'hui de répondre à « qui a consulté le corpus ».
+**Mesures.** Le dépôt est privé et hébergé par l'organisation, ce qui rend le
+contrôle d'accès exerçable. Il n'est pas configuré pour autant, et la
+journalisation reste à mettre en place (écart E-04) : l'absence de journal
+empêche aujourd'hui de répondre à « qui a consulté le corpus ».
 
 ### R-05 — Réponse juridique erronée présentée comme fiable
 
@@ -208,8 +216,8 @@ français et muet en arabe reproduirait l'inégalité au lieu de la corriger.
 |---|---|---|---|
 | R-01 Divulgation d'identité | Maximale | Limitée | E-01 |
 | R-02 Effacement impossible | Importante | Négligeable | exigence transmise à M2 |
-| R-03 Perte de maîtrise | Limitée | Importante | E-02 |
-| R-04 Accès non autorisé | Importante | Limitée | E-02, E-04 |
+| R-03 Perte de maîtrise | Limitée | Négligeable | migration du corpus — close |
+| R-04 Accès non autorisé | Importante | Limitée | E-04 |
 | R-05 Réponse erronée | Importante | Importante | §5 |
 | R-06 Ré-identification | Limitée | Importante | accepté, documenté |
 | R-07 Inégalité fr/ar | Importante | Importante | E-01 |
@@ -220,23 +228,42 @@ Le règlement (UE) 2024/1689 est retenu comme cadre de référence : il constitu
 l'état de l'art, et s'appliquerait si le service était ouvert à des résidents de
 l'Union.
 
-**La classification dépend d'une décision produit qui n'est pas prise.**
+> **Décision A-3 — usage cible arrêté le 29 août 2026.**
+> Le système s'adresse aux **professionnels du droit et aux particuliers**
+> cherchant à s'informer. **Tout usage par une juridiction, ou pour le compte
+> d'une juridiction, est formellement écarté.**
+> Soumise à l'équipe avec un délai d'objection de 24 h ; aucune objection reçue.
 
-- **Utilisé par une autorité judiciaire, ou pour son compte**, afin de
-  rechercher et d'interpréter les faits et le droit : le système relève de
-  l'annexe III, point 8 — **haut risque**. S'ensuivent un système de gestion des
-  risques, une documentation technique, une journalisation, un contrôle humain
-  et une évaluation de conformité.
-- **Utilisé par des professionnels du droit ou des particuliers** pour
-  s'informer : le système ne relève pas de l'annexe III. Restent applicables les
-  obligations de transparence de l'article 50 — informer clairement l'utilisateur
-  qu'il interagit avec un système d'IA.
+Deux qualifications étaient possibles, et l'écart entre elles est considérable :
 
-**Recommandation.** Trancher cet usage cible dès maintenant. La première branche
-impose des obligations lourdes qui se conçoivent en amont et ne se rattrapent
-pas en fin de projet. À défaut de décision explicite, se conformer par précaution
-aux obligations de transparence et écarter formellement, dans la documentation
-et les conditions d'usage, tout usage par une juridiction.
+- **utilisé par une autorité judiciaire, ou pour son compte**, afin de
+  rechercher et d'interpréter les faits et le droit : le système relèverait de
+  l'annexe III, point 8 — **haut risque**. S'ensuivraient un système de gestion
+  des risques, une documentation technique, une journalisation, un contrôle
+  humain et une évaluation de conformité ;
+- **utilisé par des professionnels du droit ou des particuliers** pour
+  s'informer : le système ne relève pas de l'annexe III.
+
+**Motivation.** La finalité inscrite au registre est d'informer, non d'assister
+une décision de justice. Retenir la première branche aurait imposé des
+obligations qui se conçoivent en amont et ne se rattrapent pas — les assumer
+sans les avoir prévues aurait été une conformité de façade. La seconde branche
+correspond à ce que le produit fait réellement.
+
+**Conséquences.**
+
+Le système reste soumis aux **obligations de transparence de l'article 50** :
+l'utilisateur doit savoir clairement qu'il interagit avec une IA. Elles sont
+couvertes par les garde-fous du §5 — mention du caractère généré et clause de
+non-conseil — dont l'implémentation incombe à M6.
+
+L'exclusion doit être **opposable, pas seulement documentée**. À porter dans les
+conditions d'usage du service ainsi que dans la clause de non-conseil, qui
+renvoie déjà à un professionnel habilité pour toute situation particulière.
+
+Cette décision devient caduque si le produit est un jour proposé à une
+juridiction : la qualification bascule alors en haut risque et la présente
+analyse doit être reprise (§8).
 
 **Modèle de fondation.** Si l'assistant s'appuie sur un modèle généraliste
 fourni par un tiers, les obligations correspondantes pèsent d'abord sur ce
@@ -279,23 +306,43 @@ distincte, à créer lorsque M5 et M6 implémenteront le dépôt.
 | Réf | Action | Réduit | Responsable | Échéance |
 |---|---|---|---|---|
 | A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar. La propagation des noms (29/08/2026) a réduit l'écart sans le fermer : reste le nom jamais ancré | R-01, R-07 | M8 | S4 |
-| A-2 | Migrer le corpus vers le compte de l'organisation | R-03, R-04 | M8 + M1 | avant collecte réelle |
-| A-3 | Arrêter l'usage cible au sens du règlement IA | §4 | M8 + équipe | S4 |
-| A-4 | Définir la durée de conservation | proportionnalité | M8 | S4 |
 | A-5 | Journal d'audit des accès au corpus et aux réponses | R-04 | M8 + M7 | S4 |
 | A-6 | Intégrer les garde-fous du §5 aux prompts, à l'API et à l'interface | R-05 | M2, M5, M6 | S4 |
 | A-7 | Confirmer par écrit auprès de M2 la suppression ciblée par `doc_id` | R-02 | M8 | avant le début de M2 |
-| A-8 | Arrêter l'origine des décisions de justice | R-01 | M8 + M1 | avant collecte réelle |
 
-**Décision requise — A-4.** La durée de conservation relève d'un arbitrage
-d'équipe, non d'un choix technique. Deux options cohérentes avec la finalité :
+### Actions closes
 
-- *conservation liée au corpus* — les textes sont conservés tant qu'ils sont en
-  vigueur ou cités, avec réexamen annuel ;
-- *durée fixe* — trois ans à compter de l'ingestion, avec réingestion des
-  sources toujours pertinentes.
+Les trois arbitrages qui ne relevaient pas de M8 seul ont été soumis à l'équipe
+avec un délai d'objection de 24 h. Aucune objection n'a été reçue ; ils sont
+consignés ici pour que la décision vive dans le dépôt et non dans une
+conversation.
 
-La seconde est plus simple à démontrer. Aucune n'est retenue à ce jour.
+| Réf | Décision arrêtée le 29/08/2026 | Consignée en |
+|---|---|---|
+| A-3 | Usage cible : professionnels du droit et particuliers. Usage juridictionnel formellement écarté | §4 |
+| A-4 | Conservation : trois ans à compter de l'ingestion, avec réingestion des sources pertinentes | §2 |
+| A-8 | Origine des décisions : recueils publiés dont l'identification a déjà été retirée à la publication | §2, et fiche T-01 du registre |
+
+Une quatrième action est close depuis, par une contribution de M1 :
+
+| Réf | Réalisation | Effet |
+|---|---|---|
+| A-2 | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15, 29/08/2026) | R-03 et R-04 réduits : l'accès au corpus ne dépend plus d'une personne. Le contrôle d'accès et la journalisation restent à configurer (A-5) |
+
+**Portée de A-8 sur l'analyse.** C'est l'arbitrage qui change le plus la charge
+de M8. Un recueil déjà pseudonymisé réduit fortement le volume de données
+personnelles entrant, et fait de l'anonymisation du pipeline une **seconde
+barrière** plutôt que l'unique. Deux précisions s'imposent néanmoins :
+
+- la pseudonymisation à la publication **n'est pas garantie exhaustive** : les
+  noms subsistent fréquemment dans le corps des motifs, même lorsque l'en-tête
+  a été traité. Le dispositif du pipeline reste donc nécessaire, et A-1 conserve
+  sa priorité ;
+- toute source **hors de ce périmètre** — pièces brutes, archives de cabinet,
+  décisions non publiées — sort du cadre de la présente analyse et impose sa
+  révision préalable (§8).
+
+Cette décision lève A-8 comme point bloquant, sans lever A-1 ni A-2.
 
 ## 7. Avis
 
@@ -315,8 +362,17 @@ corpus réel** (A-1). Un nom dépourvu de civilité ou de qualité procédurale
 échappe encore au masquage.
 
 **En conséquence : l'ingestion d'un corpus judiciaire réel ne doit pas commencer
-avant la réalisation de A-1, A-2 et A-8.** Cette réserve est le seul point
-bloquant de la présente analyse.
+avant la réalisation de A-1.** C'est désormais le seul point bloquant de la
+présente analyse.
+
+Les deux autres réserves initiales sont levées. **A-2** l'est par la migration
+du corpus vers le compte de l'organisation (PR #15). **A-8** l'est par la
+décision du 29/08/2026 : les sources retenues sont des recueils publiés déjà
+pseudonymisés — ce qui réduit le volume de données personnelles entrant sans
+dispenser du dispositif du pipeline, la pseudonymisation à la publication
+n'étant pas exhaustive dans le corps des motifs.
+
+Le rappel de la détection reste donc la dernière condition à lever.
 
 ## 8. Révision
 
