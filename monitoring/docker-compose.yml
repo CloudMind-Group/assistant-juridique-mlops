@@ -76,7 +76,12 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # Les deux sous-répertoires sont montés séparément : monter
+      # `provisioning/` en entier masquerait `plugins/` et `alerting/`, que
+      # Grafana s'attend à trouver et dont l'absence produit une erreur à
+      # chaque démarrage.
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
