@@ -320,3 +320,106 @@ def test_known_limit_a_name_never_anchored_is_still_missed():
     """
     text = "Attendu que Youssef Idrissi a saisi la juridiction competente."
     assert "Youssef Idrissi" in anonymize_text(text)
+
+
+def test_uppercase_variant_of_a_known_name_is_masked():
+    """Judgments write the surname in caps in headers and party lists.
+
+    Matching only the detected casing left it exposed where it is most
+    visible — while the given name, matching exactly, disappeared.
+    """
+    masked = anonymize_text(
+        "Monsieur Ahmed Benali expose. Partie : BENALI Ahmed, demandeur."
+    )
+    assert "BENALI" not in masked
+    assert "Benali" not in masked
+
+
+def test_a_surname_that_is_also_a_common_word_stays_case_sensitive():
+    """Guards the restriction: only the capitalised forms propagate.
+
+    Full case-insensitive matching would erase the adjective in
+    "un argument fort" once someone named Fort appears in the document.
+    """
+    masked = anonymize_text("Monsieur Pierre Fort temoigne. Un argument fort.")
+    assert "Pierre Fort" not in masked
+    assert "argument fort" in masked
+
+
+# --------------------------------------------------------------------------
+# Arabic
+#
+# The rules below used to have no "must survive" counterpart at all, and that
+# is precisely how the over-masking went unnoticed: the name disappeared, the
+# test passed, and the verb disappeared with it.
+# --------------------------------------------------------------------------
+
+ARABIC_MUST_SURVIVE = [
+    ("حيث أن السيد أحمد بنعلي تقدم بمقال افتتاحي.", "تقدم"),
+    ("حيث أن السيد أحمد بنعلي حضر الجلسة.", "حضر"),
+    ("حيث أن الشاهد رشيد العمراني أدلى بشهادته أمام المحكمة.", "أدلى"),
+    ("وحيث أن السيدة فاطمة بناني رفضت التوقيع.", "رفضت"),
+]
+
+
+def test_arabic_masking_does_not_eat_the_verb():
+    """The verb is the operative act of the judgment, not filler."""
+    for text, verb in ARABIC_MUST_SURVIVE:
+        masked = anonymize_text(text)
+        assert verb in masked, f"{verb!r} was destroyed in {text!r} -> {masked!r}"
+
+
+def test_arabic_institution_survives():
+    masked = anonymize_text("حيث أن الشاهد رشيد العمراني أدلى أمام المحكمة.")
+    assert "المحكمة" in masked
+
+
+def test_arabic_names_propagate():
+    """Without an Arabic token pattern this masked only the first mention."""
+    masked = anonymize_text(
+        "حيث أن السيد أحمد بنعلي تقدم. وحيث أن بنعلي أكد ذلك أمام المحكمة."
+    )
+    assert "بنعلي" not in masked
+    assert "أكد" in masked and "المحكمة" in masked
+
+
+def test_mixed_document_propagates_in_both_scripts():
+    masked = anonymize_text(
+        "السيد أحمد بنعلي. Le salarie Ahmed Benali conteste. بنعلي أكد."
+    )
+    assert "بنعلي" not in masked
+    assert "Benali" not in masked
+
+
+# --------------------------------------------------------------------------
+# CIN spellings
+# --------------------------------------------------------------------------
+
+CIN_MUST_MASK = [
+    ("Le requerant porte la CIN AB123456.", "AB123456"),
+    ("Piece jointe : AB-123456 au dossier.", "AB-123456"),
+    ("Titulaire de la CIN n AB 123456, domicilie a Rabat.", "AB 123456"),
+    ("Porteur de la CNIE AB123456.", "AB123456"),
+    ("الحامل للبطاقة الوطنية AB123456 المقيم بالرباط.", "AB123456"),
+]
+
+
+def test_cin_spellings_are_masked():
+    for text, secret in CIN_MUST_MASK:
+        assert secret not in anonymize_text(text), f"{secret!r} survived in {text!r}"
+
+
+CIN_LOOKALIKES_MUST_SURVIVE = [
+    "La somme de 150000 dirhams",
+    "Registre de commerce RC123456",
+    "Registre RC-123456",
+    "Bulletin Officiel BO 12345",
+    "Reference RG 98765/2023",
+    "Dossier n 123456",
+]
+
+
+def test_cin_lookalikes_survive():
+    """The hyphen added for CIN must not reopen the reference false positive."""
+    for text in CIN_LOOKALIKES_MUST_SURVIVE:
+        assert anonymize_text(text) == text, f"altered: {text!r}"

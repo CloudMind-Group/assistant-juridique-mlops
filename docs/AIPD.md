@@ -201,14 +201,34 @@ arabe. Un jugement rédigé en arabe est donc moins bien anonymisé.
 | Vraisemblance | Importante |
 
 **Mesures.** Deux règles arabes couvrent les noms précédés d'un titre ou d'une
-qualité. La propagation, elle, est **indépendante de la langue** : elle masque
-les répétitions de tout nom déjà ancré, quel que soit l'alphabet. Elle réduit
-donc l'écart sans le supprimer, puisque l'amorçage reste tributaire de règles
-ancrées plus fournies en français.
+qualité, et la propagation opère désormais dans les deux écritures.
 
-La parité de couverture demeure un objectif du passage au NER (écart E-01), qui
-devra être évalué séparément sur chaque langue — un détecteur performant en
-français et muet en arabe reproduirait l'inégalité au lieu de la corriger.
+> **Correction — 30 août 2026.** Une version antérieure de cette analyse
+> affirmait que la propagation était « indépendante de la langue ». **C'était
+> faux**, et l'affirmation n'avait pas été vérifiée par l'exécution : l'extracteur
+> de jetons exigeait une majuscule latine initiale, or l'arabe n'a pas de casse.
+> La propagation ne produisait donc **aucun** jeton sur un nom arabe. Un test
+> sur cinq formulations arabes donnait 2 réussites ; la mesure annoncée n'existait
+> pas dans cette écriture.
+
+L'écart était en réalité double, et dans les deux sens :
+
+| | avant correction | après |
+|---|---|---|
+| Répétition d'un nom déjà ancré (ar) | non masquée | masquée |
+| Verbe suivant le nom (ar) | **détruit** | préservé |
+| Formulations arabes du banc de test | 2 / 5 | 4 / 5 |
+
+Le second point était le plus grave : faute de majuscule pour marquer la fin
+d'un nom propre, la règle arabe comptait les mots et emportait le verbe —
+« تقدم », « حضر », « أدلى » — c'est-à-dire l'acte même que la décision constate.
+Une liste de mots-outils et de verbes de procédure lui sert désormais de borne.
+
+**Risque résiduel.** Il reste celui de la langue française : un nom jamais ancré
+n'amorce rien. La parité de couverture demeure un objectif du passage au NER
+(écart E-01), qui devra être **évalué séparément sur chaque langue** — un
+détecteur performant en français et muet en arabe reproduirait l'inégalité au
+lieu de la corriger, ce qui est précisément la raison du rejet de Presidio.
 
 ### Synthèse
 

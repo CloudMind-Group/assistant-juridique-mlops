@@ -294,11 +294,33 @@ personne morale n'étant pas une donnée à caractère personnel.
 Ce chiffre vaut pour ce document. Il ne se généralise pas : il dépend de ce que
 chaque nom soit ancré au moins une fois quelque part dans le texte.
 
+**Banc de cas limites** — 30 formulations construites le 30/08/2026 et passées
+sur le moteur tel qu'il tourne, réparties en cinq familles : noms latins, noms
+arabes, graphies de la CIN, noms ressemblant à du vocabulaire juridique, et
+autres catégories de données.
+
+| Famille | avant | après |
+|---|---|---|
+| Noms latins | 7 / 9 | 8 / 9 |
+| **Noms arabes** | **2 / 5** | **4 / 5** |
+| Graphies de la CIN | 4 / 8 | 6 / 8 |
+| Noms pièges (institution, ville) | 3 / 3 | 3 / 3 |
+| Téléphone · e-mail · adresse | 5 / 5 | 5 / 5 |
+| **Total** | **21 / 30** | **26 / 30** |
+
+Quatre écarts subsistent, tous documentés : un nom jamais accompagné d'une
+civilité ni d'une qualité, en français comme en arabe (E-01, corrigeable par
+NER seulement) ; une CIN en minuscules, écartée volontairement pour que
+« de 150000 » ne soit pas pris pour un identifiant ; et un cas où la formulation
+du test était fausse, non la règle — sept chiffres sortent du gabarit de la CIN
+marocaine.
+
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
-21 tests exécutés à chaque pull request. Dix d'entre eux vérifient que montants,
-numéros de dossier et de registre, articles, dahirs et juridictions **ne sont
-pas** masqués. Un test consigne explicitement la limite subsistante : un nom
-jamais ancré n'est pas détecté, et le jour où cela changera, ce test le dira.
+29 tests exécutés à chaque pull request. La moitié vérifient que montants,
+numéros de dossier et de registre, articles, dahirs, juridictions **et verbes
+arabes de procédure** ne sont **pas** masqués. Un test consigne explicitement la
+limite subsistante : un nom jamais ancré n'est pas détecté, et le jour où cela
+changera, ce test le dira.
 
 **Absence de données personnelles dans le corpus actuel** — vérifiée sur les
 gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).
