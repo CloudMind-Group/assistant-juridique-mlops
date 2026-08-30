@@ -13,9 +13,26 @@ mkdir -p monitoring/alertmanager/secrets
 echo "https://hooks.slack.com/services/REMPLACER" > monitoring/alertmanager/secrets/slack_url
 echo "REMPLACER" > monitoring/alertmanager/secrets/smtp_password
 
-# 2. Démarrer la pile
+# 2. Définir les identifiants Grafana — obligatoires, sans valeur par défaut
+export GRAFANA_USER=admin
+export GRAFANA_PASSWORD="un-mot-de-passe-choisi"
+
+# 3. Démarrer la pile
 docker compose -f monitoring/docker-compose.yml up -d
 ```
+
+> **Pourquoi aucune valeur par défaut pour Grafana.** Un défaut `admin`/`admin` fait
+> démarrer l'instance avec des identifiants publiquement connus, et l'accès
+> administrateur ouvre les sources de données — donc Loki, donc le journal d'audit.
+> Un défaut d'authentification qui passe inaperçu est plus dangereux qu'une
+> configuration absente qui empêche le démarrage : la pile refuse ici de monter tant
+> que les deux variables ne sont pas fournies.
+>
+> **Tous les ports sont liés à `127.0.0.1`.** Sans adresse explicite, Docker publie sur
+> `0.0.0.0` ; or Prometheus et Alertmanager n'ont aucune authentification native. Sur un
+> réseau partagé, n'importe quel poste du même segment pourrait interroger l'API Loki et
+> les cibles Prometheus. Le jour où M4 déploiera la pile, l'exposition redeviendra un
+> choix explicite plutôt qu'un héritage.
 
 | Service | Adresse | Rôle |
 |---|---|---|

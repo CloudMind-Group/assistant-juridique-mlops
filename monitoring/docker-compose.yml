@@ -25,7 +25,11 @@ services:
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      # Liaison sur la boucle locale uniquement. Sans adresse explicite Docker
+      # publie sur 0.0.0.0 : Prometheus et Alertmanager n'ont aucune
+      # authentification native, et Loki expose le journal d'audit. Sur un
+      # réseau partagé, tout le segment pourrait les interroger.
+      - "127.0.0.1:9090:9090"
     restart: unless-stopped
 
   alertmanager:
@@ -39,7 +43,7 @@ services:
       # depuis un fichier local ignoré par Git (voir monitoring/README.md).
       - ./alertmanager/secrets:/etc/alertmanager/secrets:ro
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     restart: unless-stopped
 
   loki:
@@ -50,7 +54,7 @@ services:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     restart: unless-stopped
 
   promtail:
@@ -71,8 +75,13 @@ services:
     environment:
       # Identifiants de développement local uniquement. En déploiement réel,
       # ces valeurs proviennent du gestionnaire de secrets de M4.
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      # Aucune valeur par défaut : la pile refuse de monter tant que les
+      # variables ne sont pas fournies. Un défaut d'authentification qui passe
+      # inaperçu est plus dangereux qu'une configuration absente qui bloque le
+      # démarrage — l'accès administrateur Grafana ouvre les sources de
+      # données, donc Loki, donc le journal d'audit.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:?GRAFANA_USER requis — voir monitoring/README.md}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD requis — voir monitoring/README.md}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
     volumes:
@@ -85,7 +94,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - prometheus
       - loki
@@ -95,7 +104,7 @@ services:
     build: ./mock_exporter
     container_name: cm-mock-exporter
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     restart: unless-stopped
 
 volumes:
