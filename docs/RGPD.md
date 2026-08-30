@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.1 — 29 août 2026
+**Version :** 1.2 — 30 août 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -185,7 +185,14 @@ et l'administration du dépôt revient à l'organisation.
 
 **Reste à faire :** le contrôle d'accès par rôle et la journalisation ne sont
 pas configurés pour autant — la migration les rend possibles, elle ne les
-réalise pas. Voir écart E-04. Le chiffrement au repos demeure non documenté
+réalise pas. Le contrat de journal d'audit est en revanche arrêté — format,
+champs, immuabilité, conservation alignée sur la décision A-4, et interdictions
+renvoyant nommément aux risques R-01 et R-04 de l'analyse d'impact : voir
+[`OBSERVABILITE.md`](OBSERVABILITE.md) §2, livré par M7. Ce qui manque désormais
+est la **source** : aucun événement n'est produit tant que l'API de M5 n'existe
+pas. La nature de l'écart E-04 a donc changé, pas sa gravité — un écart « rien
+n'est conçu » et un écart « tout est conçu, personne n'émet » n'appellent ni le
+même travail ni les mêmes personnes. Le chiffrement au repos demeure non documenté
 (E-06).
 
 ### T-03 — Indexation et restitution *(à venir — M2, M5, M6)*
@@ -221,7 +228,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
 | E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
-| E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
+| E-04 | Journal d'audit : **contrat défini** ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2), **écriture non implémentée**. Ce n'est plus la conception qui manque mais la source d'événements | Moyenne | M8 + M5 | avant ouverture du service |
 | E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
 | E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
 | E-09 | `Dockerfile` et `docker-compose.yml` ne relèvent d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, ports et secrets d'exécution échappent à la revue de conformité | Moyenne | M8 + M4 | S4 |
