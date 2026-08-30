@@ -36,7 +36,7 @@ docker compose -f monitoring/docker-compose.yml up -d
 
 | Service | Adresse | Rôle |
 |---|---|---|
-| Grafana | http://localhost:3000 | Tableaux de bord (`admin` / `admin` en local) |
+| Grafana | http://localhost:3000 | Tableaux de bord (identifiants définis par `GRAFANA_USER` / `GRAFANA_PASSWORD`) |
 | Prometheus | http://localhost:9090 | Collecte et évaluation des règles |
 | Alertmanager | http://localhost:9093 | Routage des notifications |
 | Loki | http://localhost:3100 | Journaux et journal d'audit |
