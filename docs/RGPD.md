@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.1 — 29 août 2026
+**Version :** 1.2 — 30 août 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -141,8 +141,20 @@ les citations affichées à l'utilisateur, en survivant à tout masquage du text
 par document et au total (`IngestResult.pii_masked`). Un jugement traité avec
 zéro masquage est un signal à examiner.
 
-**Limite connue.** Le dispositif repose sur des expressions régulières. Un nom
-écrit sans civilité ni qualité procédurale n'est pas détecté. Voir écart E-01.
+**Propagation des noms.** Les règles ancrées exigent une civilité ou une qualité
+procédurale, alors qu'une partie est introduite une fois puis désignée nue
+pendant des pages. Une seconde passe masque donc, dans le même document, toute
+autre occurrence d'un nom déjà identifié par une règle ancrée. Sur un jugement
+représentatif, le rappel sur les noms passe de 50 % à 100 % (§6). Seules les
+détections ancrées amorcent le mécanisme : un faux positif reste local au lieu
+d'être amplifié. Le vocabulaire d'institution et de procédure en est exclu, de
+sorte que « Cour », « Tribunal » ou « salarié » ne soient jamais masqués à
+l'échelle du document.
+
+**Limite connue.** Le dispositif repose sur des expressions régulières, et la
+propagation s'amorce sur les détections ancrées : un nom qui n'apparaît
+**jamais** accompagné d'une civilité ou d'une qualité procédurale échappe
+encore à la détection. Voir écart E-01.
 
 ### T-02 — Stockage et versionnement du corpus
 
@@ -173,7 +185,14 @@ et l'administration du dépôt revient à l'organisation.
 
 **Reste à faire :** le contrôle d'accès par rôle et la journalisation ne sont
 pas configurés pour autant — la migration les rend possibles, elle ne les
-réalise pas. Voir écart E-04. Le chiffrement au repos demeure non documenté
+réalise pas. Le contrat de journal d'audit est en revanche arrêté — format,
+champs, immuabilité, conservation alignée sur la décision A-4, et interdictions
+renvoyant nommément aux risques R-01 et R-04 de l'analyse d'impact : voir
+[`OBSERVABILITE.md`](OBSERVABILITE.md) §2, livré par M7. Ce qui manque désormais
+est la **source** : aucun événement n'est produit tant que l'API de M5 n'existe
+pas. La nature de l'écart E-04 a donc changé, pas sa gravité — un écart « rien
+n'est conçu » et un écart « tout est conçu, personne n'émet » n'appellent ni le
+même travail ni les mêmes personnes. Le chiffrement au repos demeure non documenté
 (E-06).
 
 ### T-03 — Indexation et restitution *(à venir — M2, M5, M6)*
@@ -208,8 +227,8 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
-| E-01 | Rappel limité sur les noms sans civilité ni qualité procédurale ; détection par regex, pas par NER | Élevée | M8 | S4 |
-| E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
+| E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
+| E-04 | Journal d'audit : **contrat défini** ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2), **écriture non implémentée**. Ce n'est plus la conception qui manque mais la source d'événements | Moyenne | M8 + M5 | avant ouverture du service |
 | E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
 | E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
 | E-09 | `Dockerfile` et `docker-compose.yml` ne relèvent d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, ports et secrets d'exécution échappent à la revue de conformité | Moyenne | M8 + M4 | S4 |
@@ -266,10 +285,49 @@ Aucun élément du nom de fichier n'a été propagé.
 La juridiction, le numéro de dossier, l'article, le dahir et le montant sont
 intacts. La qualité de salarié survit à la suppression du nom.
 
+**Propagation des noms** — mesure du 29/08/2026 sur un jugement représentatif
+comportant seize occurrences de noms, chacune introduite une fois puis répétée
+nue :
+
+| | occurrences restantes | rappel |
+|---|---|---|
+| Règles ancrées seules | 8 sur 16 | 50 % |
+| Avec propagation | **0 sur 16** | **100 %** |
+
+Références préservées dans les deux cas : juridiction, numéro de dossier,
+montant, article, et la dénomination sociale de la partie défenderesse — une
+personne morale n'étant pas une donnée à caractère personnel.
+
+Ce chiffre vaut pour ce document. Il ne se généralise pas : il dépend de ce que
+chaque nom soit ancré au moins une fois quelque part dans le texte.
+
+**Banc de cas limites** — 30 formulations construites le 30/08/2026 et passées
+sur le moteur tel qu'il tourne, réparties en cinq familles : noms latins, noms
+arabes, graphies de la CIN, noms ressemblant à du vocabulaire juridique, et
+autres catégories de données.
+
+| Famille | avant | après |
+|---|---|---|
+| Noms latins | 7 / 9 | 8 / 9 |
+| **Noms arabes** | **2 / 5** | **4 / 5** |
+| Graphies de la CIN | 4 / 8 | 6 / 8 |
+| Noms pièges (institution, ville) | 3 / 3 | 3 / 3 |
+| Téléphone · e-mail · adresse | 5 / 5 | 5 / 5 |
+| **Total** | **21 / 30** | **26 / 30** |
+
+Quatre écarts subsistent, tous documentés : un nom jamais accompagné d'une
+civilité ni d'une qualité, en français comme en arabe (E-01, corrigeable par
+NER seulement) ; une CIN en minuscules, écartée volontairement pour que
+« de 150000 » ne soit pas pris pour un identifiant ; et un cas où la formulation
+du test était fausse, non la règle — sept chiffres sortent du gabarit de la CIN
+marocaine.
+
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
-13 tests exécutés à chaque pull request. Dix d'entre eux vérifient que montants,
-numéros de dossier et de registre, articles, dahirs et juridictions **ne sont
-pas** masqués.
+29 tests exécutés à chaque pull request. La moitié vérifient que montants,
+numéros de dossier et de registre, articles, dahirs, juridictions **et verbes
+arabes de procédure** ne sont **pas** masqués. Un test consigne explicitement la
+limite subsistante : un nom jamais ancré n'est pas détecté, et le jour où cela
+changera, ce test le dira.
 
 **Absence de données personnelles dans le corpus actuel** — vérifiée sur les
 gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).

@@ -166,9 +166,24 @@ Two design points worth knowing before you build on this:
 `--no-anonymize` exists for local debugging only; it logs a warning and must
 never be used on a real corpus.
 
-This remains a regex-based implementation. Recall on names written without a
-civility or a role marker is limited; replacing `DEFAULT_RULES` with an
-NER-backed detector is planned and requires no change to `ingest.py`.
+**Name propagation.** Anchored rules need a civility or a procedural role to
+fire, but a party is introduced once — "Monsieur Ahmed Benali" — then referred
+to bare for pages. A second pass therefore masks every other occurrence, in the
+same document, of a name an anchored rule already found. On a representative
+judgment this takes name recall from 50 % to 100 %; the mechanism is seeded
+only by anchored detections, so a false positive stays local instead of being
+amplified across the text. Institution and procedural vocabulary is excluded
+from propagation (`NON_PROPAGABLE_TOKENS`) so that `Cour`, `Tribunal` or
+`salarié` are never masked document-wide.
+
+Pass `propagate_names=False` to `anonymize_document()` to disable it — used in
+the tests to demonstrate the difference, not intended for production.
+
+**Known limit.** This remains a regex-based implementation, and propagation
+seeds on anchored detections: a name that appears *only* bare, without a
+civility or a role marker anywhere in the document, is still missed. Replacing
+`DEFAULT_RULES` with an NER-backed detector remains the full fix and requires
+no change to `ingest.py`.
 
 > **For M2:** if a document must later be removed for a person exercising
 > their right to erasure, the index has to support deleting a single
