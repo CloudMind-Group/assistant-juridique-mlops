@@ -8,6 +8,7 @@ from .ragas_evaluator import (
     build_ragas_records,
     normalize_ragas_metrics,
 )
+from .evaluation_runner import EvaluationResult, EvaluationRunner
 __all__ = [
     "MLflowConfig",
     "MLflowTrackingHook",
@@ -16,4 +17,6 @@ __all__ = [
     "RAGASEvaluationSample",
     "build_ragas_records",
     "normalize_ragas_metrics",
+    "EvaluationResult",
+    "EvaluationRunner",
 ]
