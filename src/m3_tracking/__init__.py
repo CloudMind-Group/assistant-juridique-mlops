@@ -14,6 +14,7 @@ from .regression import (
     RegressionThresholds,
     check_regression,
 )
+from .model_card import ModelCard, build_model_card, render_model_card
 __all__ = [
     "MLflowConfig",
     "MLflowTrackingHook",
@@ -27,4 +28,7 @@ __all__ = [
     "RegressionResult",
     "RegressionThresholds",
     "check_regression",
+    "ModelCard",
+    "build_model_card",
+    "render_model_card",
 ]
