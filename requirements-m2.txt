@@ -1,0 +1,6 @@
+# Runtime for the production Qdrant backend (the test suite uses a fake client).
+qdrant-client>=1.9,<2
+
+# Optional heavy model runtime. Installing it does not download model weights;
+# BAAI/bge-m3 is loaded only when SentenceTransformerEmbedder is instantiated.
+sentence-transformers>=3.0,<6
