@@ -229,3 +229,197 @@ def test_opt_out_is_honoured_and_is_the_only_way_to_keep_pii():
     with _sandbox():
         _, content = _run_pipeline(anonymise=False)
         assert "Ahmed Benali" in content
+
+
+# --------------------------------------------------------------------------
+# Name propagation
+#
+# A party is introduced once with a civility or a role, then referred to bare
+# for the rest of the decision. The anchored rules catch the introduction;
+# propagation has to catch the repetitions, which is where most of the
+# residual exposure lives.
+# --------------------------------------------------------------------------
+
+JUDGMENT_WITH_REPEATS = (
+    "ROYAUME DU MAROC - Cour d'Appel de Casablanca - Chambre sociale\n"
+    "Dossier n 45782/2024\n\n"
+    "ENTRE : Karim Alaoui, demeurant a Rabat, demandeur\n"
+    "ET : la societe Atlas Distribution, defenderesse\n\n"
+    "Attendu que Monsieur Karim Alaoui a ete engage le 3 mars 2019 ;\n"
+    "Attendu qu'Alaoui a ete licencie le 12 janvier 2024 sans procedure ;\n"
+    "Attendu que le temoin Rachid El Amrani declare avoir assiste ;\n"
+    "Attendu qu'El Amrani precise qu'aucun avertissement n'a ete remis ;\n"
+    "Attendu que Karim Alaoui reclame des dommages-interets ;\n"
+    "Par ces motifs, la Cour condamne la societe a verser a Alaoui la somme\n"
+    "de 150000 dirhams, conformement a l'article 62 du Code du Travail."
+)
+
+
+def test_repeated_bare_names_are_masked():
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    for name in ("Alaoui", "Karim", "Amrani", "Rachid"):
+        assert name not in masked, f"{name!r} survived propagation"
+
+
+def test_propagation_is_what_makes_the_difference():
+    """Without it, the repetitions go through — this is the gap it closes."""
+    unpropagated, _ = anonymize_document(
+        JUDGMENT_WITH_REPEATS, propagate_names=False
+    )
+    assert "Alaoui" in unpropagated
+    propagated, _ = anonymize_document(JUDGMENT_WITH_REPEATS, propagate_names=True)
+    assert "Alaoui" not in propagated
+
+
+def test_propagation_does_not_touch_the_legal_content():
+    """The whole point of masking more is to not start masking wrongly."""
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    for kept in (
+        "Cour d'Appel de Casablanca",
+        "Dossier n 45782",
+        "150000 dirhams",
+        "article 62 du Code du Travail",
+        "Chambre sociale",
+    ):
+        assert kept in masked, f"{kept!r} was destroyed by propagation"
+
+
+def test_company_name_is_not_propagated():
+    """A legal person is not personal data and must stay citable."""
+    assert "Atlas Distribution" in anonymize_text(JUDGMENT_WITH_REPEATS)
+
+
+def test_name_particle_is_swallowed_not_left_dangling():
+    """'El Amrani' must not come out as 'El [NOM]'."""
+    masked = anonymize_text(JUDGMENT_WITH_REPEATS)
+    assert "El [NOM]" not in masked
+    assert "El Amrani" not in masked
+
+
+def test_multiword_name_yields_a_single_placeholder():
+    """'[NOM] [NOM]' would leak how many words the name had."""
+    assert "[NOM] [NOM]" not in anonymize_text(JUDGMENT_WITH_REPEATS)
+
+
+def test_institution_words_are_never_propagated():
+    """A name span containing a common noun must not mask it document-wide."""
+    text = (
+        "Attendu que Monsieur Karim Alaoui a saisi le Tribunal de Premiere "
+        "Instance ; Attendu que le Tribunal a statue ; la Cour confirme."
+    )
+    masked = anonymize_text(text)
+    assert masked.count("Tribunal") == 2
+    assert "Cour" in masked
+
+
+def test_known_limit_a_name_never_anchored_is_still_missed():
+    """Propagation seeds on anchored detections — no anchor, no seed.
+
+    Documented as a limitation in docs/RGPD.md and docs/AIPD.md (E-01), and
+    asserted here so that the day it changes, this test says so.
+    """
+    text = "Attendu que Youssef Idrissi a saisi la juridiction competente."
+    assert "Youssef Idrissi" in anonymize_text(text)
+
+
+def test_uppercase_variant_of_a_known_name_is_masked():
+    """Judgments write the surname in caps in headers and party lists.
+
+    Matching only the detected casing left it exposed where it is most
+    visible — while the given name, matching exactly, disappeared.
+    """
+    masked = anonymize_text(
+        "Monsieur Ahmed Benali expose. Partie : BENALI Ahmed, demandeur."
+    )
+    assert "BENALI" not in masked
+    assert "Benali" not in masked
+
+
+def test_a_surname_that_is_also_a_common_word_stays_case_sensitive():
+    """Guards the restriction: only the capitalised forms propagate.
+
+    Full case-insensitive matching would erase the adjective in
+    "un argument fort" once someone named Fort appears in the document.
+    """
+    masked = anonymize_text("Monsieur Pierre Fort temoigne. Un argument fort.")
+    assert "Pierre Fort" not in masked
+    assert "argument fort" in masked
+
+
+# --------------------------------------------------------------------------
+# Arabic
+#
+# The rules below used to have no "must survive" counterpart at all, and that
+# is precisely how the over-masking went unnoticed: the name disappeared, the
+# test passed, and the verb disappeared with it.
+# --------------------------------------------------------------------------
+
+ARABIC_MUST_SURVIVE = [
+    ("حيث أن السيد أحمد بنعلي تقدم بمقال افتتاحي.", "تقدم"),
+    ("حيث أن السيد أحمد بنعلي حضر الجلسة.", "حضر"),
+    ("حيث أن الشاهد رشيد العمراني أدلى بشهادته أمام المحكمة.", "أدلى"),
+    ("وحيث أن السيدة فاطمة بناني رفضت التوقيع.", "رفضت"),
+]
+
+
+def test_arabic_masking_does_not_eat_the_verb():
+    """The verb is the operative act of the judgment, not filler."""
+    for text, verb in ARABIC_MUST_SURVIVE:
+        masked = anonymize_text(text)
+        assert verb in masked, f"{verb!r} was destroyed in {text!r} -> {masked!r}"
+
+
+def test_arabic_institution_survives():
+    masked = anonymize_text("حيث أن الشاهد رشيد العمراني أدلى أمام المحكمة.")
+    assert "المحكمة" in masked
+
+
+def test_arabic_names_propagate():
+    """Without an Arabic token pattern this masked only the first mention."""
+    masked = anonymize_text(
+        "حيث أن السيد أحمد بنعلي تقدم. وحيث أن بنعلي أكد ذلك أمام المحكمة."
+    )
+    assert "بنعلي" not in masked
+    assert "أكد" in masked and "المحكمة" in masked
+
+
+def test_mixed_document_propagates_in_both_scripts():
+    masked = anonymize_text(
+        "السيد أحمد بنعلي. Le salarie Ahmed Benali conteste. بنعلي أكد."
+    )
+    assert "بنعلي" not in masked
+    assert "Benali" not in masked
+
+
+# --------------------------------------------------------------------------
+# CIN spellings
+# --------------------------------------------------------------------------
+
+CIN_MUST_MASK = [
+    ("Le requerant porte la CIN AB123456.", "AB123456"),
+    ("Piece jointe : AB-123456 au dossier.", "AB-123456"),
+    ("Titulaire de la CIN n AB 123456, domicilie a Rabat.", "AB 123456"),
+    ("Porteur de la CNIE AB123456.", "AB123456"),
+    ("الحامل للبطاقة الوطنية AB123456 المقيم بالرباط.", "AB123456"),
+]
+
+
+def test_cin_spellings_are_masked():
+    for text, secret in CIN_MUST_MASK:
+        assert secret not in anonymize_text(text), f"{secret!r} survived in {text!r}"
+
+
+CIN_LOOKALIKES_MUST_SURVIVE = [
+    "La somme de 150000 dirhams",
+    "Registre de commerce RC123456",
+    "Registre RC-123456",
+    "Bulletin Officiel BO 12345",
+    "Reference RG 98765/2023",
+    "Dossier n 123456",
+]
+
+
+def test_cin_lookalikes_survive():
+    """The hyphen added for CIN must not reopen the reference false positive."""
+    for text in CIN_LOOKALIKES_MUST_SURVIVE:
+        assert anonymize_text(text) == text, f"altered: {text!r}"

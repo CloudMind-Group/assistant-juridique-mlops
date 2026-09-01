@@ -1,7 +1,7 @@
 # Analyse d'impact relative à la protection des données (AIPD)
 
 **Responsable :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.1 — 29 août 2026
+**Version :** 1.2 — 30 août 2026
 **Traitement analysé :** Assistant juridique augmenté par IA générative — ingestion, indexation et restitution de textes juridiques marocains
 **Registre associé :** [`RGPD.md`](RGPD.md)
 
@@ -74,11 +74,18 @@ litige — à un tiers quelconque, de façon indexable et répétable.
 **Mesures en place.** Anonymisation exécutée dans le pipeline, entre nettoyage
 et écriture ; aucune donnée personnelle n'atteint `data/processed/` ni, par
 conséquent, l'indexation. Les identifiants et titres ne dérivent pas du nom de
-fichier. 13 tests de non-régression en CI.
+fichier. 29 tests de non-régression en CI.
 
-**Risque résiduel.** Un nom écrit sans civilité ni qualité procédurale échappe
-encore à la détection par expressions régulières (écart E-01). Le passage à un
-détecteur NER est la mesure de réduction prévue.
+**Propagation des noms.** Depuis le 29/08/2026, toute occurrence d'un nom déjà
+identifié par une règle ancrée est masquée dans l'ensemble du document. C'est
+la mesure qui traite le cas dominant : une partie est introduite une fois, puis
+désignée nue pendant des pages. Mesuré sur un jugement représentatif, le rappel
+passe de 50 % à 100 % (registre, §6).
+
+**Risque résiduel.** Un nom qui n'apparaît **jamais** accompagné d'une civilité
+ou d'une qualité procédurale n'amorce pas la propagation et échappe encore à la
+détection (écart E-01). Le passage à un détecteur NER reste la mesure de
+réduction prévue.
 
 ### R-02 — Effacement devenu techniquement impossible
 
@@ -135,7 +142,8 @@ l'intégralité du corpus. Aucun contrôle par rôle, aucun journal d'accès.
 
 **Mesures.** Le dépôt est privé et hébergé par l'organisation, ce qui rend le
 contrôle d'accès exerçable. Il n'est pas configuré pour autant, et la
-journalisation reste à mettre en place (écart E-04) : l'absence de journal
+journalisation a désormais un contrat arrêté ([`OBSERVABILITE.md`](OBSERVABILITE.md)
+§2) mais aucune source d'événements — M5 n'existe pas (écart E-04) : l'absence de journal
 empêche aujourd'hui de répondre à « qui a consulté le corpus ».
 
 ### R-05 — Réponse juridique erronée présentée comme fiable
@@ -194,8 +202,34 @@ arabe. Un jugement rédigé en arabe est donc moins bien anonymisé.
 | Vraisemblance | Importante |
 
 **Mesures.** Deux règles arabes couvrent les noms précédés d'un titre ou d'une
-qualité. La parité de couverture est un objectif du passage au NER (écart E-01),
-qui doit être évalué séparément sur chaque langue.
+qualité, et la propagation opère désormais dans les deux écritures.
+
+> **Correction — 30 août 2026.** Une version antérieure de cette analyse
+> affirmait que la propagation était « indépendante de la langue ». **C'était
+> faux**, et l'affirmation n'avait pas été vérifiée par l'exécution : l'extracteur
+> de jetons exigeait une majuscule latine initiale, or l'arabe n'a pas de casse.
+> La propagation ne produisait donc **aucun** jeton sur un nom arabe. Un test
+> sur cinq formulations arabes donnait 2 réussites ; la mesure annoncée n'existait
+> pas dans cette écriture.
+
+L'écart était en réalité double, et dans les deux sens :
+
+| | avant correction | après |
+|---|---|---|
+| Répétition d'un nom déjà ancré (ar) | non masquée | masquée |
+| Verbe suivant le nom (ar) | **détruit** | préservé |
+| Formulations arabes du banc de test | 2 / 5 | 4 / 5 |
+
+Le second point était le plus grave : faute de majuscule pour marquer la fin
+d'un nom propre, la règle arabe comptait les mots et emportait le verbe —
+« تقدم », « حضر », « أدلى » — c'est-à-dire l'acte même que la décision constate.
+Une liste de mots-outils et de verbes de procédure lui sert désormais de borne.
+
+**Risque résiduel.** Il reste celui de la langue française : un nom jamais ancré
+n'amorce rien. La parité de couverture demeure un objectif du passage au NER
+(écart E-01), qui devra être **évalué séparément sur chaque langue** — un
+détecteur performant en français et muet en arabe reproduirait l'inégalité au
+lieu de la corriger, ce qui est précisément la raison du rejet de Presidio.
 
 ### Synthèse
 
@@ -292,8 +326,8 @@ distincte, à créer lorsque M5 et M6 implémenteront le dépôt.
 
 | Réf | Action | Réduit | Responsable | Échéance |
 |---|---|---|---|---|
-| A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar | R-01, R-07 | M8 | S4 |
-| A-5 | Journal d'audit des accès au corpus et aux réponses | R-04 | M8 + M7 | S4 |
+| A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar. La propagation des noms (29/08/2026) a réduit l'écart sans le fermer : reste le nom jamais ancré | R-01, R-07 | M8 | S4 |
+| A-5 | Journal d'audit des accès au corpus et aux réponses. Contrat arrêté par M7 (`OBSERVABILITE.md` §2) ; reste la source d'événements | R-04 | M8 + M5 | avant ouverture du service |
 | A-6 | Intégrer les garde-fous du §5 aux prompts, à l'API et à l'interface | R-05 | M2, M5, M6 | S4 |
 | A-7 | Confirmer par écrit auprès de M2 la suppression ciblée par `doc_id` | R-02 | M8 | avant le début de M2 |
 
