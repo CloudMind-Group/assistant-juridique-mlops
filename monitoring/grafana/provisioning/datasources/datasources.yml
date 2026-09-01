@@ -1,0 +1,23 @@
+apiVersion: 1
+
+# Les `uid` sont fixés explicitement : les tableaux de bord versionnés y font
+# référence directement. Sans cela Grafana en génère un aléatoire à chaque
+# installation, et les panneaux d'un tableau de bord provisionné ne se relient
+# à aucune source de données.
+datasources:
+  - name: Prometheus
+    uid: cloudmind-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+
+  - name: Loki
+    uid: cloudmind-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
