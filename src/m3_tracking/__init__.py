@@ -15,6 +15,7 @@ from .regression import (
     check_regression,
 )
 from .model_card import ModelCard, build_model_card, render_model_card
+from .quality_gate import QualityGateResult, evaluate_quality_gate
 __all__ = [
     "MLflowConfig",
     "MLflowTrackingHook",
@@ -31,4 +32,6 @@ __all__ = [
     "ModelCard",
     "build_model_card",
     "render_model_card",
+    "QualityGateResult",
+    "evaluate_quality_gate",
 ]
