@@ -1,0 +1,6 @@
+.git
+.dvc/config.local
+data/
+__pycache__/
+*.pyc
+.venv/
