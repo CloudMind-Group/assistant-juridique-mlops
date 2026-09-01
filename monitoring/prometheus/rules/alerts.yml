@@ -1,0 +1,126 @@
+# Règles d'alerte M7 — sous-tâche « alerting multi-niveaux ».
+#
+# Deux niveaux de gravité :
+#   warning  → dégradation visible, traitement en heures ouvrées
+#   critical → service compromis, réveil immédiat (voir docs/RUNBOOK.md)
+#
+# Les seuils reprennent les objectifs publiés dans docs/ARCHITECTURE.md §6.
+# Toute modification de seuil doit être justifiée dans la PR : un seuil trop
+# bas produit de la fatigue d'alerte, ce qui coûte plus cher qu'une alerte
+# manquante.
+
+groups:
+  - name: disponibilite
+    rules:
+      - alert: CibleInjoignable
+        expr: up{job="api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          module: M5
+        annotations:
+          resume: "L'API ne répond plus à la collecte"
+          detail: "La cible {{ $labels.instance }} est injoignable depuis 1 minute."
+          runbook: "docs/RUNBOOK.md#cibleinjoignable"
+
+  - name: erreurs
+    rules:
+      - alert: TauxErreurEleve
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          module: M5
+        annotations:
+          resume: "Taux d'erreur serveur au-dessus de 1 %"
+          detail: "Taux courant : {{ $value | humanizePercentage }}."
+          runbook: "docs/RUNBOOK.md#tauxerreureleve"
+
+      - alert: TauxErreurCritique
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          module: M5
+        annotations:
+          resume: "Taux d'erreur serveur au-dessus de 5 %"
+          detail: "Taux courant : {{ $value | humanizePercentage }}."
+          runbook: "docs/RUNBOOK.md#tauxerreureleve"
+
+  - name: latence
+    rules:
+      # Objectif publié : P95 de la réponse complète sous 2,5 s.
+      - alert: LatenceApiDegradee
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, route) (rate(http_request_duration_seconds_bucket[5m]))) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+          module: M5
+        annotations:
+          resume: "P95 au-dessus de l'objectif de 2,5 s"
+          detail: "Route {{ $labels.route }} : {{ $value | humanizeDuration }}."
+          runbook: "docs/RUNBOOK.md#latenceapidegradee"
+
+      # Objectif publié : P50 de la recherche vectorielle sous 120 ms.
+      - alert: RetrieverLent
+        expr: |
+          histogram_quantile(0.50,
+            sum by (le) (rate(rag_retrieval_duration_seconds_bucket[5m]))) > 0.12
+        for: 10m
+        labels:
+          severity: warning
+          module: M2
+        annotations:
+          resume: "P50 du retriever au-dessus de 120 ms"
+          detail: "Valeur courante : {{ $value | humanizeDuration }}."
+          runbook: "docs/RUNBOOK.md#retrieverlent"
+
+  - name: modele
+    rules:
+      - alert: EchecsModele
+        expr: sum(rate(llm_requests_failed_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          module: M2
+        annotations:
+          resume: "Le modèle échoue de façon répétée"
+          detail: "{{ $value | printf \"%.2f\" }} échec/s sur 5 minutes."
+          runbook: "docs/RUNBOOK.md#echecsmodele"
+
+      # Une dérive de consommation double le coût sans alerte fonctionnelle :
+      # aucun test ne la détecte, seule la supervision la voit.
+      - alert: ConsommationJetonsAnormale
+        expr: |
+          sum(rate(llm_tokens_total[30m]))
+            > 2 * sum(rate(llm_tokens_total[30m] offset 1d))
+        for: 30m
+        labels:
+          severity: warning
+          module: M7
+        annotations:
+          resume: "Consommation de jetons doublée par rapport à hier"
+          detail: "Vérifier une boucle de relance ou un prompt système modifié."
+          runbook: "docs/RUNBOOK.md#consommationjetonsanormale"
+
+  - name: cache
+    rules:
+      # Objectif publié : taux de cache ≥ 35 %.
+      - alert: CacheInefficace
+        expr: |
+          sum(rate(cache_lookups_total{result="hit"}[15m]))
+            / sum(rate(cache_lookups_total[15m])) < 0.35
+        for: 30m
+        labels:
+          severity: warning
+          module: M5
+        annotations:
+          resume: "Taux de cache sous l'objectif de 35 %"
+          detail: "Taux courant : {{ $value | humanizePercentage }}."
+          runbook: "docs/RUNBOOK.md#cacheinefficace"

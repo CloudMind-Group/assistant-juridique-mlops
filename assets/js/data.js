@@ -120,20 +120,20 @@ const MEMBERS = [
   {
     id:'M7', name:'Youssef El Alem', role:'SRE / ML Observability — Lead Monitoring',
     module:'Module 7 · Model Monitoring & Observability', icon:'i-activity',
-    c1:'#22d3ee', c2:'#34d399', status:'planned', progress:0,
+    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:29,
     desc:"Supervision du système et du modèle en production : dérive, qualité des réponses, latence, coûts et boucle de rétroaction.",
     subs:[
-      ['Instrumentation Prometheus : latence, débit, taux d\'erreur, consommation de jetons',0],
-      ['Tableaux de bord Grafana par domaine (API, retriever, LLM, infrastructure)',0],
-      ['Détection de dérive des données et des embeddings (Evidently) sur les requêtes entrantes',0],
-      ['Surveillance de la qualité des réponses en production (échantillonnage + juge automatique)',0],
-      ['Traçage distribué de bout en bout des requêtes RAG (OpenTelemetry)',0],
-      ['Alerting multi-niveaux avec routage Slack/e-mail et politiques d\'astreinte',0],
-      ['Boucle de rétroaction : collecte des retours et déclenchement du ré-entraînement',0]
+      ['Contrats d\'interface figés : métriques attendues de M5 et journal d\'audit fourni à M8 (docs/OBSERVABILITE.md)',1],
+      ['Alerting multi-niveaux : 8 règles sur deux gravités, routage Slack/e-mail, inhibitions et procédure par alerte',1],
+      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',0],
+      ['Instrumentation Prometheus : module réutilisable écrit et vérifié, branchement sur les endpoints en attente de M5',0],
+      ['Traçage distribué des requêtes RAG (OpenTelemetry) — squelette prêt, inerte tant qu\'aucun collecteur n\'est déployé',0],
+      ['Détection de dérive des données et des embeddings (Evidently) — exige un flux de requêtes réel (M2 + M5)',0],
+      ['Surveillance de la qualité des réponses et boucle de rétroaction vers le ré-entraînement — exige la chaîne complète',0]
     ],
-    tools:['Prometheus','Grafana','Evidently AI','OpenTelemetry','Loki','Alertmanager','Langfuse'],
-    collab:"Instrumente l'API de <b>Nouhaila</b> et l'infrastructure de <b>Salma</b>, corrèle les alertes de dérive avec les métriques d'<b>Amal</b> et renvoie les jeux de données de ré-entraînement à <b>Douae</b>.",
-    deliverables:['Pile d\'observabilité Prometheus + Grafana + Loki','Tableau de bord de dérive et de qualité des réponses','Règles d\'alerte et procédure de réponse à incident']
+    tools:['Prometheus','Grafana','Loki','Promtail','Alertmanager','OpenTelemetry (à brancher)','Evidently AI (à intégrer)','Langfuse (à intégrer)'],
+    collab:"Instrumente l'API de <b>Nouhaila</b> et l'infrastructure de <b>Salma</b>, corrèle les alertes de dérive avec les métriques d'<b>Amal</b> et renvoie les jeux de données de ré-entraînement à <b>Douae</b>. Le journal d'audit fourni à <b>Taha</b> clôt l'action A-5 de l'AIPD côté M7.",
+    deliverables:['Pile d\'observabilité Prometheus + Grafana + Loki + Alertmanager, vérifiée contre un simulateur conforme au contrat','Règles d\'alerte et procédure de réponse à incident (docs/RUNBOOK.md)','Tableau de bord de dérive et de qualité des réponses — bloqué tant que M2 et M5 ne tournent pas']
   },
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',

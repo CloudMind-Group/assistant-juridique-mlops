@@ -1,0 +1,3 @@
+# Optional heavy embedding, reranking, and local-generator runtime.
+# Installation does not download weights; adapters load only on instantiation.
+sentence-transformers>=3.0,<6
