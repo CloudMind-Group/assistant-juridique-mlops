@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: assistant-juridique-m1
 
-    user: "${UID}:${GID}"
+    user: "${UID:-10001}:${GID:-10001}"
 
     volumes:
       - ./data:/app/data
