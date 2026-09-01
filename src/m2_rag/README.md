@@ -148,7 +148,7 @@ python -m pip install -r requirements.txt
 python -m pytest tests/ -q
 ```
 
-Backends/modèles M2 de production, optionnels :
+Backend Qdrant M2, optionnel :
 
 ```bash
 python -m pip install -r requirements-m2.txt
@@ -162,3 +162,108 @@ python -m src.m2_rag.cli chunk-stats --chunk-size 512 --chunk-overlap 64
 ```
 
 Ces commandes lisent `data/processed` sans exécuter ni modifier le pipeline DVC.
+
+## Clôture technique — état vérifié le 2026-09-01
+
+| Classe | Composants | Preuve ou limite |
+|---|---|---|
+| A — opérationnel et testé | corpus, chunking FR/AR long, embeddings déterministes, index mémoire, BM25, dense, RRF, reranker léger, scope guard injectable, prompts, citations, grounding structurel, `RAGService`, évaluation artificielle, tracking M3, validation/split fine-tuning, CLI | tests et smoke M1 complet |
+| A — intégration réelle | Qdrant local : collection, dimension, upsert, query, filtres `doc_id/language/category/source`, suppression ciblée | `qdrant-client 1.19.0`, sans serveur ni Docker |
+| B — adapter testé sans poids | `SentenceTransformerEmbedder`, `CrossEncoderReranker`, `TransformersGenerator` | doubles injectés ; runtime réel importé |
+| C — préparé | LLM juridique configurable, vérification sémantique/NLI future, LoRA/QLoRA | aucun choix ou entraînement ne peut être justifié sans données |
+| D — externe | benchmark annoté, validation juridique, correction arabe M1, serveur Qdrant de production, poids BGE-M3/reranker | ressources externes détaillées ci-dessous |
+
+Le téléchargement de `BAAI/bge-m3` et du reranker multilingue
+`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` a été tenté sans jeton. Le Hub a
+créé les métadonnées, mais les poids sont restés à 0 octet avec avertissement de
+requêtes non authentifiées ; Xet et HTTP standard ont été essayés. La machine
+est CPU-only (`torch 2.13.0+cpu`, CUDA indisponible). Aucun cache n'est committé.
+BGE-M3 n'est donc pas déclaré exécuté et sa dimension attendue de 1024 n'est pas
+présentée comme une mesure locale.
+
+### Grounding, scope et contrat M5
+
+Le prompt exige un JSON `{"answer": ..., "citation_ids": [...]}` et des
+marqueurs visibles `[chunk_id:IDENTIFIANT]`. Le service refuse le contexte vide,
+les citations absentes, inconnues ou non récupérées, et tout désaccord entre la
+liste et les marqueurs. Cela prouve la provenance structurelle, pas l'entailment
+sémantique de chaque phrase. Un vérificateur NLI pourra être injecté plus tard.
+
+`KeywordScopeGuard` est une baseline FR/AR remplaçable, fondée sur des tokens ;
+ce n'est pas un classifieur juridique fiable. Une requête hors domaine ou une
+recherche sans passage est refusée. `TransformersGenerator` charge un pipeline
+Hugging Face local configurable et `CallableGenerator` accepte un provider
+externe, sans changement de `RAGService` et sans secret dans M2.
+
+Exemple minimal exécutable :
+
+```python
+from src.m2_rag import RAGRequest, build_light_service
+from src.m2_rag.corpus import load_m1_corpus
+
+service = build_light_service(load_m1_corpus())
+response = service.query(RAGRequest("Quelle règle de droit est décrite ?"))
+print(response.answer, response.citations, response.refused)
+```
+
+`RAGResponse` fournit `answer`, `citations`, `retrieved_chunks`,
+`prompt_version`, `model_version`, `latencies`, `refused` et `refusal_reason`.
+Une citation publique utilise uniquement `doc_id`, `chunk_id`, `title`,
+`source`, `date`, `category` et `language` (plus extrait/score). `file_path`
+reste interne. M2 n'invente jamais juridiction, date d'effet, numéro d'article
+ou numéro de décision.
+
+### Installation, commandes et mesures
+
+Le socle léger est dans `requirements.txt`. Qdrant est séparé dans
+`requirements-m2.txt`, et le runtime lourd dans
+`requirements-m2-models.txt` :
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-m2.txt
+python -m pip install -r requirements-m2-models.txt
+python -m src.m2_rag.cli validate-corpus
+python -m src.m2_rag.cli chunk-stats --chunk-size 512 --chunk-overlap 64
+python -m src.m2_rag.cli smoke-light
+python -m src.m2_rag.cli smoke-qdrant-local
+python -m pytest tests/m2 -q
+```
+
+L'installation du runtime lourd ne télécharge pas de poids. Les rapports de
+latence exposent runs, min, moyenne, P50, P95, backend, embedder, corpus, chunks
+et environnement. DEV TEST mesuré sur Qdrant in-memory, embedder déterministe,
+60 chunks synthétiques M1, Windows 10/Python 3.12.5, 5 runs : min 1,257 ms,
+moyenne 1,324 ms, P50 1,296 ms, P95 1,477 ms. Ce résultat indicatif ne valide
+aucun SLO de production.
+
+`experiment_parameters()` expose modèle/dimension d'embedding, taille/overlap,
+`chunker_version`, méthode, top-k/candidate-k, reranker, prompt, LLM, latences et
+métriques disponibles. M2 reste totalement fonctionnel sans MLflow.
+
+Recall@k est testé sur de petites fixtures artificielles, y compris plusieurs
+pertinents et zéro résultat : c'est un **DEV TEST**, jamais un **BENCHMARK
+OFFICIEL**. Recall@8 ≥ 0,89 reste une cible non validée.
+
+### Dépendances externes exhaustives
+
+- **BGE-M3 et reranker réel** : transfert de poids Hub bloqué et machine
+  CPU-only ; nécessite un accès Hugging Face fonctionnel ou cache préchargé,
+  bande passante/espace et calcul validés par l'infrastructure/M4.
+- **Qualité retrieval / Recall@8** : nécessite un benchmark QA annoté, des
+  jugements de pertinence doc/chunk et des experts juridiques ; M2 ne fabrique
+  aucune ground truth.
+- **Fine-tuning LoRA/QLoRA** : nécessite un dataset QA sourcé et approuvé, des
+  ressources GPU et le tracking convenu avec M3/M4. **Not trained — annotated
+  dataset unavailable.**
+- **LLM juridique de production** : nécessite décision de modèle/provider,
+  licence, ressources ou credentials gérés hors M2, et validation juridique et
+  sécurité. L'interface injectable est terminée.
+- **Corpus arabe** : nécessite validation/correction par M1 et Sécurité du faux
+  positif probable d'anonymisation. Cela ne bloque pas le développement
+  technique, mais invalide une évaluation sérieuse FR/AR.
+- **Qdrant serveur** : le client local est validé ; persistance, capacité,
+  disponibilité, observabilité et SLO relèvent de M4. L'index payload local
+  avertit normalement qu'il n'a d'effet que sur un serveur.
+- **MLflow, API et UI** : relèvent de M3, M5 et des modules de serving/UI ; M2
+  fournit leurs contrats sans les implémenter.
