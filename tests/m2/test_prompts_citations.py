@@ -1,6 +1,8 @@
 import pytest
 
-from src.m2_rag.citations import GroundingError, citation_from_chunk, validate_citation_ids
+from src.m2_rag.citations import (
+    GroundingError, citation_from_chunk, validate_citation_ids, validate_generated_answer,
+)
 from src.m2_rag.models import RetrievedChunk
 from src.m2_rag.prompts import load_prompt, render_answer_prompt
 
@@ -26,3 +28,19 @@ def test_missing_or_unknown_citations_are_rejected():
         validate_citation_ids([], [_chunk()])
     with pytest.raises(GroundingError):
         validate_citation_ids(["invented"], [_chunk()])
+
+
+def test_generated_answer_requires_matching_visible_allowed_markers():
+    first = _chunk()
+    second = RetrievedChunk("d2", "c2", "passage", "T", "S", "2025", "Civil", "ar", 0.7, "dense")
+    assert [item.chunk_id for item in validate_generated_answer(
+        "Règle [chunk_id:c] et exception [chunk_id:c2].", ["c", "c2"], [first, second]
+    )] == ["c", "c2"]
+    for answer, ids in [
+        ("Aucune citation", ["c"]),
+        ("Inconnue [chunk_id:absent]", ["absent"]),
+        ("Décalage [chunk_id:c2]", ["c"]),
+        ("", ["c"]),
+    ]:
+        with pytest.raises(GroundingError):
+            validate_generated_answer(answer, ids, [first, second])

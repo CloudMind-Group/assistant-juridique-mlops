@@ -3,6 +3,7 @@
 from src.m2_rag.config import RAGConfig
 from src.m2_rag.models import Citation, RAGRequest, RAGResponse, RetrievedChunk
 from src.m2_rag.service import RAGService
+from src.m2_rag.factory import build_light_service
 
 __all__ = [
     "Citation",
@@ -11,4 +12,5 @@ __all__ = [
     "RAGResponse",
     "RAGService",
     "RetrievedChunk",
+    "build_light_service",
 ]

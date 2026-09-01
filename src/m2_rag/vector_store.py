@@ -70,6 +70,8 @@ class InMemoryVectorStore:
     def search(
         self, query_vector: Sequence[float], limit: int, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
         if len(query_vector) != self.dimension:
             raise ValueError(f"expected dimension {self.dimension}, got {len(query_vector)}")
         filters = filters or {}
@@ -125,11 +127,12 @@ class QdrantVectorStore:
                 ),
                 hnsw_config=self.models.HnswConfigDiff(),
             )
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="doc_id",
-                field_schema=self.models.PayloadSchemaType.KEYWORD,
-            )
+            for field_name in ("doc_id", "source", "date", "category", "language"):
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=self.models.PayloadSchemaType.KEYWORD,
+                )
 
     def upsert(self, chunks: Sequence[LegalChunk], vectors: Sequence[Sequence[float]]) -> None:
         if len(chunks) != len(vectors):
@@ -154,6 +157,8 @@ class QdrantVectorStore:
     def search(
         self, query_vector: Sequence[float], limit: int, filters: dict[str, Any] | None = None
     ) -> list[RetrievedChunk]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
         if len(query_vector) != self.dimension:
             raise ValueError(f"expected dimension {self.dimension}, got {len(query_vector)}")
         query_filter = self._filter(filters) if filters else None

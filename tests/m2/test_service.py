@@ -4,6 +4,8 @@ from src.m2_rag.config import RAGConfig
 from src.m2_rag.generator import FakeGroundedGenerator, GeneratedAnswer
 from src.m2_rag.models import RAGRequest, RetrievedChunk
 from src.m2_rag.service import KeywordScopeGuard, RAGService
+from src.m2_rag.factory import build_light_service
+from src.m2_rag.models import LegalDocument
 
 
 def _chunk() -> RetrievedChunk:
@@ -20,6 +22,12 @@ class HallucinatingGenerator:
     model_version = "bad-test-model"
     def generate(self, question, chunks, prompt_version):
         return GeneratedAnswer("Une règle inventée.", ["unknown-chunk"])
+
+
+class UnmarkedGenerator:
+    model_version = "unmarked"
+    def generate(self, question, chunks, prompt_version):
+        return GeneratedAnswer("Une réponse sans marqueur.", [chunks[0].chunk_id])
 
 
 def test_rag_response_contains_sources_contract_and_latencies():
@@ -58,3 +66,23 @@ def test_rejects_citation_not_present_in_retrieved_context():
 def test_service_works_when_tracking_is_absent():
     service = RAGService(StubRetriever([_chunk()]), FakeGroundedGenerator(), tracking_hook=None)
     assert service.query("question de droit").citations
+
+
+def test_service_rejects_unmarked_answer_and_allows_french_and_arabic_legal_scope():
+    assert RAGService(StubRetriever([_chunk()]), UnmarkedGenerator()).query("question de droit").refused
+    guard = KeywordScopeGuard({"contrat", "قانون", "محكمة"})
+    assert guard.in_scope("Quel droit régit ce contrat ?")
+    assert guard.in_scope("ما هو قانون العقد؟")
+    assert not guard.in_scope("Comment cuisiner un gâteau ?")
+    assert not guard.in_scope("Je vais courir demain")
+
+
+def test_executable_light_factory_covers_complete_m1_to_response_contract():
+    document = LegalDocument(
+        "doc", "Code", "BO", "2024", "Civil", "fr",
+        "Article 1\nLe contrat oblige les parties à respecter leurs engagements.",
+    )
+    response = build_light_service([document]).query("Quelle obligation prévoit le contrat ?")
+    assert not response.refused
+    assert response.citations and response.retrieved_chunks
+    assert response.citations[0].chunk_id in response.answer

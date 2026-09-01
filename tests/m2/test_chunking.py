@@ -33,3 +33,35 @@ def test_detects_french_and_arabic_legal_boundaries():
     assert chunks
     assert any(chunk.section and "Article" in chunk.section for chunk in chunks)
     assert any(chunk.section and "المادة" in chunk.section for chunk in chunks)
+
+
+def test_long_french_legal_document_preserves_boundaries_and_splits_large_section():
+    articles = [f"Article {i}\n" + " ".join(f"regle{i}_{j}" for j in range(180)) for i in range(1, 5)]
+    document = _document("\n".join(articles), "long-fr")
+    chunks = chunk_document(document, ChunkingConfig(512, 64), WhitespaceTokenizer())
+    assert len(chunks) >= 2
+    assert all(chunk.text and 0 < chunk.token_count <= 512 for chunk in chunks)
+    assert chunks[0].section == "Article 1"
+    assert chunks[0].text.split()[-64:] == chunks[1].text.split()[:64]
+
+
+def test_long_arabic_sections_are_detected_and_secondary_split_is_bounded():
+    sections = [
+        f"المادة {i}\n" + " ".join(f"قاعدة{i}_{j}" for j in range(600))
+        for i in range(1, 3)
+    ]
+    chunks = chunk_document(_document("\n".join(sections), "long-ar"), ChunkingConfig(512, 64))
+    assert len(chunks) >= 3
+    assert all(chunk.text and chunk.token_count <= 512 for chunk in chunks)
+    assert any(chunk.section == "المادة 1" for chunk in chunks)
+    assert any(chunk.section == "المادة 2" for chunk in chunks)
+
+
+def test_chunk_id_changes_with_content_and_position():
+    base = _document("Article 1\n" + " ".join(f"mot{i}" for i in range(600)), "stable")
+    chunks = chunk_document(base, ChunkingConfig(128, 16))
+    repeated = chunk_document(base, ChunkingConfig(128, 16))
+    changed = chunk_document(_document(base.text + " ajout", "stable"), ChunkingConfig(128, 16))
+    assert [chunk.chunk_id for chunk in chunks] == [chunk.chunk_id for chunk in repeated]
+    assert chunks[0].chunk_id != chunks[1].chunk_id
+    assert chunks[-1].chunk_id != changed[-1].chunk_id

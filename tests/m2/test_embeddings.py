@@ -1,4 +1,6 @@
 from src.m2_rag.embeddings import DeterministicFakeEmbedder, SentenceTransformerEmbedder
+from src.m2_rag.generator import TransformersGenerator
+from src.m2_rag.models import RetrievedChunk
 
 
 class TinyModel:
@@ -20,3 +22,13 @@ def test_dimension_is_derived_from_active_model():
     embedder = SentenceTransformerEmbedder("tiny", model=TinyModel())
     assert embedder.dimension == 3
     assert len(embedder.embed_query("question")) == 3
+
+
+def test_transformers_generator_adapter_parses_structured_local_output():
+    class Pipeline:
+        def __call__(self, prompt, **kwargs):
+            return [{"generated_text": prompt + '\n{"answer":"Réponse [chunk_id:c]","citation_ids":["c"]}'}]
+
+    chunk = RetrievedChunk("d", "c", "texte", "titre", "source", "2024", "civil", "fr", 1, "dense")
+    generated = TransformersGenerator("tiny-smoke-only", pipeline=Pipeline()).generate("Question", [chunk], "v1")
+    assert generated.citation_ids == ["c"] and "[chunk_id:c]" in generated.answer

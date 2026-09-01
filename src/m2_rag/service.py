@@ -5,10 +5,11 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Any, Protocol
 
-from src.m2_rag.citations import GroundingError, citation_from_chunk, validate_citation_ids
+from src.m2_rag.citations import GroundingError, citation_from_chunk, validate_generated_answer
 from src.m2_rag.config import RAGConfig
 from src.m2_rag.corpus import validate_filter_fields
 from src.m2_rag.generator import Generator
+from src.m2_rag.lexical import lexical_tokens
 from src.m2_rag.models import RAGRequest, RAGResponse
 from src.m2_rag.retrieval import HybridRetriever
 
@@ -23,14 +24,15 @@ class ScopeGuard(Protocol):
 
 
 class KeywordScopeGuard:
-    """Deterministic light guard useful for explicitly configured domains/tests."""
+    """Replaceable multilingual keyword baseline; it is not a classifier."""
 
     def __init__(self, legal_terms: set[str]) -> None:
-        self.legal_terms = {term.casefold() for term in legal_terms}
+        self.legal_terms = {term.casefold().strip() for term in legal_terms if term.strip()}
 
     def in_scope(self, question: str) -> bool:
         folded = question.casefold()
-        return any(term in folded for term in self.legal_terms)
+        tokens = set(lexical_tokens(question))
+        return any(term in tokens or (" " in term and term in folded) for term in self.legal_terms)
 
 
 DEFAULT_LEGAL_TERMS = {
@@ -98,7 +100,9 @@ class RAGService:
             generated = self.generator.generate(question, chunks, self.config.prompt_version)
             generation_ms = (perf_counter() - generation_started) * 1000
             try:
-                cited_chunks = validate_citation_ids(generated.citation_ids, chunks)
+                cited_chunks = validate_generated_answer(
+                    generated.answer, generated.citation_ids, chunks
+                )
             except GroundingError:
                 response = self._refusal(
                     "ungrounded_generation",

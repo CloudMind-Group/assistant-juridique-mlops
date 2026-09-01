@@ -4,4 +4,4 @@ $question
 Passages autorisés :
 $context
 
-Réponds uniquement à partir de ces passages. Toute citation doit reprendre exactement un chunk_id autorisé.
+Réponds uniquement à partir de ces passages. Toute citation doit reprendre exactement un chunk_id autorisé, dans le texte et dans citation_ids.
