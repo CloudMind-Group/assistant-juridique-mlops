@@ -74,7 +74,7 @@ litige — à un tiers quelconque, de façon indexable et répétable.
 **Mesures en place.** Anonymisation exécutée dans le pipeline, entre nettoyage
 et écriture ; aucune donnée personnelle n'atteint `data/processed/` ni, par
 conséquent, l'indexation. Les identifiants et titres ne dérivent pas du nom de
-fichier. 29 tests de non-régression en CI.
+fichier. 32 tests de non-régression en CI.
 
 **Propagation des noms.** Depuis le 29/08/2026, toute occurrence d'un nom déjà
 identifié par une règle ancrée est masquée dans l'ensemble du document. C'est
@@ -225,8 +225,17 @@ d'un nom propre, la règle arabe comptait les mots et emportait le verbe —
 « تقدم », « حضر », « أدلى » — c'est-à-dire l'acte même que la décision constate.
 Une liste de mots-outils et de verbes de procédure lui sert désormais de borne.
 
+**Sur-masquage — issue #31.** Le 2 septembre, M1 a signalé que des termes
+juridiques arabes (« المشغل », « الطالب ») étaient traités comme des indices
+d'identité, ce qui masquait la suite de la phrase. Reproduit sur six
+formulations, dont une reprise mot pour mot du générateur de corpus : le défaut
+touchait donc le corpus présent dans le dépôt. Les qualités procédurales
+n'ancrent plus un nom à elles seules en arabe ; il faut un titre, un
+deux-points ou les deux. C'est un arbitrage de précision contre rappel, motivé
+au registre.
+
 **Risque résiduel.** Il reste celui de la langue française : un nom jamais ancré
-n'amorce rien. La parité de couverture demeure un objectif du passage au NER
+n'amorce rien. Et en arabe, celui du nom qui n'apparaît qu'après une qualité nue. La parité de couverture demeure un objectif du passage au NER
 (écart E-01), qui devra être **évalué séparément sur chaque langue** — un
 détecteur performant en français et muet en arabe reproduirait l'inégalité au
 lieu de la corriger, ce qui est précisément la raison du rejet de Presidio.

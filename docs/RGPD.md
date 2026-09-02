@@ -102,13 +102,13 @@ vectorisation par M2, la même opération devient une reconstruction d'index.
 Aucune donnée personnelle n'atteint `data/processed/`, donc aucune n'atteint
 l'indexation.
 
-**Règles appliquées** — dix règles, définies dans
+**Règles appliquées** — onze règles, définies dans
 [`anonymization_schema.py`](../src/m1_ingestion/anonymization_schema.py) :
 
 | Catégorie | Règles | Traitement |
 |---|---|---|
 | CIN | annoncée par sa mention · isolée | remplacée par `[CIN]` |
-| Nom | civilité (fr) · qualité procédurale (fr) · `ENTRE` · لقب (ar) · صفة في الدعوى (ar) | remplacé par `[NOM]` |
+| Nom | civilité (fr) · qualité procédurale (fr) · `ENTRE` · لقب (ar) · صفة + نقطتان (ar) · صفة + لقب (ar) | remplacé par `[NOM]` |
 | Téléphone | fixe et mobile, `+212` ou `0` | masquage partiel, `06******78` |
 | E-mail | — | remplacé par `[EMAIL]` |
 | Adresse | voie, quartier, lotissement, résidence | remplacée par `[ADRESSE]` |
@@ -150,6 +150,17 @@ détections ancrées amorcent le mécanisme : un faux positif reste local au lie
 d'être amplifié. Le vocabulaire d'institution et de procédure en est exclu, de
 sorte que « Cour », « Tribunal » ou « salarié » ne soient jamais masqués à
 l'échelle du document.
+
+**Ancrage en arabe — précision avant rappel.** Une qualité procédurale seule
+n'ancre plus un nom en arabe : « المشغل ملزم بأداء التعويضات » a exactement la
+même forme que « الشاهد رشيد العمراني أدلى ». Le français distingue les deux par
+la majuscule du nom propre ; l'arabe n'a pas cet équivalent. Mesuré sur douze
+formulations, toute variante positionnelle attrapait les trois noms d'essai
+**et** détruisait les six phrases juridiques d'essai, sans milieu (issue #31,
+signalée par M1). Les ancres retenues sont donc celles qui portent un signal
+réel : un titre, une qualité suivie de deux-points, une qualité suivie d'un
+titre. Le rappel perdu est rattrapé par la propagation dès que la personne est
+introduite une fois avec un titre dans le document.
 
 **Limite connue.** Le dispositif repose sur des expressions régulières, et la
 propagation s'amorce sur les détections ancrées : un nom qui n'apparaît
@@ -323,7 +334,7 @@ du test était fausse, non la règle — sept chiffres sortent du gabarit de la 
 marocaine.
 
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
-29 tests exécutés à chaque pull request. La moitié vérifient que montants,
+32 tests exécutés à chaque pull request. La moitié vérifient que montants,
 numéros de dossier et de registre, articles, dahirs, juridictions **et verbes
 arabes de procédure** ne sont **pas** masqués. Un test consigne explicitement la
 limite subsistante : un nom jamais ancré n'est pas détecté, et le jour où cela
