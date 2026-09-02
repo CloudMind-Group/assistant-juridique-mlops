@@ -206,19 +206,44 @@ n'est conçu » et un écart « tout est conçu, personne n'émet » n'appellent
 même travail ni les mêmes personnes. Le chiffrement au repos demeure non documenté
 (E-06).
 
-### T-03 — Indexation et restitution *(à venir — M2, M5, M6)*
+### T-03 — Indexation vectorielle
 
-Non mis en œuvre : M2 n'a pas démarré. Cette fiche sera renseignée dès que le
-schéma d'indexation sera arrêté.
+| | |
+|---|---|
+| **Finalité** | Rendre le corpus interrogeable par le sens, et restituer les extraits cités |
+| **Support** | Index vectoriel — `src/m2_rag/vector_store.py` (PR #28) |
+| **Contenu stocké** | Vecteurs **et** texte des passages, avec `doc_id`, `chunk_id`, titre, source, date, catégorie |
+| **Provenance** | `data/processed/` uniquement, c'est-à-dire du texte déjà anonymisé par T-01 |
+| **Responsable opérationnel** | Imane Ibnchakroune (M2) |
+| **Durée de conservation** | Alignée sur T-01 — trois ans, l'index étant dérivé du corpus |
+| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **non implémenté** |
 
-**Exigence à intégrer dès la conception, et non après :** l'index vectoriel doit
-permettre la suppression ciblée d'un `doc_id`. Sans cela, le droit à l'effacement
-devient non pas coûteux mais **techniquement inapplicable** — un texte vectorisé
-n'est plus consultable ni modifiable comme du texte, et la seule voie de
-suppression serait la reconstruction complète de l'index.
+**L'index est une seconde copie du corpus.** Les passages y sont stockés en
+clair à côté de leurs vecteurs, ce qui est nécessaire pour afficher les extraits
+cités. Il entre donc dans le champ du présent registre au même titre que
+`data/processed/`, et non comme un simple artefact technique.
 
-Exigence transmise à M2 et consignée dans le
-[README du paquet d'ingestion](../src/m1_ingestion/README.md).
+**Effacement — l'exigence a été respectée.** `vector_store.delete_document(doc_id)`
+existe sur l'interface et dans les deux implémentations, avec un filtre sur le
+champ `doc_id`, et il est couvert par des tests. Vérifié le 02/09/2026.
+
+C'est le point qui devait être obtenu **avant** que M2 ne construise : un index
+conçu sans cette capacité ne se corrige pas, il se reconstruit. Le stockage du
+texte en clair y contribue d'ailleurs — un passage rangé à côté d'un `doc_id` se
+supprime par filtre, là où un vecteur seul ne s'annule pas. Le risque R-02 de
+l'analyse d'impact passe de ce fait à une vraisemblance négligeable.
+
+**Point de vigilance — journalisation des requêtes.** Le service expose un hook
+`log_query(request, response)` qui reçoit la question et la réponse complètes.
+L'implémentation actuelle n'empile qu'en mémoire et **rien n'est persisté**
+(vérifié le 02/09/2026), mais la signature invite à une implémentation qui
+écrirait ces textes. Ce serait contraire à l'interdiction posée au contrat de
+journal d'audit ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2.3) et créerait un
+traitement de données personnelles là où il n'y en a pas. Signalé à M2 ; à
+reprendre si le hook est implémenté.
+
+**Reste hors périmètre à ce jour :** la restitution elle-même. M5 et M6
+n'existent pas, donc aucun utilisateur final n'accède au corpus.
 
 ## 4. Droits des personnes
 

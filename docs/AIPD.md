@@ -103,12 +103,20 @@ n'est pas en retard : elle est dans l'impossibilité de s'exécuter.
 | Vraisemblance après mesures | Négligeable |
 
 **Mesures.** Les identités n'entrent pas dans le système, ce qui vide la demande
-de son objet dans la plupart des cas. Pour les cas résiduels, une exigence a été
-transmise à M2 **avant le début de ses travaux** : l'index doit permettre la
+de son objet dans la plupart des cas. Pour les cas résiduels, une exigence avait
+été transmise à M2 **avant le début de ses travaux** : l'index doit permettre la
 suppression ciblée d'un `doc_id`.
 
-**Point de vigilance.** Cette mesure n'a de valeur que si elle est intégrée dès
-la conception de l'index. Rétrofitée, elle impose une reconstruction complète.
+**Exigence satisfaite — vérifié le 02/09/2026.** `vector_store.delete_document(doc_id)`
+existe sur l'interface et dans les deux implémentations, avec un filtre sur le
+champ, et il est testé (PR #28). L'effacement est donc une opération réelle et
+non un droit théorique.
+
+C'est la seule mesure de cette analyse qui aurait été **impossible à rattraper
+après coup** : un index construit sans cette capacité ne se corrige pas, il se
+reconstruit. Elle illustre à elle seule pourquoi l'AIPD se rédige avant le
+traitement et non après — l'exigence a été posée alors que M2 n'avait pas écrit
+une ligne, et elle n'a rien coûté à intégrer.
 
 ### R-03 — Perte du corpus ou perte de maîtrise
 
@@ -338,7 +346,6 @@ distincte, à créer lorsque M5 et M6 implémenteront le dépôt.
 | A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar. La propagation des noms (29/08/2026) a réduit l'écart sans le fermer : reste le nom jamais ancré | R-01, R-07 | M8 | S4 |
 | A-5 | Journal d'audit des accès au corpus et aux réponses. Contrat arrêté par M7 (`OBSERVABILITE.md` §2) ; reste la source d'événements | R-04 | M8 + M5 | avant ouverture du service |
 | A-6 | Intégrer les garde-fous du §5 aux prompts, à l'API et à l'interface | R-05 | M2, M5, M6 | S4 |
-| A-7 | Confirmer par écrit auprès de M2 la suppression ciblée par `doc_id` | R-02 | M8 | avant le début de M2 |
 
 ### Actions closes
 
@@ -358,6 +365,7 @@ Une quatrième action est close depuis, par une contribution de M1 :
 | Réf | Réalisation | Effet |
 |---|---|---|
 | A-2 | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15, 29/08/2026) | R-03 et R-04 réduits : l'accès au corpus ne dépend plus d'une personne. Le contrôle d'accès et la journalisation restent à configurer (A-5) |
+| A-7 | Suppression ciblée par `doc_id` implémentée et testée par M2 (PR #28, vérifié le 02/09/2026) | R-02 ramené à une vraisemblance négligeable. L'exigence avait été transmise avant que M2 ne commence — c'est ce qui l'a rendue gratuite |
 
 **Portée de A-8 sur l'analyse.** C'est l'arbitrage qui change le plus la charge
 de M8. Un recueil déjà pseudonymisé réduit fortement le volume de données
