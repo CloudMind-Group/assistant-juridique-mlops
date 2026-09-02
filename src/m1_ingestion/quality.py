@@ -79,7 +79,13 @@ def _load_metadata_records(metadata_path: Path) -> list[dict[str, Any]]:
             try:
                 records.append(json.loads(line))
             except json.JSONDecodeError as exc:
-                logger.error("Malformed JSON on line %d of %s: %s", line_no, metadata_path, exc)
+                # Was previously logged and skipped, which let a corrupted
+                # metadata.jsonl pass --fail-on-error silently (verified:
+                # exit code stayed 0). Raising makes corruption itself a
+                # hard failure, not just the schema/content checks below.
+                raise ValueError(
+                    f"Malformed JSON on line {line_no} of {metadata_path}: {exc}"
+                ) from exc
     return records
 
 

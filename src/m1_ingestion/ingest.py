@@ -70,6 +70,8 @@ FOLDER_TO_SOURCE = {
     "bulletin_officiel": SourceType.BULLETIN_OFFICIEL,
     "jurisprudence": SourceType.JURISPRUDENCE,
     "contrats_types": SourceType.CONTRAT_TYPE,
+    "portails_officiels": SourceType.PORTAIL_OFFICIEL,
+    "depots_internes": SourceType.DEPOT_INTERNE,
 }
 
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
