@@ -92,9 +92,62 @@ def test_masking_preserves_procedural_role():
 
 
 def test_arabic_names_are_masked():
-    masked = anonymize_text("حيث أن الشاهد رشيد العمراني أدلى بشهادته")
+    """Three anchors work in Arabic: a title, a role plus a colon, a role
+    plus a title. All three are signals; a role alone is not — see the test
+    of the known limit below.
+    """
+    for text, name in [
+        ("حيث أن السيد أحمد بنعلي تقدم بطلب.", "أحمد بنعلي"),
+        ("الشاهد: رشيد العمراني، أدلى بشهادته.", "رشيد العمراني"),
+        ("المدعي السيد يوسف الإدريسي طرد تعسفيا.", "يوسف الإدريسي"),
+    ]:
+        assert name not in anonymize_text(text), f"{name!r} survived in {text!r}"
+
+
+# Issue #31, reported by @DOUAEM449: a procedural role followed by Arabic words
+# was treated as introducing a name, so the words after it were masked. The
+# first case below is taken verbatim from dataset_generator.py — the defect hit
+# the corpus actually in the repository.
+ARABIC_LEGAL_TERMS_MUST_SURVIVE = [
+    "طبقا لأحكام القانون رقم 65.99، يلتزم المشغل بضمان ظروف عمل تليق بالكرامة الإنسانية.",
+    "المشغل ملزم بأداء التعويضات القانونية.",
+    "الطالب يطالب بالتعويض عن الفصل التعسفي.",
+    "الأجير يستحق تعويضا عن الإخطار.",
+    "المدعي يطلب من المحكمة الحكم له.",
+    "حيث إن المشغل لم يحترم مسطرة الفصل.",
+]
+
+
+def test_arabic_procedural_terms_are_not_treated_as_name_anchors():
+    """A role word used generically must not mask the sentence after it."""
+    for text in ARABIC_LEGAL_TERMS_MUST_SURVIVE:
+        assert anonymize_text(text) == text, f"altered: {text!r}"
+
+
+def test_known_limit_arabic_bare_role_no_longer_anchors():
+    """The cost of fixing issue #31, stated rather than hidden.
+
+    "الشاهد رشيد العمراني" — a role followed directly by a name, without a
+    colon or a title — is no longer detected by that rule. Arabic has no
+    capitalisation, so this form is indistinguishable from "المشغل ملزم":
+    every positional variant tried caught all test names *and* destroyed all
+    test sentences, with nothing in between.
+
+    Propagation still covers the realistic document, where the same person is
+    introduced once with a title. What is lost is the name that appears only
+    ever after a bare role. Closing that needs NER — action A-1.
+    """
+    text = "حيث أن الشاهد رشيد العمراني أدلى بشهادته"
+    assert "رشيد العمراني" in anonymize_text(text)
+
+
+def test_propagation_recovers_the_bare_role_case_in_a_real_document():
+    """The loss above is bounded: one titled mention re-covers the rest."""
+    masked = anonymize_text(
+        "حيث أن السيد رشيد العمراني حضر. وحيث أن الشاهد رشيد العمراني أدلى بشهادته."
+    )
     assert "رشيد العمراني" not in masked
-    assert "الشاهد" in masked
+    assert "أدلى" in masked
 
 
 def test_detect_reports_positions_that_match_the_text():
