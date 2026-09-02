@@ -222,10 +222,38 @@ DEFAULT_RULES: list[PIIPattern] = [
     ),
     PIIPattern(
         pii_type=PIIType.NOM,
-        description="اسم مسبوق بصفته في الدعوى (المدعي، الشاهد، الأجير...)",
+        description="اسم مسبوق بصفته في الدعوى ثم نقطتين (الشاهد: أحمد بنعلي)",
+        # Le deux-points est exigé, et c'est le cœur du correctif de l'issue
+        # #31. Une qualité procédurale suivie de mots arabes n'est **pas** un
+        # indice de nom : « المشغل ملزم بأداء التعويضات » a exactement la même
+        # forme que « الشاهد رشيد العمراني أدلى ». Le français s'en sort grâce
+        # à la majuscule du nom propre ; l'arabe n'a pas cet équivalent, et
+        # aucun réglage de la fenêtre de mots ne sépare les deux cas — mesuré :
+        # toute variante positionnelle attrape les 3 noms d'essai et détruit
+        # les 6 phrases juridiques d'essai, sans milieu.
+        #
+        # Le deux-points, lui, est un vrai signal : il n'apparaît que dans les
+        # listes de parties. On y perd du rappel — un nom nu après une qualité
+        # n'est plus détecté par cette règle — et c'est un arbitrage assumé :
+        # le sur-masquage corrompt le corpus en silence, le sous-masquage est
+        # borné, documenté (E-01) et rattrapé par la propagation dès que le
+        # nom est ancré une fois par un titre ailleurs dans le document.
         regex=(
             r"(?:الشاهد|المدعى\s+عليه|المدعي|الطالب|المطلوب|الأجير|المشغل|المتهم)"
-            rf"\s*:?\s*(?P<pii>{AR_NAME_WORD}(?:\s+{AR_NAME_WORD}){{0,2}})"
+            rf"\s*:\s*(?P<pii>{AR_NAME_WORD}(?:\s+{AR_NAME_WORD}){{0,2}})"
+        ),
+        masking_strategy=MaskingStrategy.PLACEHOLDER,
+        placeholder="[NOM]",
+    ),
+    PIIPattern(
+        pii_type=PIIType.NOM,
+        description="اسم مسبوق بصفته ثم بلقب (الشاهد السيد أحمد بنعلي)",
+        # Second ancrage fiable : la qualité suivie d'un titre. Le titre est
+        # le signal, la qualité n'est là que pour ne pas couper la phrase.
+        regex=(
+            r"(?:الشاهد|المدعى\s+عليه|المدعي|الطالب|المطلوب|الأجير|المشغل|المتهم)"
+            r"\s+(?:السيد|السيدة|الأستاذ|الأستاذة)\s+"
+            rf"(?P<pii>{AR_NAME_WORD}(?:\s+{AR_NAME_WORD}){{0,2}})"
         ),
         masking_strategy=MaskingStrategy.PLACEHOLDER,
         placeholder="[NOM]",

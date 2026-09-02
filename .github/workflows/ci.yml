@@ -81,7 +81,23 @@ jobs:
         run: bandit -r src dags monitoring --severity-level medium --confidence-level medium
 
       - name: Vulnérabilités connues des dépendances (pip-audit)
-        run: pip-audit -r requirements.txt --progress-spinner off
+        # Tout fichier `requirements*.txt` est analysé, pas seulement celui de
+        # la racine : la PR #28 en a introduit deux pour M2 qui échappaient au
+        # contrôle, et le prochain module en ajoutera d'autres. Découvrir les
+        # fichiers plutôt que les énumérer évite que la porte se vide d'elle-même
+        # à mesure que le projet grandit.
+        run: |
+          set -e
+          shopt -s nullglob
+          fichiers=(requirements*.txt)
+          if [ ${#fichiers[@]} -eq 0 ]; then
+            echo "::error::aucun fichier requirements*.txt trouvé"
+            exit 1
+          fi
+          for f in "${fichiers[@]}"; do
+            echo "→ $f"
+            pip-audit -r "$f" --progress-spinner off
+          done
 
   validate:
     name: Validation du site statique
