@@ -45,3 +45,6 @@ monitoring/audit/*.jsonl
 venv/
 .python-version
 >>>>>>> origin/develop
+
+# Local MLflow database
+mlflow.db
