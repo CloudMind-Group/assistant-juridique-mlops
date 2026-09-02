@@ -32,3 +32,16 @@ data/processed/*
 # Ignorer les dossiers python
 __pycache__/
 *.pyc
+<<<<<<< HEAD
+# Observabilité M7 : secrets de notification et journal d'audit local.
+# Les URL de webhook et mots de passe SMTP sont montés depuis ces fichiers,
+# jamais versionnés (voir monitoring/README.md).
+monitoring/alertmanager/secrets/
+monitoring/audit/*.jsonl
+!monitoring/audit/.gitkeep
+=======
+# Environnements virtuels Python locaux
+.venv/
+venv/
+.python-version
+>>>>>>> origin/develop
