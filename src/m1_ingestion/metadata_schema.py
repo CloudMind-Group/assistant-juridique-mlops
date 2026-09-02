@@ -21,11 +21,13 @@ _DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}-\d{2})?$")
 
 
 class SourceType(str, Enum):
-    """The 3 legal sources selected for the M1 sample corpus."""
+    """The legal sources recognized by the M1 pipeline."""
 
     BULLETIN_OFFICIEL = "Bulletin Officiel"
     JURISPRUDENCE = "Jurisprudence"
     CONTRAT_TYPE = "Contrat Type"
+    PORTAIL_OFFICIEL = "Portail Officiel"
+    DEPOT_INTERNE = "Dépôt Interne"
 
 
 class Language(str, Enum):
