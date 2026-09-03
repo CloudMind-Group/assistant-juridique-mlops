@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.2 — 30 août 2026
+**Version :** 1.3 — 2 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -265,7 +265,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 |---|---|---|---|---|
 | E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
 | E-04 | Journal d'audit : **contrat défini** ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2), **écriture non implémentée**. Ce n'est plus la conception qui manque mais la source d'événements | Moyenne | M8 + M5 | avant ouverture du service |
-| E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
+| E-06 | Chiffrement au repos du corpus non documenté — l'hébergeur ne publie pas ses garanties et l'organisation ne peut pas les vérifier ; à traiter par le chiffrement côté client si le corpus réel l'exige | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
 | E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
 | E-09 | `Dockerfile` et `docker-compose.yml` ne relèvent d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, ports et secrets d'exécution échappent à la revue de conformité | Moyenne | M8 + M4 | S4 |
 
@@ -282,6 +282,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R7 | Durée de conservation non définie | Trois ans à compter de l'ingestion — décision d'équipe du 29/08/2026, motivée en [AIPD.md](AIPD.md) §6 |
 | E-R8 | Origine des décisions de justice non arrêtée | Recueils publiés déjà pseudonymisés — décision d'équipe du 29/08/2026, §1 ci-dessus |
 | E-R9 | Corpus hébergé sur un compte personnel hors organisation | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15). Le contrôle d'accès et la journalisation restent à configurer — voir E-04 |
+| E-R10 | Le contrôle « aucun secret » de la CI ne détectait aucun identifiant réel : sensible à la casse, et dépendant d'un mot-clé dans le *nom* de la variable | Remplacé par `src/m8_compliance/secret_scan.py`, qui reconnaît les *formes* d'identifiants. Mesuré : 0/7 avant, 7/7 après, zéro faux positif sur le dépôt |
 
 ## 6. Preuves
 
@@ -357,6 +358,31 @@ NER seulement) ; une CIN en minuscules, écartée volontairement pour que
 « de 150000 » ne soit pas pris pour un identifiant ; et un cas où la formulation
 du test était fausse, non la règle — sept chiffres sortent du gabarit de la CIN
 marocaine.
+
+**L'appel à l'anonymisation est protégé par la CI, pas seulement par la revue.**
+`CODEOWNERS` appelle l'équipe `data` sur `ingest.py`, où réside l'appel à
+`anonymize_document()` : la conformité n'est donc pas consultée sur le fichier
+qui porte le contrôle central. Vérifié le 02/09/2026 en neutralisant l'appel —
+`test_pipeline_writes_no_personal_data` échoue immédiatement.
+
+La protection est donc effective, et par un moyen plus sûr qu'une règle de
+relecture : un test s'exécute toujours, une revue dépend de l'attention de
+quelqu'un. Aucune règle `CODEOWNERS` supplémentaire n'est demandée sur
+`ingest.py` — elle ajouterait de la friction sur chaque contribution de M1 pour
+une garantie plus faible que celle qui existe.
+
+**Détection de secrets** — mesure du 02/09/2026 sur sept identifiants réels
+(clé d'accès et secret AWS, jeton GitHub, clé OpenAI, jeton Slack, jeton
+DagsHub, en-tête de clé privée) :
+
+| | détectés | faux positifs sur le dépôt |
+|---|---|---|
+| Ancien contrôle (recherche de mots-clés) | **0 / 7** | 0 |
+| [`secret_scan.py`](../src/m8_compliance/secret_scan.py) | **7 / 7** | 0 |
+
+L'ancien contrôle échouait pour deux raisons cumulées : il était sensible à la
+casse — or une constante s'écrit `AWS_SECRET` — et il exigeait un mot-clé dans
+le *nom* de la variable, alors qu'un jeton se reconnaît à sa *forme*.
 
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
 32 tests exécutés à chaque pull request. La moitié vérifient que montants,
