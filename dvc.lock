@@ -15,8 +15,8 @@ stages:
       size: 23333
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: 3f2d0e9d48bca2faabc5eed84e5d69a0
-      size: 25975
+      md5: 37331085990ab0637e48ca70e4b99447
+      size: 29596
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
       md5: e14631a565697e2249fe2d1ca4a89487
@@ -33,11 +33,11 @@ stages:
       nfiles: 60
     - path: data/processed/ingestion_report.json
       hash: md5
-      md5: b3cdbedd31bb261e67b7b5ffb8fe51fe
+      md5: 8c35b5ecb048c5d0599a17bf735269f9
       size: 378
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 4ee708bbcb53c956d5b03394812b0d10
+      md5: 1b24e48db126afa39f6e5e70a63fcce5
       size: 30280
     - path: data/processed/segments.jsonl
       hash: md5
@@ -54,7 +54,7 @@ stages:
       nfiles: 60
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 4ee708bbcb53c956d5b03394812b0d10
+      md5: 1b24e48db126afa39f6e5e70a63fcce5
       size: 30280
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
@@ -67,5 +67,46 @@ stages:
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 85cdb06864c488e48d6a65deccefedcd
+      md5: 61a4d488568d8059c549cf8a3dc735a8
       size: 7857
+  data_card:
+    cmd: python -m src.m1_ingestion.data_card --processed-dir data/processed 
+      --corpus-status synthetique
+    deps:
+    - path: data/processed/ingestion_report.json
+      hash: md5
+      md5: 8c35b5ecb048c5d0599a17bf735269f9
+      size: 378
+    - path: data/processed/metadata.jsonl
+      hash: md5
+      md5: 1b24e48db126afa39f6e5e70a63fcce5
+      size: 30280
+    - path: data/processed/quality_report.json
+      hash: md5
+      md5: 61a4d488568d8059c549cf8a3dc735a8
+      size: 7857
+    - path: data/processed/segments.jsonl
+      hash: md5
+      md5: 6d7541f49acb174a5c6448612d974cfb
+      size: 29264
+    - path: src/m1_ingestion/anonymization_schema.py
+      hash: md5
+      md5: 7b6bba9c5a7dd34e3d447657f6b5626a
+      size: 23333
+    - path: src/m1_ingestion/data_card.py
+      hash: md5
+      md5: e79315f012ec510118a92930ce2e7bac
+      size: 22071
+    - path: src/m1_ingestion/ingest.py
+      hash: md5
+      md5: 37331085990ab0637e48ca70e4b99447
+      size: 29596
+    outs:
+    - path: data/processed/DATA_CARD.md
+      hash: md5
+      md5: c4f359143b877ebad498c316d6fc013b
+      size: 6411
+    - path: data/processed/data_card.json
+      hash: md5
+      md5: 7c0347b21ebcd50ceba1d16e240764a0
+      size: 4735
