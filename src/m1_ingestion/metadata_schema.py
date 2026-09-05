@@ -75,6 +75,9 @@ class DocumentMetadata(BaseModel):
     anonymized: bool = Field(default=False, description="Whether anonymize_text() was applied")
     status: str = Field(default="SUCCESS", description="'SUCCESS' — only successful docs reach metadata.jsonl")
     processed_at: str = Field(default="", description="ISO-8601 UTC timestamp of processing")
+    segment_count: int = Field(
+        default=0, ge=0, description="Articles/alineas detectes (voir segments.jsonl)"
+    )
 
     model_config = {"use_enum_values": True}
 

@@ -117,6 +117,54 @@ for r in records:
     # -> chunk / embed / index `text` using `r` as metadata
 ```
 
+## Collecte (connecteurs)
+
+`collect.py` alimente `data/raw/<source_slug>/` au format attendu par
+`ingest.py` (texte + sidecar `.meta.json`) :
+
+```bash
+python -m src.m1_ingestion.collect --source local --limit 50   # dépôts internes
+python -m src.m1_ingestion.collect --source legifrance          # squelette, non implémenté
+```
+
+`BaseConnector` définit le contrat ; `LocalDropConnector` (dépôts internes,
+lit `data/dropzone/`) est fonctionnel, `LegifranceConnector` est un
+squelette qui lève `NotImplementedError` — le scraping réel demande d'abord
+une revue CGU/robots.txt/quotas. Tout nouveau connecteur doit déclarer un
+`source_slug` présent dans `FOLDER_TO_SOURCE` (`ingest.py`), sinon
+`ingest.py` ignore silencieusement ce qu'il collecte —
+`tests/m1/test_collect.py` verrouille cette correspondance.
+
+## Dé-duplication
+
+`ingest.py` calcule un SHA-256 du texte **nettoyé** et saute tout document
+dont le contenu a déjà été ingéré dans le même run. Les doublons sont
+comptés dans `IngestResult.duplicates` et listés (fichier + `duplicate_of`)
+dans `ingestion_report.json`.
+
+Le hash porte sur le texte nettoyé **avant anonymisation**, délibérément :
+le masquage remplace les noms par `[NOM]`, donc deux jugements distincts
+qui ne diffèrent que par les parties deviennent identiques une fois
+anonymisés — dédupliquer après supprimerait un document réel en silence.
+
+## Segmentation par articles/alinéas
+
+`segmentation.py` détecte les frontières d'articles et d'alinéas (fr/ar) et
+`ingest.py` écrit `data/processed/segments.jsonl` — un objet JSON par
+segment (`doc_id`, `segment_index`, `kind`, `label`, `number`, `start`,
+`end`, `text`). `metadata.jsonl` gagne aussi un champ additif
+`segment_count`.
+
+**Pour M2 :** cette sortie est *additionnelle*, `documents/` et
+`metadata.jsonl` ne changent pas — le code de lecture actuel reste valide.
+Elle permet de découper en respectant la structure légale plutôt qu'à
+longueur fixe (un article coupé en son milieu perd son sens juridique).
+
+La détection exige que le marqueur soit en position de titre (début de
+ligne ou après une ponctuation de fin de phrase) : un renvoi comme
+« conformément à l'article 41 » ou « المنصوص عليها في المادة 5 » ne crée
+pas de frontière. `tests/m1/test_segmentation.py` verrouille les deux sens.
+
 ## Ingestion report (pipeline-run stats)
 
 `ingest.py` writes `data/processed/ingestion_report.json` on every run:
@@ -190,9 +238,9 @@ no change to `ingest.py`.
 > `doc_id`. Please design for that from the start — retrofitting it means
 > rebuilding the index.
 
-**`ingest.py` now applies `anonymize_text()` to every document** before it
+**`ingest.py` now applies `anonymize_document()` to every document** before it
 is written to `data/processed/documents/` — the pipeline flow is `raw file
--> extract -> clean_text -> anonymize_text -> save`. The `anonymized` field
+-> extract -> clean_text -> anonymize_document -> save`. The `anonymized` field
 in `metadata.jsonl` records whether a given document actually had a match
 masked (`false` on the current synthetic corpus, which contains no real
 PII by construction).

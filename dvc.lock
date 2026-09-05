@@ -11,53 +11,61 @@ stages:
       nfiles: 121
     - path: src/m1_ingestion/anonymization_schema.py
       hash: md5
-      md5: 32acdc4ae3ec8be1df68920678c130d7
-      size: 11242
+      md5: 7b6bba9c5a7dd34e3d447657f6b5626a
+      size: 23333
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: c215376d1d13b3e314edf7d712f5ccd1
-      size: 22014
+      md5: 3f2d0e9d48bca2faabc5eed84e5d69a0
+      size: 25975
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
-      md5: d127a9a4744ba49891a1761dc99942f2
-      size: 4257
+      md5: e14631a565697e2249fe2d1ca4a89487
+      size: 4456
+    - path: src/m1_ingestion/segmentation.py
+      hash: md5
+      md5: 6958fe250e4d55f6883ccd9c1063fbd2
+      size: 5576
     outs:
     - path: data/processed/documents
       hash: md5
-      md5: ee26870e4043cc614abe877d2ded8f24.dir
-      size: 22892
+      md5: fc4a204091872a1ff093e51a3a262ac5.dir
+      size: 23590
       nfiles: 60
     - path: data/processed/ingestion_report.json
       hash: md5
-      md5: 5a8d197509b4cfdd1b9efc837e2743dc
-      size: 313
+      md5: b3cdbedd31bb261e67b7b5ffb8fe51fe
+      size: 378
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: b61e553fa45b45141591d8ffdf6d5203
-      size: 29189
+      md5: 4ee708bbcb53c956d5b03394812b0d10
+      size: 30280
+    - path: data/processed/segments.jsonl
+      hash: md5
+      md5: 6d7541f49acb174a5c6448612d974cfb
+      size: 29264
   quality_check:
     cmd: python -m src.m1_ingestion.quality --processed-dir data/processed 
       --fail-on-error
     deps:
     - path: data/processed/documents
       hash: md5
-      md5: ee26870e4043cc614abe877d2ded8f24.dir
-      size: 22892
+      md5: fc4a204091872a1ff093e51a3a262ac5.dir
+      size: 23590
       nfiles: 60
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: b61e553fa45b45141591d8ffdf6d5203
-      size: 29189
+      md5: 4ee708bbcb53c956d5b03394812b0d10
+      size: 30280
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
-      md5: d127a9a4744ba49891a1761dc99942f2
-      size: 4257
+      md5: e14631a565697e2249fe2d1ca4a89487
+      size: 4456
     - path: src/m1_ingestion/quality.py
       hash: md5
-      md5: 230a7a80cd4b834b9e9358945df53e55
-      size: 6879
+      md5: dd344ae3b6a4f2cbe16477d1ab77960c
+      size: 7221
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 3e26c9ba9c73aaef6f43928149990dde
+      md5: 85cdb06864c488e48d6a65deccefedcd
       size: 7857
