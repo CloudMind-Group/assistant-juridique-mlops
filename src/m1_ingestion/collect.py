@@ -28,6 +28,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
 
+from src.m1_ingestion.ingest import (
+    SUPPORTED_EXTENSIONS,
+    ExtractionError,
+    extract_text_from_file,
+)
+
 logger = logging.getLogger("m1_ingestion.collect")
 
 RAW_DIR = Path("data/raw")
@@ -119,10 +125,22 @@ class LegifranceConnector(BaseConnector):
 
 
 class LocalDropConnector(BaseConnector):
-    """Connecteur trivial : republie des fichiers .txt déjà présents localement
-    sous le format attendu. Premier connecteur réellement fonctionnel
-    (dépôts PDF/DOCX internes déposés à la main), en attendant les
-    connecteurs distants.
+    """Dépôts internes : republie les fichiers déposés à la main dans une
+    zone de dépôt, au format attendu par ``ingest.py``.
+
+    Accepte tous les formats que le pipeline sait lire — ``.txt``, ``.pdf``,
+    ``.docx``, ``.png``, ``.jpg``, ``.jpeg`` — et délègue l'extraction à
+    :func:`ingest.extract_text_from_file`. Un PDF scanné passe donc par le
+    même repli OCR que le reste de la chaîne, sans code d'extraction
+    dupliqué ici.
+
+    **Limite connue** : la provenance du format d'origine n'est pas
+    conservée. Le connecteur écrit du ``.txt`` extrait, donc ``ingest.py``
+    reverra ces documents comme du texte et renseignera
+    ``extraction_method="text"`` au lieu de ``"ocr_pdf"``. Conserver la
+    provenance demanderait de copier le fichier source tel quel dans
+    ``data/raw/`` et de laisser ``ingest.py`` extraire — à arbitrer si
+    l'origine du texte devient une information à tracer.
     """
 
     source_slug = "depots_internes"
@@ -131,13 +149,34 @@ class LocalDropConnector(BaseConnector):
         self.source_dir = source_dir
 
     def fetch(self, *, limit: int | None = None) -> Iterator[RawDocument]:
-        files = sorted(self.source_dir.glob("*.txt"))
+        files = sorted(
+            path
+            for path in self.source_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+        )
         if limit is not None:
             files = files[:limit]
+
         for path in files:
+            try:
+                extraction = extract_text_from_file(path)
+            except ExtractionError as exc:
+                # Un fichier illisible ne doit pas interrompre la collecte
+                # des autres : même politique que ingest.py.
+                logger.error("Skipping %s: %s", path, exc)
+                continue
+
+            if not extraction.text.strip():
+                logger.warning(
+                    "Skipping %s: extraction produced no text (méthode: %s)",
+                    path,
+                    extraction.method,
+                )
+                continue
+
             yield RawDocument(
                 stem=path.stem,
-                text=path.read_text(encoding="utf-8"),
+                text=extraction.text,
                 title=path.stem.replace("_", " ").title(),
                 date="1900",
                 category="non_categorise",

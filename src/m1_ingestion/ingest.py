@@ -34,6 +34,7 @@ import hashlib
 import json
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -82,6 +83,37 @@ _BLANK_LINES_RE = re.compile(r"\n{3,}")
 # PDFs — everything in the C0/C1 ranges except \n and \t, which clean_text
 # handles separately.
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+# Lignes qui ne contiennent qu'une pagination : « Page 2 », « Page 2/4 »,
+# « Page 2 sur 4 », « - 2 - », « 2/4 », « صفحة 2 ». Ancré sur la ligne
+# entière (^...$ en mode MULTILINE) : une pagination citée dans une phrase
+# n'est pas touchée.
+_PAGE_ARTIFACT_RE = re.compile(
+    r"^[ \t]*(?:"
+    r"(?:page|صفحة)\s*n?[°o]?\s*\d+(?:\s*(?:/|sur|of|من)\s*\d+)?"
+    r"|-+\s*\d+\s*-+"
+    r"|\d+\s*/\s*\d+"
+    r")[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Marqueurs structurels : jamais supprimés, même répétés. Les retirer
+# casserait la segmentation par articles/alinéas.
+_STRUCTURAL_MARKER_RE = re.compile(
+    r"^\s*(?:Article|Alinéa|Al\.|المادة|الفقرة)\s*\d+", re.IGNORECASE
+)
+
+# Une ligne répétée au moins 3 fois et courte est un en-tête/pied de page.
+MIN_HEADER_OCCURRENCES = 3
+MAX_HEADER_LENGTH = 80
+
+# Un en-tête ne se termine pas par une ponctuation de fin de phrase ; une
+# phrase de dispositif, si. C'est le discriminant qui sépare
+# « Cour d'Appel de Casablanca » de « Le salarié est débouté de sa demande. ».
+# Sans lui, un jugement tranchant trois demandes voyait son dispositif — court
+# et répété une fois par demande — supprimé en entier. Le seuil de trois
+# occurrences ne protégeait pas ce cas : il le déplaçait seulement.
+_SENTENCE_ENDINGS = (".", "؟", "!", "۔")
 
 
 @dataclass
@@ -191,7 +223,11 @@ def _ocr_image(image) -> str:  # image: PIL.Image.Image
 def _extract_pdf_direct(file_path: Path) -> str:
     import fitz  # PyMuPDF
 
-    doc = fitz.open(file_path)
+    # On lit les octets nous-mêmes et on ouvre un flux mémoire plutôt que de
+    # passer le chemin à fitz : sous Windows, un fichier non-PDF laisse sinon
+    # un handle ouvert après l'échec d'ouverture, et le fichier brut devient
+    # impossible à déplacer ou supprimer ensuite.
+    doc = fitz.open(stream=file_path.read_bytes(), filetype="pdf")
     try:
         return "\n".join(page.get_text("text") for page in doc)
     finally:
@@ -211,7 +247,7 @@ def _extract_pdf_via_ocr(file_path: Path) -> str:
     from PIL import Image
 
     pages_text: list[str] = []
-    doc = fitz.open(file_path)
+    doc = fitz.open(stream=file_path.read_bytes(), filetype="pdf")
     try:
         matrix = fitz.Matrix(PDF_OCR_ZOOM, PDF_OCR_ZOOM)
         for page in doc:
@@ -278,12 +314,81 @@ def extract_text_from_file(file_path: Path) -> ExtractionOutcome:
         raise ExtractionError(f"Failed to extract text from {file_path}: {exc}") from exc
 
 
+def strip_page_artifacts(text: str) -> str:
+    """Retire les lignes qui ne sont qu'un numéro de page.
+
+    Ne traite qu'une ligne *entière* : « Page 2/4 » seul sur sa ligne part,
+    « ... prévues page 2 du présent contrat » reste intact. Une pagination
+    citée à l'intérieur d'une phrase fait partie du texte juridique.
+    """
+    return _PAGE_ARTIFACT_RE.sub("", text)
+
+
+def strip_repeated_headers(
+    text: str,
+    *,
+    min_occurrences: int = MIN_HEADER_OCCURRENCES,
+    max_length: int = MAX_HEADER_LENGTH,
+) -> str:
+    """Retire les en-têtes/pieds de page répétés à l'identique.
+
+    Un PDF de plusieurs pages répète le nom de la juridiction en haut de
+    chaque page. Après extraction, ces répétitions se retrouvent au milieu
+    du texte et polluent aussi bien la lecture que la vectorisation en aval.
+
+    Trois garde-fous, parce qu'une suppression trop large abîmerait le fond
+    juridique :
+
+    1. **Seuls les marqueurs structurels sont protégés inconditionnellement.**
+       « Article 2 » peut légitimement apparaître plusieurs fois ; le
+       supprimer casserait la segmentation (voir :mod:`segmentation`).
+    2. **Seules les lignes courtes** (``max_length``) sont candidates : un
+       en-tête tient sur une ligne, un attendu de jugement non.
+    3. **Seuil de répétition** (``min_occurrences``) : deux occurrences
+       peuvent être une coïncidence, trois indiquent une structure de page.
+
+    Alternative rejetée : supprimer toute ligne dupliquée, sans seuil ni
+    borne de longueur. Plus simple, mais un contrat type qui répète deux
+    fois « Fait à Casablanca » perdait les deux mentions — dont une porte
+    une valeur juridique.
+    """
+    lines = text.split("\n")
+    counts = Counter(line.strip() for line in lines if line.strip())
+
+    repeated = {
+        line
+        for line, count in counts.items()
+        if count >= min_occurrences
+        and len(line) <= max_length
+        and not _STRUCTURAL_MARKER_RE.match(line)
+        and not line.rstrip().endswith(_SENTENCE_ENDINGS)
+    }
+    if not repeated:
+        return text
+
+    kept = [line for line in lines if line.strip() not in repeated]
+
+    # Garde-fou : un document composé presque uniquement de lignes courtes
+    # répétées serait entièrement effacé. Mieux vaut garder un texte avec
+    # ses en-têtes qu'un document vide — quality.py rejette le vide, et la
+    # perte serait alors silencieuse pour tout le reste de la chaîne.
+    if not "".join(kept).strip():
+        logger.warning(
+            "Header stripping would empty the document; keeping it unchanged."
+        )
+        return text
+
+    logger.debug("Removed %d repeated header/footer line(s)", len(lines) - len(kept))
+    return "\n".join(kept)
+
+
 def clean_text(text: str) -> str:
     """Normalize whitespace/control noise while preserving paragraph breaks.
 
     - Unifies line endings.
     - Strips non-printable control characters that can leak in from OCR or
       malformed PDFs.
+    - Removes page-number lines and repeated headers/footers.
     - Collapses runs of spaces/tabs, and collapses 3+ blank lines down to a
       single paragraph break (one blank line) — legal article/paragraph
       structure (single blank lines between articles/alinéas) is preserved.
@@ -291,6 +396,11 @@ def clean_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = _CONTROL_CHARS_RE.sub("", text)
     text = _WHITESPACE_RE.sub(" ", text)
+    # L'ordre compte : la normalisation des espaces d'abord, sinon deux
+    # en-têtes identiques à l'espacement près ne sont pas reconnus comme
+    # répétés et survivent tous les deux.
+    text = strip_page_artifacts(text)
+    text = strip_repeated_headers(text)
     text = _BLANK_LINES_RE.sub("\n\n", text)
     return text.strip()
 
@@ -320,12 +430,34 @@ def make_doc_id(source_file: Path, raw_dir: Path) -> str:
     would otherwise put a real name into the doc_id, which propagates into the
     metadata index, into M2's vector store, and finally into the citations the
     assistant shows to end users — surviving any masking applied to the text.
+
+    Le condensé porte sur le **chemin relatif à ``raw_dir``**, normalisé en
+    POSIX. Il était auparavant calculé sur ``source_file.resolve()``, donc
+    sur un chemin absolu : le même document produisait un ``doc_id``
+    différent sur chaque machine, et les identifiants ne se recoupaient plus
+    entre le poste qui ingère et celui qui indexe.
+
+    Alternative rejetée — hacher le *contenu* du fichier : rendrait l'ID
+    stable même après déplacement, mais toute correction ultérieure du texte
+    (reprise d'OCR, coquille corrigée) produirait un nouvel identifiant. M2
+    verrait un document supplémentaire au lieu d'une mise à jour, et l'index
+    accumulerait des doublons de versions. Le chemin relatif garde l'identité
+    du document à travers les re-traitements, ce qui est la propriété utile
+    ici.
     """
+    try:
+        relative = source_file.relative_to(raw_dir)
+    except ValueError:
+        # Fichier hors de raw_dir : on se rabat sur le nom seul, qui reste
+        # indépendant de la machine.
+        relative = Path(source_file.name)
+
+    # as_posix() : sans cela, Windows produit « a\\b » et Linux « a/b »,
+    # donc deux condensés différents pour le même document.
     # usedforsecurity=False : le condensé sert d'identifiant, pas de garantie
-    # d'intégrité. Rend l'intention explicite et lève l'alerte B324 de Bandit
-    # sans changer les doc_id déjà produits.
+    # d'intégrité. Rend l'intention explicite et lève l'alerte B324 de Bandit.
     digest = hashlib.sha1(  # noqa: S324
-        str(source_file.resolve()).encode("utf-8"), usedforsecurity=False
+        relative.as_posix().encode("utf-8"), usedforsecurity=False
     ).hexdigest()[:16]
     return f"{source_slug(source_file, raw_dir)}-{digest}"
 
