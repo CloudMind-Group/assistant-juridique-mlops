@@ -116,10 +116,14 @@ branches `feature/*`. Elle doit rester en état de fonctionner en permanence.
 | `non_fast_forward` | force push interdit |
 | `deletion` | suppression interdite |
 
-> ⚠️ **Dérogation temporaire :** le rôle *Repository admin* dispose d'un bypass
-> (`bypass_mode: always`) sur les deux rulesets. Sans lui, le dépôt serait bloqué tant
-> qu'un seul compte y a accès : personne ne peut approuver sa propre PR.
-> **À supprimer dès que les huit membres sont ajoutés comme collaborateurs.**
+> **Aucune dérogation.** Les deux rulesets s'appliquent à tout le monde, y compris au
+> rôle *Repository admin* et au propriétaire de l'organisation : `bypass_actors` est vide
+> sur `main` comme sur `develop`. Personne ne peut approuver sa propre pull request, et le
+> bouton de fusion reste inactif tant qu'une approbation d'une autre personne manque.
+>
+> Une dérogation temporaire avait été accordée au rôle *Repository admin* à l'ouverture du
+> dépôt, quand un seul compte y avait accès. Elle a été retirée dès l'arrivée de l'équipe ;
+> cette note corrige la documentation, qui la décrivait encore.
 
 ### Réglages de fusion
 
