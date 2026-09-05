@@ -110,3 +110,24 @@ stages:
       hash: md5
       md5: 7c0347b21ebcd50ceba1d16e240764a0
       size: 4735
+  expectations:
+    cmd: python -m src.m1_ingestion.expectations --processed-dir data/processed 
+      --fail-on-error
+    deps:
+    - path: data/processed/metadata.jsonl
+      hash: md5
+      md5: 1b24e48db126afa39f6e5e70a63fcce5
+      size: 30280
+    - path: src/m1_ingestion/expectations.py
+      hash: md5
+      md5: d9bf71920443124a018b960d19097972
+      size: 12151
+    - path: src/m1_ingestion/metadata_schema.py
+      hash: md5
+      md5: e14631a565697e2249fe2d1ca4a89487
+      size: 4456
+    outs:
+    - path: data/processed/expectations_report.json
+      hash: md5
+      md5: 94d3728b3616fd8762d8ce997ff14477
+      size: 270
