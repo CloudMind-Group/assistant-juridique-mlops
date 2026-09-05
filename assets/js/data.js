@@ -48,20 +48,24 @@ const MEMBERS = [
   {
     id:'M3', name:'Amal El Guerdani', role:'MLOps Engineer — Lead Expérimentation',
     module:'Module 3 · Experiment Tracking & Model Registry', icon:'i-flask',
-    c1:'#a78bfa', c2:'#22d3ee', status:'planned', progress:0,
+    c1:'#a78bfa', c2:'#22d3ee', status:'progress', progress:86,
     desc:"Traçabilité complète des expérimentations, registre de modèles gouverné et cadre d'évaluation reproductible des réponses juridiques.",
     subs:[
-      ['Déploiement du serveur MLflow (backend PostgreSQL + artefacts S3) pour toute l\'équipe',0],
-      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',0],
-      ['Model Registry avec cycle de promotion Staging → Production et validation à deux approbations',0],
-      ['Suite d\'évaluation RAG : fidélité, pertinence du contexte, exactitude des citations (RAGAS)',0],
+      ['Tracking MLflow avec configuration centralisée et intégration M1 → M2 → M3 validée localement',1],
+      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',1],
+      ['Model Registry avec politique de promotion et contrôles de qualité',1],
+      ['Suite d\'évaluation RAG : préparation RAGAS, métriques et Evaluation Runner',1],
       ['Benchmark « LLM-as-a-judge » sur 1 200 questions juridiques annotées par des experts',0],
-      ['Comparaison automatisée des expérimentations et rapports de régression par pull request',0],
-      ['Model Cards documentant limites, biais et périmètre d\'usage de chaque version',0]
+      ['Comparaison automatisée des expérimentations et rapports de régression',1],
+      ['Model Cards documentant métriques, limitations et périmètre d\'usage',1]
     ],
-    tools:['MLflow','RAGAS','Weights & Biases','PostgreSQL','Optuna','Pytest','Jupyter'],
+    tools:['MLflow','RAGAS','Pytest','Python'],
     collab:"Arbitre la promotion des modèles produits par <b>Imane</b>, publie les seuils de qualité consommés par la CI de <b>Salma</b> et alimente les tableaux de bord de <b>Youssef</b>.",
-    deliverables:['Serveur MLflow partagé + 137 runs tracés','Registre de modèles avec gouvernance de promotion','Rapport d\'évaluation comparatif par version']
+    deliverables:[
+      'Tracking MLflow et intégration M1 → M2 → M3 validés',
+      'Registre de modèles avec politique de promotion',
+      'Cadre d\'évaluation RAGAS, rapports de régression et Model Cards'
+    ]
   },
   {
     id:'M4', name:'Salma El Ouarrate', role:'DevOps / Platform Engineer — Lead CI/CD',
