@@ -5,11 +5,13 @@ stages:
       - src/m1_ingestion/ingest.py
       - src/m1_ingestion/metadata_schema.py
       - src/m1_ingestion/anonymization_schema.py
+      - src/m1_ingestion/segmentation.py
       - data/raw
     outs:
       - data/processed/documents
       - data/processed/metadata.jsonl
       - data/processed/ingestion_report.json
+      - data/processed/segments.jsonl
 
   quality_check:
     cmd: python -m src.m1_ingestion.quality --processed-dir data/processed --fail-on-error
