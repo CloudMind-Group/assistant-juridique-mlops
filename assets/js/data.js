@@ -12,14 +12,14 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:71,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:86,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
       ['Corpus de test synthétique généré (50-100 documents FR/AR) pour débloquer M2 sans attendre la collecte réelle',1],
       ['Versioning DVC local (dvc.yaml + dvc.lock) et contrôles de qualité automatisés configurables',1],
       ['Pipeline OCR pour PDF scannés et images (Tesseract, fra+ara) avec fallback direct-texte -> OCR, dégradation sans crash si le binaire est absent',1],
-      ['Dé-duplication et segmentation par articles et alinéas — nettoyage actuel limité à la normalisation de base',0],
+      ['Dé-duplication (SHA-256 avant anonymisation) et segmentation par articles et alinéas (fr/ar) exportée dans segments.jsonl',1],
       ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
       ['Stockage distant S3/MinIO, chunking sémantique, embeddings et intégration Great Expectations en CI',0]
     ],
