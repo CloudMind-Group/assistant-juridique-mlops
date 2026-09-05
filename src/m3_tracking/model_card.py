@@ -12,6 +12,7 @@ class ModelCard:
 
     model_name: str
     version: str
+    dataset_version: str
     description: str
     metrics: dict[str, float]
     limitations: list[str]
@@ -21,6 +22,7 @@ class ModelCard:
 def build_model_card(
     model_name: str,
     version: str,
+    dataset_version: str,
     description: str,
     metrics: dict[str, float],
     limitations: list[str] | None = None,
@@ -37,6 +39,9 @@ def build_model_card(
 
     if not version.strip():
         raise ValueError("version is required")
+
+    if not dataset_version.strip():
+        raise ValueError("dataset_version is required")
 
     if not description.strip():
         raise ValueError("description is required")
@@ -56,6 +61,7 @@ def build_model_card(
     return ModelCard(
         model_name=model_name.strip(),
         version=version.strip(),
+        dataset_version=dataset_version.strip(),
         description=description.strip(),
         metrics={
             name: float(value)
@@ -83,6 +89,9 @@ def render_model_card(card: ModelCard) -> str:
 
 ## Version
 {card.version}
+
+## Dataset version
+{card.dataset_version}
 
 ## Description
 {card.description}
