@@ -43,6 +43,7 @@ from pydantic import ValidationError
 
 from src.m1_ingestion.anonymization_schema import anonymize_document
 from src.m1_ingestion.metadata_schema import DocumentMetadata, Language, SourceType
+from src.m1_ingestion.segmentation import Segment, segment_document
 
 logger = logging.getLogger("m1_ingestion.ingest")
 
@@ -89,12 +90,25 @@ class IngestResult:
     skipped: int = 0
     failed: int = 0
     pii_masked: int = 0
+    duplicates: int = 0
+    segments: int = 0
     extraction_methods: dict[str, int] = field(default_factory=dict)
     errors: list[dict[str, str]] = field(default_factory=list)
+    duplicate_files: list[dict[str, str]] = field(default_factory=list)
 
 
 class ExtractionError(RuntimeError):
     """Raised when a raw file's text cannot be extracted."""
+
+
+class DuplicateDocumentError(RuntimeError):
+    """Raised when a file's cleaned text was already ingested in this run."""
+
+    def __init__(self, source_file: Path, first_doc_id: str) -> None:
+        super().__init__(
+            f"{source_file} duplicates already-ingested document {first_doc_id}"
+        )
+        self.first_doc_id = first_doc_id
 
 
 @dataclass
@@ -344,6 +358,7 @@ def build_metadata(
     *,
     extraction: Optional[ExtractionOutcome] = None,
     anonymized: bool = False,
+    segment_count: int = 0,
 ) -> DocumentMetadata:
     overrides = load_sidecar_metadata(source_file)
     doc_id = overrides.get("doc_id") or make_doc_id(source_file, raw_dir)
@@ -385,6 +400,7 @@ def build_metadata(
         anonymized=anonymized,
         status="SUCCESS",
         processed_at=datetime.now(timezone.utc).isoformat(),
+        segment_count=segment_count,
     )
 
 
@@ -403,6 +419,11 @@ class IngestionPipeline:
         self.anonymise = anonymise
         self.documents_dir = out_dir / "documents"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
+        # content hash -> doc_id du premier document rencontre. Sert a la
+        # deduplication : un corpus collecte depuis plusieurs sources contient
+        # regulierement le meme texte deux fois (meme arret republie, meme
+        # article repris dans deux bulletins).
+        self._seen_hashes: dict[str, str] = {}
         if not anonymise:
             logger.warning(
                 "ANONYMISATION DISABLED - personal data will be written to %s. "
@@ -420,11 +441,23 @@ class IngestionPipeline:
             if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
         )
 
-    def process_file(self, source_file: Path) -> tuple[DocumentMetadata, int]:
+    def process_file(
+        self, source_file: Path
+    ) -> tuple[DocumentMetadata, int, list[Segment]]:
         extraction = extract_text_from_file(source_file)
         cleaned = clean_text(extraction.text)
         if not cleaned:
             raise ValueError(f"{source_file} produced empty text after cleaning")
+
+        # Deduplication sur le texte *nettoye*, avant anonymisation.
+        # Deliberement pas apres : le masquage remplace les noms par [NOM],
+        # donc deux jugements distincts qui ne different que par les parties
+        # deviennent identiques une fois anonymises. Dedupliquer apres
+        # supprimerait silencieusement un document reel.
+        content_hash = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+        first_doc_id = self._seen_hashes.get(content_hash)
+        if first_doc_id is not None:
+            raise DuplicateDocumentError(source_file, first_doc_id)
 
         masked_count = 0
         if self.anonymise:
@@ -432,6 +465,11 @@ class IngestionPipeline:
             masked_count = len(applied)
             if not cleaned:
                 raise ValueError(f"{source_file} produced empty text after anonymisation")
+
+        # Segmentation sur le texte final : les offsets stockes dans
+        # segments.jsonl doivent correspondre au fichier reellement ecrit
+        # dans documents/, pas a une version intermediaire.
+        segments = segment_document(cleaned)
 
         # Metadata (language, doc_id, title) is derived from the anonymised
         # text so downstream consumers never see the original.
@@ -442,18 +480,29 @@ class IngestionPipeline:
             cleaned,
             extraction=extraction,
             anonymized=masked_count > 0,
+            segment_count=len(segments),
         )
         target = self.documents_dir / f"{metadata.doc_id}.txt"
         target.write_text(cleaned, encoding="utf-8")
-        return metadata, masked_count
+
+        self._seen_hashes[content_hash] = metadata.doc_id
+        return metadata, masked_count, segments
 
     def run(self) -> IngestResult:
         result = IngestResult()
         all_metadata: list[DocumentMetadata] = []
+        all_segments: list[dict[str, object]] = []
 
         for source_file in self.discover_files():
             try:
-                metadata, masked_count = self.process_file(source_file)
+                metadata, masked_count, segments = self.process_file(source_file)
+            except DuplicateDocumentError as exc:
+                logger.info("Skipping duplicate %s: %s", source_file, exc)
+                result.duplicates += 1
+                result.duplicate_files.append(
+                    {"file": str(source_file), "duplicate_of": exc.first_doc_id}
+                )
+                continue
             except (ExtractionError, ValueError) as exc:
                 logger.error("Skipping %s: %s", source_file, exc)
                 result.skipped += 1
@@ -471,8 +520,13 @@ class IngestionPipeline:
                 continue
 
             all_metadata.append(metadata)
+            all_segments.extend(
+                segment.to_dict(metadata.doc_id, index)
+                for index, segment in enumerate(segments)
+            )
             result.processed += 1
             result.pii_masked += masked_count
+            result.segments += len(segments)
             result.extraction_methods[metadata.extraction_method] = (
                 result.extraction_methods.get(metadata.extraction_method, 0) + 1
             )
@@ -485,13 +539,17 @@ class IngestionPipeline:
             )
 
         self._write_metadata_index(all_metadata)
+        self._write_segments_index(all_segments)
         self._write_ingestion_report(result)
         logger.info(
-            "Ingestion complete: %d processed, %d skipped, %d failed, %d PII masked",
+            "Ingestion complete: %d processed, %d duplicates, %d skipped, "
+            "%d failed, %d PII masked, %d segments",
             result.processed,
+            result.duplicates,
             result.skipped,
             result.failed,
             result.pii_masked,
+            result.segments,
         )
         return result
 
@@ -501,6 +559,22 @@ class IngestionPipeline:
             for meta in all_metadata:
                 f.write(meta.model_dump_json() + "\n")
         logger.info("Wrote metadata index: %s (%d entries)", index_path, len(all_metadata))
+
+    def _write_segments_index(self, all_segments: list[dict[str, object]]) -> None:
+        """Ecrit `segments.jsonl` : un objet JSON par article/alinea detecte.
+
+        Sortie *additionnelle* : `documents/` et `metadata.jsonl` ne changent
+        pas, donc le contrat de lecture actuel de M2 reste valide tel quel.
+        M2 peut s'en servir pour decouper en respectant la structure legale
+        plutot qu'a longueur fixe.
+        """
+        index_path = self.out_dir / "segments.jsonl"
+        with index_path.open("w", encoding="utf-8") as f:
+            for segment in all_segments:
+                f.write(json.dumps(segment, ensure_ascii=False) + "\n")
+        logger.info(
+            "Wrote segments index: %s (%d segments)", index_path, len(all_segments)
+        )
 
     def _write_ingestion_report(self, result: IngestResult) -> None:
         """Ingestion-stage summary: files processed/skipped/failed, success
@@ -514,7 +588,7 @@ class IngestionPipeline:
         covers a different concern: did extraction/anonymization succeed,
         not whether the resulting text/metadata is well-formed.
         """
-        total = result.processed + result.skipped + result.failed
+        total = result.processed + result.skipped + result.failed + result.duplicates
         success_rate = round(result.processed / total, 4) if total else 0.0
         report = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -525,15 +599,91 @@ class IngestionPipeline:
             "skipped": result.skipped,
             "failed": result.failed,
             "success_rate": success_rate,
+            "duplicates": result.duplicates,
+            "duplicate_files": result.duplicate_files,
+            "segments": result.segments,
             "pii_masked": result.pii_masked,
             "extraction_methods": result.extraction_methods,
             "errors": result.errors,
         }
+        # Le rapport part dans `data/processed/`, donc sur le remote partage :
+        # les chemins bruts y sont substitues par une reference sans nom.
+        report = redact_paths(report, self.raw_dir)
+
         report_path = self.out_dir / "ingestion_report.json"
         report_path.write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         logger.info("Wrote ingestion report: %s", report_path)
+
+
+def diagnostic_ref(source_file: Path, raw_dir: Path) -> str:
+    """Reference a file in a *published* report without naming it.
+
+    `ingestion_report.json` is written to ``data/processed/``, which is a DVC
+    output pushed to the shared remote. A raw file name is chosen by whoever
+    collected the document and routinely carries a party's name — the same
+    reasoning that already governs `doc_id` and `title` (see `make_doc_id`).
+    Applying it there and not here left the identity in a published artifact.
+
+    The reference stays useful for diagnosis: it is deterministic, so the same
+    file always yields the same reference, and the extension is kept because
+    an extraction failure is usually a question of format. Whoever needs the
+    real name recomputes the mapping locally against ``data/raw/`` — the one
+    place where file names are allowed to exist.
+    """
+    return f"{make_doc_id(source_file, raw_dir)}{source_file.suffix.lower()}"
+
+
+def _raw_path_pattern(raw_dir: Path) -> re.Pattern[str]:
+    """Match a path pointing *inside* ``raw_dir``.
+
+    At least one further segment is required, so ``data/raw`` on its own is
+    left alone: the report legitimately states which directory it read, and a
+    directory name is one of the fixed source types — safe to surface, unlike
+    a file name (see `source_slug`).
+    """
+    return re.compile(re.escape(raw_dir.as_posix()) + r"/[^\s\"':;,]+")
+
+
+def redact_paths(payload: object, raw_dir: Path) -> object:
+    """Substitute every raw path in a report tree by a diagnostic reference.
+
+    Applied when the report is serialised rather than at each recording site:
+    a field added later — a duplicate list, a quarantine list — is covered
+    without its author having to know this rule exists. A control that depends
+    on every future contributor remembering it is a control that lapses.
+
+    Every string is scanned, not only the values of a ``file`` key. The first
+    version of this function did only the latter, and running the pipeline
+    showed the name still in the report: an extraction failure carries the
+    path inside its *message* (``Failed to extract text from …``). Redacting
+    the field a name is expected in, and not the free text beside it, is the
+    kind of half-measure that reads as a control and is not one.
+    """
+    motif = _raw_path_pattern(raw_dir)
+
+    def _sur_chaine(valeur: str) -> str:
+        # Les séparateurs sont uniformisés avant la recherche : le même chemin
+        # s'écrit `data/raw/…` dans un champ construit par le code et
+        # `data\raw\…` dans le message d'une exception levée sous Windows.
+        # Chercher les deux formes dans le motif imposerait une classe de
+        # caractères que la moindre erreur d'échappement rend inopérante —
+        # silencieusement, ce qui est le pire mode d'échec pour un garde-fou.
+        normalisee = valeur.replace("\\", "/")
+        if not motif.search(normalisee):
+            return valeur
+        return motif.sub(
+            lambda m: diagnostic_ref(Path(m.group(0)), raw_dir), normalisee
+        )
+
+    if isinstance(payload, dict):
+        return {key: redact_paths(value, raw_dir) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [redact_paths(item, raw_dir) for item in payload]
+    if isinstance(payload, str):
+        return _sur_chaine(payload)
+    return payload
 
 
 def parse_args() -> argparse.Namespace:
