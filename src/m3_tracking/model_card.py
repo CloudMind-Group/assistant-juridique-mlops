@@ -8,8 +8,11 @@ from datetime import datetime, timezone
 
 @dataclass(frozen=True)
 class ModelCard:
+    """Structured governance artifact describing one model version."""
+
     model_name: str
     version: str
+    dataset_version: str
     description: str
     metrics: dict[str, float]
     limitations: list[str]
@@ -19,11 +22,17 @@ class ModelCard:
 def build_model_card(
     model_name: str,
     version: str,
+    dataset_version: str,
     description: str,
     metrics: dict[str, float],
     limitations: list[str] | None = None,
 ) -> ModelCard:
-    """Build a traceable model card from evaluation results."""
+    """Build a traceable model card from evaluation results.
+
+    A model card is considered incomplete when no limitation is declared.
+    Governance documentation must describe not only model performance,
+    but also known failure modes and usage boundaries.
+    """
 
     if not model_name.strip():
         raise ValueError("model_name is required")
@@ -31,15 +40,34 @@ def build_model_card(
     if not version.strip():
         raise ValueError("version is required")
 
+    if not dataset_version.strip():
+        raise ValueError("dataset_version is required")
+
+    if not description.strip():
+        raise ValueError("description is required")
+
     if not metrics:
         raise ValueError("at least one metric is required")
 
+    normalized_limitations = [
+        limitation.strip()
+        for limitation in (limitations or [])
+        if limitation.strip()
+    ]
+
+    if not normalized_limitations:
+        raise ValueError("at least one limitation is required")
+
     return ModelCard(
-        model_name=model_name,
-        version=version,
-        description=description,
-        metrics=dict(metrics),
-        limitations=list(limitations or []),
+        model_name=model_name.strip(),
+        version=version.strip(),
+        dataset_version=dataset_version.strip(),
+        description=description.strip(),
+        metrics={
+            name: float(value)
+            for name, value in metrics.items()
+        },
+        limitations=normalized_limitations,
         created_at=datetime.now(timezone.utc).isoformat(),
     )
 
@@ -52,16 +80,18 @@ def render_model_card(card: ModelCard) -> str:
         for name, value in sorted(card.metrics.items())
     )
 
-    limitation_lines = (
-        "\n".join(f"- {item}" for item in card.limitations)
-        if card.limitations
-        else "- None documented"
+    limitation_lines = "\n".join(
+        f"- {item}"
+        for item in card.limitations
     )
 
     return f"""# Model Card — {card.model_name}
 
 ## Version
 {card.version}
+
+## Dataset version
+{card.dataset_version}
 
 ## Description
 {card.description}
