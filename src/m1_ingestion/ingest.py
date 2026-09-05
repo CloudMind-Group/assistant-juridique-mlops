@@ -10,7 +10,14 @@ package for the output contract.
 
 Pipeline flow per document:
     Raw file -> extract (direct text, or OCR fallback) -> clean_text
-             -> anonymize_document -> build_metadata -> write
+             -> [corriger_document, si et seulement si le texte vient de
+                l'OCR] -> anonymize_document -> build_metadata -> write
+
+La correction orthographique ne s'applique qu'au texte ocerise : un .txt ou
+un PDF a texte natif n'a pas de bruit d'OCR, et le corriger reviendrait a
+modifier un texte qui n'avait rien de casse. Le correcteur ne connait qu'un
+lexique juridique ferme et laisse l'arabe intact — voir
+:mod:`src.m1_ingestion.spelling`.
 
 Anonymisation runs between cleaning and writing, so personal data never
 reaches ``data/processed/`` and therefore never reaches indexing. This
@@ -44,12 +51,19 @@ from pydantic import ValidationError
 from src.m1_ingestion.anonymization_schema import anonymize_document
 from src.m1_ingestion.metadata_schema import DocumentMetadata, Language, SourceType
 from src.m1_ingestion.segmentation import Segment, segment_document
+from src.m1_ingestion.spelling import corriger_document
+from src.m1_ingestion.spelling import resumer as resumer_corrections
 
 logger = logging.getLogger("m1_ingestion.ingest")
 
 SUPPORTED_TEXT_EXTENSIONS = {".txt"}
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 SUPPORTED_EXTENSIONS = {".txt", ".pdf", ".docx"} | SUPPORTED_IMAGE_EXTENSIONS
+
+# Seules ces methodes produisent du bruit d'OCR. La correction
+# orthographique ne s'applique qu'a elles : corriger du texte natif
+# reviendrait a modifier un texte qui n'avait rien de casse.
+OCR_EXTRACTION_METHODS = frozenset({"ocr_pdf", "ocr_image"})
 
 # Below this many non-whitespace chars, a PDF's direct text layer is treated
 # as "effectively empty" (scanned page, or a text layer that's just a
@@ -92,6 +106,11 @@ class IngestResult:
     pii_masked: int = 0
     duplicates: int = 0
     segments: int = 0
+    # Corrections orthographiques appliquees au texte ocerise, par regle.
+    # Comptees separement du reste : une correction est une modification du
+    # texte livre a M2, elle doit se voir dans le rapport et non seulement
+    # dans les logs.
+    ocr_corrections: dict[str, int] = field(default_factory=dict)
     extraction_methods: dict[str, int] = field(default_factory=dict)
     errors: list[dict[str, str]] = field(default_factory=list)
     duplicate_files: list[dict[str, str]] = field(default_factory=list)
@@ -424,6 +443,8 @@ class IngestionPipeline:
         # regulierement le meme texte deux fois (meme arret republie, meme
         # article repris dans deux bulletins).
         self._seen_hashes: dict[str, str] = {}
+        # Corrections orthographiques cumulees sur le run, par regle.
+        self.ocr_corrections: dict[str, int] = {}
         if not anonymise:
             logger.warning(
                 "ANONYMISATION DISABLED - personal data will be written to %s. "
@@ -448,6 +469,22 @@ class IngestionPipeline:
         cleaned = clean_text(extraction.text)
         if not cleaned:
             raise ValueError(f"{source_file} produced empty text after cleaning")
+
+        # Correction orthographique : uniquement sur du texte ocerise.
+        # Un .txt ou un PDF a texte natif n'a pas de bruit d'OCR ; le passer
+        # au correcteur ne pourrait qu'introduire une modification la ou il
+        # n'y avait rien a corriger. Le correcteur ne connait que le lexique
+        # juridique et laisse l'arabe intact (voir spelling.py).
+        if extraction.method in OCR_EXTRACTION_METHODS:
+            cleaned, corrections = corriger_document(cleaned)
+            for regle, nombre in resumer_corrections(corrections).items():
+                self.ocr_corrections[regle] = self.ocr_corrections.get(regle, 0) + nombre
+            if corrections:
+                logger.info(
+                    "%s: %d correction(s) orthographique(s) sur texte ocerise",
+                    diagnostic_ref(source_file, self.raw_dir),
+                    len(corrections),
+                )
 
         # Deduplication sur le texte *nettoye*, avant anonymisation.
         # Deliberement pas apres : le masquage remplace les noms par [NOM],
@@ -538,6 +575,11 @@ class IngestionPipeline:
                 masked_count,
             )
 
+        # Les corrections sont cumulees sur l'instance (process_file n'a pas
+        # a elargir son tuple de retour pour ca) ; le resultat les recopie
+        # pour que le rapport et l'appelant voient la meme chose.
+        result.ocr_corrections = dict(self.ocr_corrections)
+
         self._write_metadata_index(all_metadata)
         self._write_segments_index(all_segments)
         self._write_ingestion_report(result)
@@ -603,6 +645,7 @@ class IngestionPipeline:
             "duplicate_files": result.duplicate_files,
             "segments": result.segments,
             "pii_masked": result.pii_masked,
+            "ocr_corrections": result.ocr_corrections,
             "extraction_methods": result.extraction_methods,
             "errors": result.errors,
         }

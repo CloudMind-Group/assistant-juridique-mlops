@@ -165,6 +165,44 @@ ligne ou après une ponctuation de fin de phrase) : un renvoi comme
 « conformément à l'article 41 » ou « المنصوص عليها في المادة 5 » ne crée
 pas de frontière. `tests/m1/test_segmentation.py` verrouille les deux sens.
 
+## Correction orthographique (texte océrisé uniquement)
+
+`spelling.py` corrige le bruit d'OCR **sur les seuls documents océrisés**
+(`extraction_method` valant `ocr_pdf` ou `ocr_image`). Un `.txt` ou un PDF à
+texte natif n'y est jamais soumis : le corriger reviendrait à modifier un
+texte qui n'avait rien de cassé.
+
+Le correcteur ne connaît pas le français — il ne connaît qu'un **lexique
+juridique fermé** (~310 termes, curé à la main). Un mot n'est corrigé que si
+la correction produit un terme de ce lexique et qu'elle est **la seule** à le
+faire. Deux règles :
+
+| Règle | Exemple | S'applique à |
+| --- | --- | --- |
+| Restitution d'accents | `salarie` → `salarié` | mots entièrement alphabétiques |
+| Confusions de caractères | `artic1e` → `article` | mots mêlant lettres et chiffres, ou portant `\|`, `!`, `$`, `@` |
+
+C'est ce cloisonnement qui rend le correcteur inoffensif : un mot tout en
+lettres ne peut être touché que par la règle des accents, donc un nom de
+partie (`Benali`) ou un mot français ordinaire (`maison`) n'a aucun candidat
+dans le lexique et reste intact. Un numéro de loi (`65-99`) non plus.
+
+**Hors périmètre, assumé :** l'arabe n'est pas corrigé du tout. Les
+confusions de l'OCR arabe sont d'une autre nature (formes contextuelles,
+diacritiques) et aucun lexique juridique arabe n'est embarqué. Les mots
+arabes sont détectés et laissés strictement intacts — mieux vaut ne rien
+faire que faire semblant.
+
+Chaque correction est tracée (`avant`, `apres`, `position`, `regle`), comme
+pour l'anonymisation : une transformation du corpus qui ne laisse pas de
+trace n'est pas contestable. Le décompte par règle figure dans
+`ingestion_report.json` sous `ocr_corrections`.
+
+**Étendre le lexique :** ajouter le terme dans sa forme correcte (accents
+compris) à `LEXIQUE_JURIDIQUE`. Un terme dont la forme sans accent est
+ambiguë avec un autre terme du lexique est automatiquement ignoré par la
+règle des accents — aucune ambiguïté n'est arbitrée en silence.
+
 ## Ingestion report (pipeline-run stats)
 
 `ingest.py` writes `data/processed/ingestion_report.json` on every run:
@@ -256,6 +294,7 @@ PII by construction).
 - `ingest.py` — multi-format extraction (with OCR fallback), cleaning, anonymization, validation, and `data/processed/` export. CLI entrypoint: `python -m src.m1_ingestion.ingest`.
 - `quality.py` — data quality checks + `quality_report.json`. CLI entrypoint: `python -m src.m1_ingestion.quality`.
 - `anonymization_schema.py` — PII detection/masking rule schema (RGPD, with Taha), applied by `ingest.py`.
+- `spelling.py` — correction orthographique adossée à un lexique juridique, appliquée par `ingest.py` au seul texte océrisé.
 - `dataset_generator.py` — generates the synthetic 50–100 doc sample corpus into `data/raw/` for offline testing. Output is gitignored (`data/raw/*`), never commit generated files.
 
 ## Notes
