@@ -2,11 +2,15 @@
 Airflow DAG: legal_ingest_v2
 
 Daily orchestration of the M1 pipeline:
-    run_ingestion -> run_quality_check -> notify_m2_imane
+    run_ingestion -> run_quality_check -> run_expectations -> notify_m2_imane
 
 - run_ingestion: extracts/cleans/validates data/raw/ into data/processed/
 - run_quality_check: validates data/processed/ and writes quality_report.json
   (fails the task, blocking notify_m2_imane, if any document fails checks)
+- run_expectations: validates the dataset AS A WHOLE with Great Expectations
+  (duplicate doc_ids, unexpected columns, empty corpus) and writes
+  expectations_report.json. A per-document check cannot see these: two
+  documents sharing an id are each individually valid.
 - notify_m2_imane: reads quality_report.json and signals M2 that a fresh,
   quality-checked corpus is ready to index (logs + a READY flag file that
   M2's own DAG/pipeline can poll for)
@@ -19,7 +23,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from airflow import DAG
@@ -62,7 +66,11 @@ def _notify_m2_imane(**context) -> None:
         )
 
     payload = {
-        "notified_at": datetime.utcnow().isoformat(),
+        # utcnow() est deprecie en 3.12 et rend un horodatage sans fuseau,
+        # alors que tout le reste du pipeline (processed_at, generated_at)
+        # ecrit de l'UTC explicite. M2 lit ce champ : deux formats pour la
+        # meme chose, c'est une conversion oubliee qui attend son heure.
+        "notified_at": datetime.now(timezone.utc).isoformat(),
         "dag_run_id": context.get("run_id"),
         "processed_dir": PROCESSED_DIR,
         "metadata_index": f"{PROCESSED_DIR}/metadata.jsonl",
@@ -107,9 +115,18 @@ with DAG(
         ),
     )
 
+    run_expectations = BashOperator(
+        task_id="run_expectations",
+        bash_command=(
+            f"cd {REPO_ROOT} && "
+            f"python -m src.m1_ingestion.expectations --processed-dir {PROCESSED_DIR} "
+            "--fail-on-error"
+        ),
+    )
+
     notify_m2_imane = PythonOperator(
         task_id="notify_m2_imane",
         python_callable=_notify_m2_imane,
     )
 
-    run_ingestion >> run_quality_check >> notify_m2_imane
+    run_ingestion >> run_quality_check >> run_expectations >> notify_m2_imane
