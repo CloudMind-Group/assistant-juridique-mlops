@@ -22,3 +22,17 @@ stages:
       - data/processed/metadata.jsonl
     outs:
       - data/processed/quality_report.json
+
+  data_card:
+    cmd: python -m src.m1_ingestion.data_card --processed-dir data/processed --corpus-status synthetique
+    deps:
+      - src/m1_ingestion/data_card.py
+      - src/m1_ingestion/ingest.py
+      - src/m1_ingestion/anonymization_schema.py
+      - data/processed/metadata.jsonl
+      - data/processed/segments.jsonl
+      - data/processed/ingestion_report.json
+      - data/processed/quality_report.json
+    outs:
+      - data/processed/data_card.json
+      - data/processed/DATA_CARD.md
