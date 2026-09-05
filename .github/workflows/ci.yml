@@ -41,6 +41,10 @@ jobs:
           pip install fastapi httpx prometheus-client
           pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http \
                       opentelemetry-instrumentation-fastapi
+          # Contrôle qualité déclaratif M1 (CdC carte 02). Installé ici et pas
+          # seulement pour l'étape qui l'exécute : tests/m1/test_expectations.py
+          # importe great_expectations, la collecte de pytest échouerait sans lui.
+          pip install great-expectations pandas
 
       - name: Tests d'anonymisation
         run: python -m pytest tests/ -v
@@ -59,8 +63,7 @@ jobs:
       # doublon, colonne hors contrat, corpus vide. Deux documents partageant
       # un identifiant sont chacun valides : seul le second contrôle le voit.
       - name: Contrôle qualité M1 du jeu de données — Great Expectations (bloquant)
-        run: |
-          python -m src.m1_ingestion.expectations             --processed-dir data/processed --fail-on-error
+        run: python -m src.m1_ingestion.expectations --processed-dir data/processed --fail-on-error
 
       - name: Tests d'instrumentation et de traçage (M7)
         run: python -m pytest monitoring/tests/ -v
