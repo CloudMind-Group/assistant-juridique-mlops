@@ -151,12 +151,21 @@ jobs:
               echo "ok → $ref"
             done
 
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Aucun secret ni donnée sensible
-        run: |
-          if grep -rInE '(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}' \
-               --include='*.js' --include='*.html' --include='*.css' \
-               --include='*.py' --include='*.yaml' --include='*.yml' . ; then
-            echo "::error::valeur sensible potentielle détectée"
-            exit 1
-          fi
-          echo "aucune valeur sensible détectée"
+        # Remplace la recherche par mots-clés qui occupait cette place. Mesurée
+        # sur sept identifiants réels — clé AWS, jeton GitHub, clé OpenAI, jeton
+        # Slack, jeton DagsHub, secret AWS, en-tête de clé privée — elle n'en
+        # détectait aucun : sensible à la casse alors que les constantes
+        # s'écrivent `AWS_SECRET`, et dépendante d'un mot-clé dans le *nom* de
+        # la variable alors qu'un jeton se reconnaît à sa *forme*.
+        #
+        # Le scanner reconnaît les formes connues et n'utilise le nom qu'en
+        # signal secondaire. Une occurrence légitime se neutralise ligne à ligne
+        # par `# m8:autorise <motif>` — la justification est exigée, une
+        # exception muette n'étant jamais réexaminée.
+        run: python -m src.m8_compliance.secret_scan
