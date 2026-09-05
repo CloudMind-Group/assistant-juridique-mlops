@@ -139,6 +139,52 @@ def test_un_marqueur_structurel_arabe_repete_survit():
     assert strip_repeated_headers(text).count("المادة 3") == MIN_HEADER_OCCURRENCES
 
 
+def test_un_dispositif_de_jugement_repete_survit():
+    """Cas signalé par Youssef en revue de la PR #41.
+
+    Un jugement qui tranche plusieurs demandes répète sa phrase de
+    dispositif — courte, donc sous le seuil de longueur, et répétée autant
+    de fois qu'il y a de demandes. Le seuil de trois occurrences ne la
+    protégeait pas : les trois disparaissaient. Le discriminant est la
+    ponctuation finale — un en-tête n'en a pas, une phrase de jugement si.
+    """
+    dispositif = "Le salarié est débouté de sa demande."
+    texte = "\n".join(
+        [
+            "Sur la première demande.",
+            dispositif,
+            "Sur la deuxième demande.",
+            dispositif,
+            "Sur la troisième demande.",
+            dispositif,
+            "Par ces motifs, la Cour statue comme suit.",
+        ]
+    )
+
+    cleaned = strip_repeated_headers(texte)
+
+    assert cleaned.count(dispositif) == 3, (
+        "le dispositif du jugement a été supprimé — la décision rendue "
+        "disparaît du corpus sans qu'aucune erreur ne soit levée"
+    )
+
+
+def test_un_dispositif_arabe_repete_survit():
+    dispositif = "ترفض المحكمة الطلب."
+    texte = "\n".join(["في الطلب الأول.", dispositif, "في الطلب الثاني.", dispositif,
+                       "في الطلب الثالث.", dispositif])
+
+    assert strip_repeated_headers(texte).count(dispositif) == 3
+
+
+def test_un_en_tete_sans_ponctuation_finale_est_toujours_supprime():
+    """Contrôle de non-régression du correctif : il ne doit pas neutraliser
+    la règle pour les vrais en-têtes."""
+    texte = _document_multipage("Cour d'Appel de Casablanca")
+
+    assert "Cour d'Appel de Casablanca" not in strip_repeated_headers(texte)
+
+
 def test_une_ligne_longue_repetee_survit():
     """Un attendu répété n'est pas un en-tête : il porte le raisonnement."""
     attendu = (
