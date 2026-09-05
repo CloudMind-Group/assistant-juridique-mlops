@@ -51,8 +51,16 @@ jobs:
       - name: Pipeline d'ingestion M1
         run: python -m src.m1_ingestion.ingest --raw-dir data/raw --out-dir data/processed
 
-      - name: Contrôle qualité M1 (bloquant)
+      - name: Contrôle qualité M1 par document (bloquant)
         run: python -m src.m1_ingestion.quality --processed-dir data/processed --fail-on-error
+
+      # Les deux contrôles ne se recouvrent pas. Le précédent valide chaque
+      # document isolément ; celui-ci valide le jeu comme un tout — doc_id en
+      # doublon, colonne hors contrat, corpus vide. Deux documents partageant
+      # un identifiant sont chacun valides : seul le second contrôle le voit.
+      - name: Contrôle qualité M1 du jeu de données — Great Expectations (bloquant)
+        run: |
+          python -m src.m1_ingestion.expectations             --processed-dir data/processed --fail-on-error
 
       - name: Tests d'instrumentation et de traçage (M7)
         run: python -m pytest monitoring/tests/ -v
