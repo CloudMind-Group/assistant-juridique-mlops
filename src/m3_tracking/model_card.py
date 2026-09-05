@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 
 @dataclass(frozen=True)
 class ModelCard:
+    """Structured governance artifact describing one model version."""
+
     model_name: str
     version: str
     dataset_version: str
@@ -25,7 +27,12 @@ def build_model_card(
     metrics: dict[str, float],
     limitations: list[str] | None = None,
 ) -> ModelCard:
-    """Build a traceable model card from evaluation results."""
+    """Build a traceable model card from evaluation results.
+
+    A model card is considered incomplete when no limitation is declared.
+    Governance documentation must describe not only model performance,
+    but also known failure modes and usage boundaries.
+    """
 
     if not model_name.strip():
         raise ValueError("model_name is required")
@@ -35,6 +42,9 @@ def build_model_card(
 
     if not dataset_version.strip():
         raise ValueError("dataset_version is required")
+
+    if not description.strip():
+        raise ValueError("description is required")
 
     if not metrics:
         raise ValueError("at least one metric is required")
@@ -49,11 +59,14 @@ def build_model_card(
         raise ValueError("at least one limitation is required")
 
     return ModelCard(
-        model_name=model_name,
-        version=version,
-        dataset_version=dataset_version,
-        description=description,
-        metrics=dict(metrics),
+        model_name=model_name.strip(),
+        version=version.strip(),
+        dataset_version=dataset_version.strip(),
+        description=description.strip(),
+        metrics={
+            name: float(value)
+            for name, value in metrics.items()
+        },
         limitations=normalized_limitations,
         created_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -68,7 +81,8 @@ def render_model_card(card: ModelCard) -> str:
     )
 
     limitation_lines = "\n".join(
-        f"- {item}" for item in card.limitations
+        f"- {item}"
+        for item in card.limitations
     )
 
     return f"""# Model Card — {card.model_name}
