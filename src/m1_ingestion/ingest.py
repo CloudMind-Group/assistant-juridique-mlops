@@ -606,11 +606,84 @@ class IngestionPipeline:
             "extraction_methods": result.extraction_methods,
             "errors": result.errors,
         }
+        # Le rapport part dans `data/processed/`, donc sur le remote partage :
+        # les chemins bruts y sont substitues par une reference sans nom.
+        report = redact_paths(report, self.raw_dir)
+
         report_path = self.out_dir / "ingestion_report.json"
         report_path.write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         logger.info("Wrote ingestion report: %s", report_path)
+
+
+def diagnostic_ref(source_file: Path, raw_dir: Path) -> str:
+    """Reference a file in a *published* report without naming it.
+
+    `ingestion_report.json` is written to ``data/processed/``, which is a DVC
+    output pushed to the shared remote. A raw file name is chosen by whoever
+    collected the document and routinely carries a party's name — the same
+    reasoning that already governs `doc_id` and `title` (see `make_doc_id`).
+    Applying it there and not here left the identity in a published artifact.
+
+    The reference stays useful for diagnosis: it is deterministic, so the same
+    file always yields the same reference, and the extension is kept because
+    an extraction failure is usually a question of format. Whoever needs the
+    real name recomputes the mapping locally against ``data/raw/`` — the one
+    place where file names are allowed to exist.
+    """
+    return f"{make_doc_id(source_file, raw_dir)}{source_file.suffix.lower()}"
+
+
+def _raw_path_pattern(raw_dir: Path) -> re.Pattern[str]:
+    """Match a path pointing *inside* ``raw_dir``.
+
+    At least one further segment is required, so ``data/raw`` on its own is
+    left alone: the report legitimately states which directory it read, and a
+    directory name is one of the fixed source types — safe to surface, unlike
+    a file name (see `source_slug`).
+    """
+    return re.compile(re.escape(raw_dir.as_posix()) + r"/[^\s\"':;,]+")
+
+
+def redact_paths(payload: object, raw_dir: Path) -> object:
+    """Substitute every raw path in a report tree by a diagnostic reference.
+
+    Applied when the report is serialised rather than at each recording site:
+    a field added later — a duplicate list, a quarantine list — is covered
+    without its author having to know this rule exists. A control that depends
+    on every future contributor remembering it is a control that lapses.
+
+    Every string is scanned, not only the values of a ``file`` key. The first
+    version of this function did only the latter, and running the pipeline
+    showed the name still in the report: an extraction failure carries the
+    path inside its *message* (``Failed to extract text from …``). Redacting
+    the field a name is expected in, and not the free text beside it, is the
+    kind of half-measure that reads as a control and is not one.
+    """
+    motif = _raw_path_pattern(raw_dir)
+
+    def _sur_chaine(valeur: str) -> str:
+        # Les séparateurs sont uniformisés avant la recherche : le même chemin
+        # s'écrit `data/raw/…` dans un champ construit par le code et
+        # `data\raw\…` dans le message d'une exception levée sous Windows.
+        # Chercher les deux formes dans le motif imposerait une classe de
+        # caractères que la moindre erreur d'échappement rend inopérante —
+        # silencieusement, ce qui est le pire mode d'échec pour un garde-fou.
+        normalisee = valeur.replace("\\", "/")
+        if not motif.search(normalisee):
+            return valeur
+        return motif.sub(
+            lambda m: diagnostic_ref(Path(m.group(0)), raw_dir), normalisee
+        )
+
+    if isinstance(payload, dict):
+        return {key: redact_paths(value, raw_dir) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [redact_paths(item, raw_dir) for item in payload]
+    if isinstance(payload, str):
+        return _sur_chaine(payload)
+    return payload
 
 
 def parse_args() -> argparse.Namespace:

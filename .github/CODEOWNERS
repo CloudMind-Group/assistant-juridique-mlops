@@ -51,6 +51,14 @@
 
 # Règles d'anonymisation et leurs tests : le pipeline appartient à `data`, mais
 # ce qui définit ce qui est masqué relève de la conformité.
+# Conformite : l'image de base, l'utilisateur d'execution, les montages et
+# les secrets d'execution decident de ce qu'un conteneur peut lire et ecrire.
+# Ils relevaient de la regle generale `*`, donc de `platform` seule (ecart
+# E-09 du registre). `security` est ajoutee sans retirer `platform` : la
+# revue est doublee, pas deplacee.
+/Dockerfile                 @CloudMind-Group/platform @CloudMind-Group/security
+/docker-compose.yml         @CloudMind-Group/platform @CloudMind-Group/security
+
 /src/m1_ingestion/anonymization_schema.py  @CloudMind-Group/security @CloudMind-Group/data
 /tests/                     @CloudMind-Group/security @CloudMind-Group/data
 
