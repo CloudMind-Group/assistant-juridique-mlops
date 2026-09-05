@@ -25,6 +25,11 @@ groups:
 
   - name: erreurs
     rules:
+      # Les deux alertes ci-dessous partagent une seule section dans le
+      # runbook (« TauxErreurEleve · TauxErreurCritique »). GitHub retire la
+      # puce « · » de l'ancre et conserve les deux espaces qui l'entouraient :
+      # l'ancre réelle est donc "tauxerreureleve--tauxerreurcritique" (double
+      # tiret), jamais "tauxerreureleve" seul.
       - alert: TauxErreurEleve
         expr: |
           sum(rate(http_requests_total{status=~"5.."}[5m]))
@@ -36,7 +41,7 @@ groups:
         annotations:
           resume: "Taux d'erreur serveur au-dessus de 1 %"
           detail: "Taux courant : {{ $value | humanizePercentage }}."
-          runbook: "docs/RUNBOOK.md#tauxerreureleve"
+          runbook: "docs/RUNBOOK.md#tauxerreureleve--tauxerreurcritique"
 
       - alert: TauxErreurCritique
         expr: |
@@ -49,7 +54,7 @@ groups:
         annotations:
           resume: "Taux d'erreur serveur au-dessus de 5 %"
           detail: "Taux courant : {{ $value | humanizePercentage }}."
-          runbook: "docs/RUNBOOK.md#tauxerreureleve"
+          runbook: "docs/RUNBOOK.md#tauxerreureleve--tauxerreurcritique"
 
   - name: latence
     rules:
