@@ -107,6 +107,14 @@ _STRUCTURAL_MARKER_RE = re.compile(
 MIN_HEADER_OCCURRENCES = 3
 MAX_HEADER_LENGTH = 80
 
+# Un en-tête ne se termine pas par une ponctuation de fin de phrase ; une
+# phrase de dispositif, si. C'est le discriminant qui sépare
+# « Cour d'Appel de Casablanca » de « Le salarié est débouté de sa demande. ».
+# Sans lui, un jugement tranchant trois demandes voyait son dispositif — court
+# et répété une fois par demande — supprimé en entier. Le seuil de trois
+# occurrences ne protégeait pas ce cas : il le déplaçait seulement.
+_SENTENCE_ENDINGS = (".", "؟", "!", "۔")
+
 
 @dataclass
 class IngestResult:
@@ -353,6 +361,7 @@ def strip_repeated_headers(
         if count >= min_occurrences
         and len(line) <= max_length
         and not _STRUCTURAL_MARKER_RE.match(line)
+        and not line.rstrip().endswith(_SENTENCE_ENDINGS)
     }
     if not repeated:
         return text
