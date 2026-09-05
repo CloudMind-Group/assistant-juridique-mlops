@@ -6,6 +6,7 @@ stages:
       - src/m1_ingestion/metadata_schema.py
       - src/m1_ingestion/anonymization_schema.py
       - src/m1_ingestion/segmentation.py
+      - src/m1_ingestion/spelling.py
       - data/raw
     outs:
       - data/processed/documents

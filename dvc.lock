@@ -15,8 +15,8 @@ stages:
       size: 23333
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: 3f2d0e9d48bca2faabc5eed84e5d69a0
-      size: 25975
+      md5: 29a3ad55caebf6869186ed78bf8f30ca
+      size: 32821
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
       md5: e14631a565697e2249fe2d1ca4a89487
@@ -25,6 +25,10 @@ stages:
       hash: md5
       md5: 6958fe250e4d55f6883ccd9c1063fbd2
       size: 5576
+    - path: src/m1_ingestion/spelling.py
+      hash: md5
+      md5: 28cee0e8332836edb68264343dac0b62
+      size: 15153
     outs:
     - path: data/processed/documents
       hash: md5
@@ -33,11 +37,11 @@ stages:
       nfiles: 60
     - path: data/processed/ingestion_report.json
       hash: md5
-      md5: b3cdbedd31bb261e67b7b5ffb8fe51fe
-      size: 378
+      md5: 24602d141092c8e651775aa5d826f2e1
+      size: 404
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 4ee708bbcb53c956d5b03394812b0d10
+      md5: 48e594e2c59126ede9e172171bb5ecff
       size: 30280
     - path: data/processed/segments.jsonl
       hash: md5
@@ -54,7 +58,7 @@ stages:
       nfiles: 60
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 4ee708bbcb53c956d5b03394812b0d10
+      md5: 48e594e2c59126ede9e172171bb5ecff
       size: 30280
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
@@ -67,5 +71,5 @@ stages:
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 85cdb06864c488e48d6a65deccefedcd
+      md5: ead8ef072faf6a2015096c574e7d868f
       size: 7857
