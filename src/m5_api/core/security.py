@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
+import os
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 
 # Clé secrète — sert à signer et vérifier les tokens
-SECRET_KEY = "cle-secrete-temporaire-a-changer-en-production"
+SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 EXPIRE_MINUTES = 30
 
