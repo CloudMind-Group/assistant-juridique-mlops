@@ -83,6 +83,40 @@ PLACEHOLDER = re.compile(
 # réel porte au moins un chiffre ou une majuscule.
 LOW_ENTROPY = re.compile(r"^[a-zà-ÿ]+(?:[\-_ ][a-zà-ÿ]+)+$")
 
+# --------------------------------------------------------------------------
+# Variables dont la valeur ne doit jamais etre un litteral
+#
+# Classe distincte, et non un motif de plus : ici le *nom* est le signal et la
+# valeur ne l'est pas. Pour une cle de signature, n'importe quel litteral est
+# fautif, quelle que soit son entropie.
+#
+# Un gabarit n'est donc pas un defaut moindre qu'une vraie cle : c'en est un
+# autre, et souvent le pire des deux. Une cle fuitee finit par se reveler et
+# se revoque ; une cle previsible signe des jetons valables sans laisser la
+# moindre trace, et rien dans aucun journal ne la distingue d'une bonne cle.
+#
+# C'est pourquoi les filtres PLACEHOLDER et LOW_ENTROPY ne s'appliquent pas a
+# cette classe. Ils ont raison sur leur terrain — « cle-secrete-temporaire »
+# n'est pas un identifiant fuite — mais leur conclusion ne vaut que pour la
+# question qu'ils posent. Celle-ci en est une autre.
+# --------------------------------------------------------------------------
+
+MUST_COME_FROM_ENV = re.compile(
+    r"(?i)[A-Za-z0-9_\-]*"
+    r"(?:secret[_\-]?key|signing[_\-]?key|jwt[_\-]?secret|session[_\-]?secret|"
+    r"hmac[_\-]?key|encryption[_\-]?key|app[_\-]?secret|private[_\-]?key)"
+    r"[A-Za-z0-9_\-]*\s*[:=]\s*[\"']([^\"']+)[\"']"
+)
+
+# Une valeur qui n'est pas un litteral mais un renvoi : interpolation de shell,
+# de compose ou de gabarit. La lire, c'est lire l'environnement — donc
+# exactement ce qui est demande. Seul ce filtre-la subsiste pour cette classe.
+DEFERRED_VALUE = re.compile(r"^(?:\$\{[^}]*\}|\{\{[^}]*\}\}|\$[A-Za-z_][A-Za-z0-9_]*|<[^>]*>)$")
+
+# Fichiers dont la raison d'etre est de montrer la forme d'une configuration.
+# Une valeur factice y est le contenu attendu, pas un defaut.
+SHAPE_ONLY_SUFFIXES = (".example", ".sample", ".template", ".dist")
+
 DEFAULT_EXCLUDED_DIRS = frozenset(
     {".git", ".venv", "venv", "node_modules", "__pycache__", ".dvc", ".pytest_cache"}
 )
@@ -124,6 +158,7 @@ def _is_allowed(lines: list[str], index: int) -> bool:
 
 def scan_text(text: str, path: str = "<texte>") -> list[Finding]:
     findings: list[Finding] = []
+    shape_only = Path(path).suffix.lower() in SHAPE_ONLY_SUFFIXES
     lines = text.splitlines()
     for index, line in enumerate(lines):
         if _is_allowed(lines, index):
@@ -133,6 +168,24 @@ def scan_text(text: str, path: str = "<texte>") -> list[Finding]:
                 findings.append(
                     Finding(path, index + 1, kind, _redact(match.group(0)))
                 )
+
+        # Clé qui doit venir de l'environnement. Testée avant l'affectation
+        # nommée, et sans les filtres de gabarit : c'est précisément le cas
+        # qu'ils écartent à tort ici.
+        if not shape_only:
+            for match in MUST_COME_FROM_ENV.finditer(line):
+                value = match.group(1).strip()
+                if DEFERRED_VALUE.match(value):
+                    continue
+                findings.append(
+                    Finding(
+                        path,
+                        index + 1,
+                        "cle-a-charger-depuis-l-environnement",
+                        _redact(value),
+                    )
+                )
+
         for match in NAMED_ASSIGNMENT.finditer(line):
             value = match.group(1).strip()
             if PLACEHOLDER.match(value) or LOW_ENTROPY.match(value):
@@ -140,7 +193,18 @@ def scan_text(text: str, path: str = "<texte>") -> list[Finding]:
             findings.append(
                 Finding(path, index + 1, "affectation-nommee", _redact(value))
             )
-    return findings
+
+    # Une même ligne peut relever des deux classes ; ne la signaler qu'une
+    # fois, sous le genre le plus précis, qui vient en premier.
+    vus: set[tuple[int, str]] = set()
+    uniques: list[Finding] = []
+    for finding in findings:
+        cle = (finding.line_no, finding.excerpt)
+        if cle in vus:
+            continue
+        vus.add(cle)
+        uniques.append(finding)
+    return uniques
 
 
 def iter_files(
