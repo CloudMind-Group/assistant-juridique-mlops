@@ -12,7 +12,7 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:86,
+    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:88,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
@@ -21,19 +21,21 @@ const MEMBERS = [
       ['Pipeline OCR pour PDF scannés et images (Tesseract, fra+ara) avec fallback direct-texte -> OCR, dégradation sans crash si le binaire est absent',1],
       ['Dé-duplication (SHA-256 avant anonymisation) et segmentation par articles et alinéas (fr/ar) exportée dans segments.jsonl',1],
       ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
-      ['Stockage distant S3/MinIO, chunking sémantique, embeddings et intégration Great Expectations en CI',0]
+      ['Stockage distant du corpus versionné : remote DVC configuré et opérationnel (DAGsHub)',1],
+      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',0]
     ],
-    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations (à intégrer)','MinIO / S3 (à intégrer)'],
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations (à intégrer)','DAGsHub (remote DVC)'],
     collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et applique le schéma d'anonymisation défini avec <b>Taha</b> (conformité RGPD) — règles à valider par Taha avant mise en production. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné localement','Rapport de qualité (<code>quality_report.json</code>) et rapport d\'ingestion (<code>ingestion_report.json</code>) générés à chaque exécution']
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapport de qualité (<code>quality_report.json</code>) et rapport d\'ingestion (<code>ingestion_report.json</code>) générés à chaque exécution']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
     module:'Module 2 · Model Engineering & Fine-Tuning', icon:'i-brain',
-    c1:'#22d3ee', c2:'#818cf8', status:'planned', progress:0,
+    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:13,
     desc:"Conception de l'architecture RAG, indexation vectorielle, ingénierie de prompts et fine-tuning léger du LLM sur le domaine juridique.",
     subs:[
       ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',0],
+      ['Découpage sémantique des documents M1 en fragments de 512 jetons avec chevauchement de 64, sensible à la structure (articles/sections, fr et ar)',1],
       ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',0],
       ['Sélection et évaluation comparative des modèles d\'embedding multilingues',0],
       ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',0],
