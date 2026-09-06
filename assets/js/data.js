@@ -253,3 +253,102 @@ const WEEKS = {
   M5:'S2 → S3', M6:'S1 → S4', M7:'S3 → S4', M8:'S1 → S4'
 };
 MEMBERS.forEach(m => { m.week = WEEKS[m.id]; });
+
+/* =====================================================================
+   DÉPENDANCES INTER-MODULES
+
+   À ne pas confondre avec SUPPORTS, qui dit « qui aide qui ». Ceci dit
+   « qui ne peut pas commencer tant que l'autre n'a pas livré ». Un module
+   peut aider sans bloquer, et bloquer sans aider.
+
+   La distinction a une histoire : Oumaima a attendu Nouhaila, qui
+   attendait Douae pour des données que M5 n'a jamais requises. Personne
+   n'était en faute — la chaîne réelle n'était écrite nulle part. C'est ce
+   tableau qui manquait.
+
+   `from` ne démarre pas tant que `on` n'a pas fourni `what`.
+   ===================================================================== */
+const DEPENDENCIES = [
+  { from:'M2', on:'M1', what:'corpus nettoyé, segmenté et versionné' },
+  { from:'M3', on:'M2', what:'runs et modèles à tracer' },
+  { from:'M4', on:'M1', what:'pipeline à conteneuriser' },
+  { from:'M5', on:'M2', what:"chaîne d'inférence à exposer" },
+  { from:'M4', on:'M5', what:'service à déployer' },
+  { from:'M6', on:'M5', what:'API à consommer' },
+  { from:'M7', on:'M5', what:'endpoints à instrumenter' },
+  { from:'M7', on:'M4', what:'infrastructure à superviser' }
+];
+
+/* Ce dont un module a besoin avant de pouvoir avancer. */
+function blockedBy(moduleId){
+  return DEPENDENCIES.filter(d => d.from === moduleId);
+}
+
+/* Ce que ce module bloque chez les autres. */
+function blocking(moduleId){
+  return DEPENDENCIES.filter(d => d.on === moduleId);
+}
+
+/* =====================================================================
+   FEUILLE DE ROUTE PAR VERSION
+
+   Volontairement sans dates. Le calendrier S1 → S4 est un plan interne,
+   pas une échéance : y adosser un diagramme produirait une précision que
+   nous n'avons pas — le défaut même que ce tableau de bord a passé une
+   semaine à corriger.
+
+   Une version, elle, est un fait vérifiable. `v0.1.0` est étiquetée dans
+   le dépôt, et son contenu se lit dans son arbre : au 26 août, seul
+   `src/m1_ingestion` existait. Chaque case ci-dessous est adossée à ce
+   qui est réellement dans le dépôt, ou déclarée planifiée.
+   ===================================================================== */
+const RELEASES = [
+  { id:'v0.1.0', state:'done',     note:'étiquetée le 26 août 2026' },
+  { id:'v0.2.0', state:'progress', note:'en préparation — issue #19' },
+  { id:'v0.3.0', state:'planned',  note:'non ouverte' }
+];
+
+/* Une entrée par module et par version, dans l'ordre de RELEASES.
+   `null` = le module ne livre rien dans cette version. */
+const ROADMAP = {
+  M1:[
+    ['done',    "Schéma de métadonnées validé et pipeline d'ingestion"],
+    ['progress',"OCR, dé-duplication, segmentation, porte qualité en CI"],
+    null
+  ],
+  M2:[
+    null,
+    ['progress',"Découpage sémantique, indexation, chaîne RAG"],
+    ['planned', "Fine-tuning LoRA et optimisation d'inférence"]
+  ],
+  M3:[
+    null,
+    ['progress',"Suivi MLflow, registre de modèles, évaluation RAGAS"],
+    ['planned', "Benchmark « LLM-as-a-judge » sur corpus annoté"]
+  ],
+  M4:[
+    null,
+    ['progress',"Images Docker multi-stage et pipelines GitHub Actions"],
+    ['planned', "Kubernetes, Terraform, déploiement canari"]
+  ],
+  M5:[
+    null,
+    ['progress',"API FastAPI : santé, authentification, requête"],
+    ['planned', "Cache sémantique, streaming, SDK client"]
+  ],
+  M6:[
+    null,
+    ['progress',"Maquettes et garde-fous produit"],
+    ['planned', "Interface conversationnelle reliée à l'API"]
+  ],
+  M7:[
+    null,
+    ['progress',"Contrats d'interface, pile d'observabilité, alertes"],
+    ['planned', "Instrumentation branchée et détection de dérive"]
+  ],
+  M8:[
+    null,
+    ['progress',"Registre RGPD, anonymisation, journal d'audit"],
+    ['planned', "Détection NER et matrice des habilitations appliquée"]
+  ]
+};
