@@ -31,14 +31,14 @@ const MEMBERS = [
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
     module:'Module 2 · Model Engineering & Fine-Tuning', icon:'i-brain',
-    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:13,
+    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:63,
     desc:"Conception de l'architecture RAG, indexation vectorielle, ingénierie de prompts et fine-tuning léger du LLM sur le domaine juridique.",
     subs:[
-      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',0],
+      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',1],
       ['Découpage sémantique des documents M1 en fragments de 512 jetons avec chevauchement de 64, sensible à la structure (articles/sections, fr et ar)',1],
-      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',0],
-      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',0],
-      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',0],
+      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',1],
+      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',1],
+      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',1],
       ['Fine-tuning paramétrique efficace (LoRA / QLoRA) sur corpus annoté questions-réponses',0],
       ['Compression du contexte et stratégie anti-hallucination (grounding strict sur sources)',0],
       ['Optimisation d\'inférence : quantification, batching et streaming des jetons',0]
