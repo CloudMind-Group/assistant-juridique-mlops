@@ -126,12 +126,12 @@ const MEMBERS = [
   {
     id:'M7', name:'Youssef El Alem', role:'SRE / ML Observability — Lead Monitoring',
     module:'Module 7 · Model Monitoring & Observability', icon:'i-activity',
-    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:29,
+    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:43,
     desc:"Supervision du système et du modèle en production : dérive, qualité des réponses, latence, coûts et boucle de rétroaction.",
     subs:[
       ['Contrats d\'interface figés : métriques attendues de M5 et journal d\'audit fourni à M8 (docs/OBSERVABILITE.md)',1],
       ['Alerting multi-niveaux : 8 règles sur deux gravités, routage Slack/e-mail, inhibitions et procédure par alerte',1],
-      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',0],
+      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',1],
       ['Instrumentation Prometheus : module réutilisable écrit et vérifié, branchement sur les endpoints en attente de M5',0],
       ['Traçage distribué des requêtes RAG (OpenTelemetry) — squelette prêt, inerte tant qu\'aucun collecteur n\'est déployé',0],
       ['Détection de dérive des données et des embeddings (Evidently) — exige un flux de requêtes réel (M2 + M5)',0],
