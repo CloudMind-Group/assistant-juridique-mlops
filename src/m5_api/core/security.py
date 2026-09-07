@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 import os
-from jose import jwt, JWTError
+import jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 
 # Clé secrète — sert à signer et vérifier les tokens
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = os.environ["M5_JWT_SECRET"]
 ALGORITHM = "HS256"
 EXPIRE_MINUTES = 30
 
@@ -33,5 +33,5 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré")
