@@ -31,6 +31,23 @@ class QuantizationConfig:
 
 
 @dataclass(frozen=True)
+class HNSWConfig:
+    """Explicit Qdrant HNSW construction parameters."""
+
+    m: int = 16
+    ef_construct: int = 100
+    full_scan_threshold: int = 10_000
+
+    def __post_init__(self) -> None:
+        if self.m <= 0:
+            raise ValueError("HNSW m must be positive")
+        if self.ef_construct <= 0:
+            raise ValueError("HNSW ef_construct must be positive")
+        if self.full_scan_threshold < 0:
+            raise ValueError("HNSW full_scan_threshold must be non-negative")
+
+
+@dataclass(frozen=True)
 class ChunkingConfig:
     target_tokens: int = 512
     overlap_tokens: int = 64
@@ -58,6 +75,7 @@ class RAGConfig:
     prompt_version: str = "v1"
     chunking: ChunkingConfig = ChunkingConfig()
     compression: ContextCompressionConfig = ContextCompressionConfig()
+    hnsw: HNSWConfig = HNSWConfig()
 
     def __post_init__(self) -> None:
         if self.top_k <= 0 or self.candidate_k < self.top_k:
