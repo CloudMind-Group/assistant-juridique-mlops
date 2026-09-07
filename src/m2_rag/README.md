@@ -40,9 +40,11 @@ complets et demandent à M2 de les chunker. Pour ce contrat, le chunking est don
 réalisé dans M2. La documentation transverse devra être alignée avec les
 responsables concernés ; elle n'a pas été modifiée ici.
 
-Les seuls filtres publics acceptés sont les champs réellement disponibles :
-`doc_id`, `source`, `date`, `category`, `language`. M2 ne fabrique pas de
-`jurisdiction` ou `effective_date`.
+Les filtres publics acceptés sont `doc_id`, `source`, `date`, `category`,
+`language` et `jurisdiction`. Ce dernier est strictement optionnel : M2 le
+propage et le filtre lorsqu'un producteur le fournit comme métadonnée additive,
+mais ne le déduit jamais et ne modifie pas les données M1. `effective_date`
+n'est pas accepté.
 
 ## Chunking et identifiants
 
@@ -71,6 +73,13 @@ Le modèle réel n'est chargé que lors de l'instanciation explicite de
 Chaque point Qdrant conserve `doc_id` dans son payload. L'effacement appelle
 `delete_document(doc_id)`, qui envoie un `FilterSelector` sur ce champ sans
 recréer la collection. Un index payload keyword est créé pour `doc_id`.
+Des index keyword sont également créés pour les autres filtres, dont `date` et
+la juridiction optionnelle. `HNSWConfig` expose explicitement `m`,
+`ef_construct` et `full_scan_threshold`; un test de contrat vérifie leur
+transmission exacte au client Qdrant. Le moteur Qdrant `:memory:` ignore ces
+paramètres et ne peut donc pas prouver la construction effective de l'index :
+cette dernière validation exige un serveur Qdrant. Le filtre date est une
+égalité exacte sur la valeur M1 (`YYYY` ou `YYYY-MM-DD`), pas une plage.
 
 ## Retrieval et génération
 
@@ -201,6 +210,13 @@ hook est un fonctionnement normal ; M2 n'importe jamais MLflow.
 `evaluation.recall_at_k()` refuse de calculer Recall@k sans exemples annotés.
 Le dépôt ne contient aucune ground truth : **Recall@8 n'est donc pas mesuré et
 la cible ≥ 0,89 n'est pas déclarée atteinte**.
+
+Une comparaison purement technique pourrait mesurer dimension, temps
+d'encodage ou taille des vecteurs sur une machine donnée. Sans poids complets
+et sans jeu de pertinence annoté, elle ne permet ni de classer honnêtement les
+modèles multilingues pour le droit FR/AR, ni de sélectionner un vainqueur. Les
+doubles déterministes et le corpus synthétique restent donc des tests de
+contrat, jamais un benchmark comparatif de qualité.
 
 Les rapports de latence indiquent système/Python, backend, taille du corpus et
 nombre de runs. Une mesure sur le backend mémoire et les 60 documents
