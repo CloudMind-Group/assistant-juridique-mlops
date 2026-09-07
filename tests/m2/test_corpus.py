@@ -3,7 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from src.m2_rag.corpus import CorpusContractError, load_m1_corpus, validate_filter_fields
+from src.m2_rag.corpus import (
+    CorpusContractError, filter_documents, load_m1_corpus, validate_filter_fields,
+)
 
 
 def _write_corpus(root: Path, records: list[dict]) -> Path:
@@ -45,7 +47,20 @@ def test_rejects_duplicate_doc_id(tmp_path: Path):
         load_m1_corpus(processed, repo_root=tmp_path)
 
 
-def test_only_real_filter_fields_are_accepted():
-    validate_filter_fields({"language": "ar", "category": "Droit civil"})
-    with pytest.raises(CorpusContractError, match="jurisdiction"):
-        validate_filter_fields({"jurisdiction": "Rabat"})
+def test_optional_jurisdiction_fixture_is_preserved_and_filterable(tmp_path: Path):
+    first = _record("fixture-rabat")
+    first["jurisdiction"] = "Rabat"
+    second = _record("fixture-casa")
+    second["jurisdiction"] = "Casablanca"
+    processed = _write_corpus(tmp_path, [first, second])
+    documents = load_m1_corpus(processed, repo_root=tmp_path)
+    validate_filter_fields({"jurisdiction": "Rabat", "date": "2024-01-01"})
+    assert documents[0].metadata["jurisdiction"] == "Rabat"
+    assert [item.doc_id for item in filter_documents(
+        documents, {"jurisdiction": "Rabat", "date": "2024-01-01"}
+    )] == ["fixture-rabat"]
+
+
+def test_unknown_filter_field_is_rejected():
+    with pytest.raises(CorpusContractError, match="invented_field"):
+        validate_filter_fields({"invented_field": "value"})
