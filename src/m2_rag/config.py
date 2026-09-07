@@ -6,6 +6,31 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class ContextCompressionConfig:
+    enabled: bool = True
+    max_tokens: int = 2048
+    max_chunks: int = 8
+    redundancy_threshold: float = 0.85
+
+    def __post_init__(self) -> None:
+        if self.max_tokens <= 0:
+            raise ValueError("max_tokens must be positive")
+        if self.max_chunks <= 0:
+            raise ValueError("max_chunks must be positive")
+        if not 0 <= self.redundancy_threshold <= 1:
+            raise ValueError("redundancy_threshold must be between 0 and 1")
+
+
+@dataclass(frozen=True)
+class QuantizationConfig:
+    mode: str = "none"
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"none", "int8", "int4"}:
+            raise ValueError("quantization mode must be 'none', 'int8', or 'int4'")
+
+
+@dataclass(frozen=True)
 class ChunkingConfig:
     target_tokens: int = 512
     overlap_tokens: int = 64
@@ -32,6 +57,7 @@ class RAGConfig:
     reranker_enabled: bool = False
     prompt_version: str = "v1"
     chunking: ChunkingConfig = ChunkingConfig()
+    compression: ContextCompressionConfig = ContextCompressionConfig()
 
     def __post_init__(self) -> None:
         if self.top_k <= 0 or self.candidate_k < self.top_k:
