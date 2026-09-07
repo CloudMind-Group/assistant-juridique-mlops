@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.4 — 6 septembre 2026
+**Version :** 1.5 — 7 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -326,7 +326,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R10 | Le contrôle « aucun secret » de la CI ne détectait aucun identifiant réel : sensible à la casse, et dépendant d'un mot-clé dans le *nom* de la variable | Remplacé par `src/m8_compliance/secret_scan.py`, qui reconnaît les *formes* d'identifiants. Mesuré : 0/7 avant, 7/7 après, zéro faux positif sur le dépôt |
 | E-R11 | M8 et M2 n'avaient aucune interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement cesse d'être une modification de texte | **L'interface existait dans le code, seule la matrice ne la déclarait pas.** Vérifié ligne à ligne le 06/09/2026 : `delete_document(doc_id)` sur les deux implémentations de `VectorStore` ([`vector_store.py:88`](../src/m2_rag/vector_store.py) en mémoire, [`:184`](../src/m2_rag/vector_store.py) pour Qdrant via un `FilterSelector` sur le payload `doc_id`, **sans recréation de la collection**), verrouillé par [`test_vector_store.py:42`](../tests/m2/test_vector_store.py). Et `data/raw` n'apparaît nulle part dans `src/m2_rag/` hors d'une ligne de documentation. L'effacement par `doc_id` est donc **techniquement praticable**, et l'engagement du registre tient. Références signalées par @youssefelalem (PR #28), vérifiées avant fermeture |
 | E-R12 | `Dockerfile` et `docker-compose.yml` ne relevaient d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, montages et secrets d'exécution échappaient à la revue de conformité | PR #45 — les deux fichiers relèvent de `platform` **et** `security` ; la revue est doublée, pas déplacée. La revue de conteneur qui n'avait jamais eu lieu est faite : trois constats, dont le montage `./data` en lecture-écriture sur le corpus brut, laissés à l'arbitrage de M4 |
-| E-R13 | `ingestion_report.json`, poussé sur le remote partagé, enregistrait le **chemin brut** du fichier source — or un nom de fichier porte régulièrement le nom d'une partie, raisonnement déjà appliqué au `doc_id` et au `title` (E-R3) mais pas au rapport | PR #44 — substitution à la sérialisation, donc valable pour tout champ ajouté ensuite sans que son auteur ait à connaître la règle. **Vérifié en exécutant** : deux défauts que les tests seuls n'auraient pas montrés — le chemin figurait aussi dans le *message* de l'exception, et `raw_dir` était substitué à tort alors qu'un nom de répertoire est sûr |
+| E-R13 | Les rapports poussés sur le remote partagé enregistraient le **chemin brut** du fichier source — or un nom de fichier porte régulièrement le nom d'une partie, raisonnement déjà appliqué au `doc_id` et au `title` (E-R3) mais pas aux rapports | PR #44 pour `ingestion_report.json`, **puis PR #62 pour `expectations_report.json`**. **Correction du 07/09/2026 :** la fiche annonçait initialement que la substitution « à la sérialisation » couvrait tout champ ajouté ensuite. C'était vrai *dans ce rapport*, et je l'ai laissé lire comme une garantie générale. La PR #52 a ouvert la même fuite dans un second rapport six jours plus tard, et @DOUAEM449 l'a trouvée et refermée en relisant la PR #58. **Le correctif portait sur un fichier, pas sur un principe** — et la règle vaut pour toute sortie publiée, pas pour celles qui existaient quand elle a été écrite |
 
 ## 6. Preuves
 
@@ -414,6 +414,24 @@ relecture : un test s'exécute toujours, une revue dépend de l'attention de
 quelqu'un. Aucune règle `CODEOWNERS` supplémentaire n'est demandée sur
 `ingest.py` — elle ajouterait de la friction sur chaque contribution de M1 pour
 une garantie plus faible que celle qui existe.
+
+**Un correctif ponctuel ne ferme pas une classe de défauts.** Le 07/09/2026,
+`expectations_report.json` a reproduit la fuite que la PR #44 avait retirée
+d'`ingestion_report.json` six jours plus tôt. Les deux sont des sorties DVC
+poussées sur le remote ; le raisonnement avait été appliqué à l'une et pas à
+l'autre, parce que la seconde n'existait pas encore.
+
+C'est la démonstration de ce que j'écris ailleurs dans ce registre à propos des
+contrôles : *un contrôle qui dépend de chaque contributeur futur pour s'en
+souvenir est un contrôle qui se périme.* Je l'avais écrit en croyant m'y
+conformer. **La substitution à la sérialisation protège un fichier, pas la
+catégorie « artefact publié ».**
+
+La règle générale est donc énoncée ici, et non laissée à la mémoire : **aucune
+sortie écrite dans `data/processed/` ne doit contenir de chemin brut ni de nom
+de fichier source.** Ce qui identifie un document dans un artefact publié est
+son `doc_id`. Un contrôle automatique portant sur l'ensemble de ces sorties
+reste à écrire — c'est la seule forme sous laquelle cette règle tiendra.
 
 **Détection de secrets** — mesure du 02/09/2026 sur sept identifiants réels
 (clé d'accès et secret AWS, jeton GitHub, clé OpenAI, jeton Slack, jeton
