@@ -93,6 +93,87 @@ MODEL = "legal-fr-v2"
 # aucun usage cryptographique.
 _rng = random.Random(20260830)
 
+# --- Traces : mêmes noms de segments que le contrat --------------------------
+#
+# Le simulateur émet aussi des traces, pour la même raison qu'il émet des
+# métriques : rendre la chaîne vérifiable avant que M5 existe. Sans lui, la
+# question « les traces arrivent-elles jusqu'à Tempo ? » resterait ouverte
+# jusqu'au jour où l'API démarre — c'est-à-dire au pire moment pour la poser.
+#
+# Les segments portent les noms de `tracing.SEGMENTS`. Ce n'est pas cosmétique :
+# une trace n'a de valeur que si ses étapes sont nommées de façon stable d'un
+# service à l'autre, et c'est ce fichier qui fixe la référence.
+
+_tracer = None
+
+
+def _configurer_tracage() -> None:
+    """Prépare l'émission de traces si un collecteur est configuré.
+
+    Silencieux et sans effet si OpenTelemetry est absent ou si aucun point de
+    collecte n'est défini : le simulateur doit rester lançable seul, sans la
+    pile, pour vérifier les métriques.
+    """
+    global _tracer
+    if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
+        logging.info("Traces desactivees : OTEL_EXPORTER_OTLP_ENDPOINT absent.")
+        return
+    try:
+        from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
+            OTLPSpanExporter,
+        )
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError:
+        logging.warning("Traces desactivees : dependances OpenTelemetry absentes.")
+        return
+
+    fournisseur = TracerProvider(
+        resource=Resource.create(
+            {
+                # Le même nom que celui qu'emploiera M5 : les tableaux de bord
+                # et les requêtes Tempo n'auront pas à changer le jour de la
+                # bascule.
+                "service.name": "assistant-api",
+                "service.version": "0.2.0-mock",
+                "deployment.environment": "local",
+            }
+        )
+    )
+    fournisseur.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+    trace.set_tracer_provider(fournisseur)
+    _tracer = trace.get_tracer("cloudmind.mock")
+    logging.info("Traces actives vers %s", os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"])
+
+
+def _tracer_requete(route: str, retrieval: float, generation: float,
+                    touche: bool, documents: int, statut: str) -> None:
+    """Émet une trace conforme aux quatre segments du contrat."""
+    if _tracer is None:
+        return
+    with _tracer.start_as_current_span("POST " + route) as racine:
+        racine.set_attribute("http.request.method", "POST")
+        racine.set_attribute("http.route", route)
+        racine.set_attribute("http.response.status_code", int(statut))
+        racine.set_attribute("cache.hit", touche)
+
+        with _tracer.start_as_current_span("rag.retrieve") as segment:
+            segment.set_attribute("rag.documents_retrieved", documents)
+            time.sleep(min(retrieval, 0.05))
+
+        with _tracer.start_as_current_span("rag.rerank"):
+            time.sleep(0.002)
+
+        if not touche:
+            with _tracer.start_as_current_span("rag.generate") as segment:
+                segment.set_attribute("llm.model", MODEL)
+                time.sleep(min(generation, 0.05))
+
+        with _tracer.start_as_current_span("rag.cite"):
+            time.sleep(0.001)
+
 
 def _une_requete() -> None:
     """Simule une requête complète et met à jour toutes les séries."""
@@ -108,8 +189,9 @@ def _une_requete() -> None:
     # Récupération.
     retrieval = _rng.gauss(0.09, 0.03)
     retrieval = max(retrieval, 0.005)
+    documents = _rng.randint(4, 16)
     rag_retrieval_duration_seconds.observe(retrieval)
-    rag_documents_retrieved.observe(_rng.randint(4, 16))
+    rag_documents_retrieved.observe(documents)
 
     # Cache : environ 40 % de succès, au-dessus de l'objectif de 35 %.
     touche = _rng.random() < 0.40
@@ -138,6 +220,8 @@ def _une_requete() -> None:
     )
     http_requests_total.labels("POST", route, statut).inc()
 
+    _tracer_requete(route, retrieval, generation, touche, documents, statut)
+
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -147,6 +231,7 @@ def main() -> None:
     adresse = os.environ.get("BIND_ADDR", "0.0.0.0")  # nosec B104
 
     app_info.labels(version="0.2.0-mock", commit="local").set(1)
+    _configurer_tracage()
     start_http_server(port, addr=adresse)
     # Message volontairement en ASCII : la console Windows utilise cp1252 par
     # defaut et leve UnicodeEncodeError sur un caractere hors de cette table.

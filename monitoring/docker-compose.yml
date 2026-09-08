@@ -31,6 +31,7 @@
 #
 #     PROMETHEUS_PORT · ALERTMANAGER_PORT · LOKI_PORT · MOCK_PORT
 #     GRAFANA_PORT    · GRAFANA_BIND      · GF_SERVER_ROOT_URL
+#     TEMPO_PORT      · OTLP_GRPC_PORT    · OTLP_HTTP_PORT
 #
 # Sans `.env`, les valeurs par défaut s'appliquent et rien ne change pour qui
 # lance la pile sur sa machine. L'environnement de déploiement fournit les
@@ -41,8 +42,15 @@
 #     3601  Grafana, publié           GRAFANA_BIND=0.0.0.0  GRAFANA_PORT=3601
 #     3690  Prometheus, boucle locale PROMETHEUS_PORT=3690
 #     3691  Loki, boucle locale       LOKI_PORT=3691
+#     3692  Tempo, id.                TEMPO_PORT=3692
 #     3693  Alertmanager, id.         ALERTMANAGER_PORT=3693
 #     3695  simulateur, id.           MOCK_PORT=3695
+#     3696  collecteur OTLP gRPC      OTLP_GRPC_PORT=3696
+#     3697  collecteur OTLP HTTP      OTLP_HTTP_PORT=3697
+#
+# Les deux ports du collecteur méritent une note : 4317 et 4318 sont les
+# valeurs par défaut d'OpenTelemetry, donc parmi les plus disputées qui
+# soient sur une machine partagée entre projets d'observabilité.
 #
 # `GRAFANA_BIND` est la seule adresse de liaison variable, et c'est délibéré :
 # Grafana exige une authentification, les cinq autres services n'en ont
@@ -157,14 +165,52 @@ services:
       - loki
     restart: unless-stopped
 
+  tempo:
+    image: grafana/tempo:2.7.0
+    container_name: cm-tempo
+    command: -config.file=/etc/tempo/tempo-config.yml
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/tempo-config.yml:ro
+      - tempo-data:/var/tempo
+    ports:
+      # Seule l'API de lecture est publiée, et sur la boucle locale : c'est
+      # Grafana qui interroge Tempo, et le collecteur qui l'alimente — tous
+      # deux depuis le réseau Docker. Publier les ports OTLP exposerait un
+      # point d'écriture sans authentification.
+      - "127.0.0.1:${TEMPO_PORT:-3200}:3200"
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    container_name: cm-otel-collector
+    command: --config=/etc/otel/otel-collector-config.yml
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otel/otel-collector-config.yml:ro
+    ports:
+      # Publiés parce qu'un service lancé hors Docker — l'API de M5 en
+      # développement, par exemple — doit pouvoir émettre vers le collecteur.
+      - "127.0.0.1:${OTLP_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_PORT:-4318}:4318"
+    depends_on:
+      - tempo
+    restart: unless-stopped
+
   mock-exporter:
     build: ./mock_exporter
     container_name: cm-mock-exporter
+    environment:
+      # Le simulateur émet aussi des traces : c'est ce qui rend la chaîne
+      # vérifiable de bout en bout avant que M5 existe, exactement comme il le
+      # fait déjà pour les métriques.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - "127.0.0.1:${MOCK_PORT:-8000}:8000"
+    depends_on:
+      - otel-collector
     restart: unless-stopped
 
 volumes:
   prometheus-data:
   loki-data:
   grafana-data:
+  tempo-data:
