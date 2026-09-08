@@ -51,11 +51,16 @@ A_SUPPRIMER = (
     "http.request.header.authorization",
     "http.request.header.cookie",
     "http.request.header.x-api-key",
+    # Identité de l'appelant : supprimée, et non condensée. `action: hash`
+    # produit un SHA-256 nu, que le §2.2 refuse pour un espace d'entrée
+    # énumérable — l'attaque est la liste des comptes, pas la collision.
+    # Signalé par @taha588, issue #68.
+    "enduser.id",
 )
 
-# Identité de l'appelant : condensée, pour que la corrélation entre traces
-# d'une même session reste possible sans que l'identité le soit.
-A_CONDENSER = ("enduser.id",)
+# Ce que seule l'application peut produire — un pseudonyme sous la clé
+# serveur — et qui doit donc traverser le collecteur intact.
+A_PRESERVER = ("enduser.pseudo_id",)
 
 
 @pytest.fixture(scope="module")
@@ -71,9 +76,41 @@ def test_le_contenu_utilisateur_est_supprime(actions: dict[str, str], cle: str) 
     assert actions.get(cle) == "delete", f"{cle} n'est pas supprimé"
 
 
-@pytest.mark.parametrize("cle", A_CONDENSER)
-def test_l_identite_est_condensee_et_non_supprimee(actions: dict[str, str], cle: str) -> None:
-    assert actions.get(cle) == "hash", f"{cle} devrait être condensé"
+@pytest.mark.parametrize("cle", A_PRESERVER)
+def test_le_pseudonyme_calcule_par_l_application_traverse_intact(
+    actions: dict[str, str], cle: str
+) -> None:
+    """`enduser.pseudo_id` porte déjà un HMAC calculé sous la clé serveur par
+    `empreinte()`. Le supprimer ou le re-condenser détruirait la seule
+    corrélation légitime : une trace et un événement d'audit de la même
+    personne portent alors la même valeur, et seule la clé permet de remonter."""
+    assert cle not in actions, (
+        f"{cle} ne doit subir aucune action : il est déjà pseudonymisé"
+    )
+
+
+def test_aucun_condense_nu_ne_sert_de_protection_principale(actions: dict[str, str]) -> None:
+    """Non-régression sur l'issue #68.
+
+    `action: hash` produit un condensé **sans clé**. Sur un espace d'entrée
+    énumérable — et la liste des comptes l'est — il ne protège rien : on hache
+    chaque candidat et on compare. Une fonction plus forte n'y changerait rien,
+    puisque l'attaque est l'énumération et non la collision.
+
+    Le test refuse donc `hash` sur toute clé d'identité. Il ne l'interdit pas
+    partout : il reste défendable en second rang sur une valeur qu'on ne peut
+    pas confier à l'application.
+    """
+    identite = [
+        cle for cle, action in actions.items()
+        if action == "hash" and any(
+            marqueur in cle for marqueur in ("user", "enduser", "account", "client")
+        )
+    ]
+    assert not identite, (
+        "condensé nu utilisé comme protection principale d'une identité : "
+        f"{identite}. Le pseudonyme doit venir de l'application (§2.2)."
+    )
 
 
 def test_l_expurgation_precede_l_exportation(collecteur: dict) -> None:

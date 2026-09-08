@@ -47,11 +47,24 @@ processors:
       - key: llm.completion
         action: delete
 
-      # Identité de l'appelant : remplacée par un condensé, pas supprimée.
-      # La corrélation entre plusieurs traces d'une même session reste
-      # possible, l'identité ne l'est plus.
+      # Identité de l'appelant : supprimée, et non condensée.
+      #
+      # `action: hash` produit ici un SHA-256 **nu**, et le §2.2 du contrat
+      # traite exactement ce cas : un condensé sans clé n'anonymise rien quand
+      # l'espace d'entrée est petit et énumérable. La liste des comptes est
+      # connue ; qui détient le magasin de traces hache chaque candidat et
+      # retrouve la correspondance en quelques secondes. L'attaque est
+      # l'énumération, pas la collision — une fonction plus forte n'y changerait
+      # rien. Signalé par @taha588, issue #68.
+      #
+      # Le pseudonyme est donc calculé par l'application sous la clé serveur,
+      # avec `empreinte()` de src/m8_compliance/audit.py, et transmis dans
+      # `enduser.pseudo_id`. Cet attribut n'apparaît nulle part dans ce
+      # processeur : il traverse intact, c'est voulu, et c'est ce qui rend une
+      # trace corrélable à un événement d'audit pour qui détient la clé — donc
+      # pour une investigation légitime, et pour personne d'autre.
       - key: enduser.id
-        action: hash
+        action: delete
       - key: user.email
         action: delete
       - key: client.address

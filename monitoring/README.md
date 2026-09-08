@@ -79,8 +79,31 @@ attributs a été envoyée au collecteur. Tempo en a stocké trois.
 | `rag.question`, `rag.query`, `llm.prompt`, `llm.completion` | — supprimés |
 | `user.email`, `client.address` | — supprimés |
 | `authorization`, `cookie` | — supprimés |
-| `enduser.id` = `utilisateur-4821` | `741cc1f5…` — condensé |
+| `enduser.id` = `utilisateur-4821` | — supprimé |
 | `http.route`, `http.response.status_code` | conservés |
+
+### Pourquoi l'identité est supprimée et non condensée
+
+La première version de ce collecteur employait `action: hash` sur
+`enduser.id`. Le résultat était bien un condensé — mais un condensé **nu**,
+sans clé. @taha588 l'a relevé ([issue #68](https://github.com/CloudMind-Group/assistant-juridique-mlops/issues/68))
+en rappelant le §2.2 du contrat, qui traite exactement ce cas.
+
+Un condensé sans clé n'anonymise rien quand l'espace d'entrée est petit et
+énumérable : la liste des comptes est connue, il suffit de hacher chaque
+candidat et de comparer. **L'attaque est l'énumération, pas la collision** —
+une fonction plus forte n'y changerait rien. Le processeur `attributes`
+n'offre pas d'action HMAC, le calcul ne peut donc pas se faire ici.
+
+Le pseudonyme est donc produit par l'application, sous la clé serveur, avec
+`empreinte()` de `src/m8_compliance/audit.py`, et transmis dans
+`enduser.pseudo_id` — attribut qui traverse le collecteur intact.
+
+Ce n'est pas seulement une correction. Les deux magasins portent désormais
+**le même pseudonyme** : corréler une trace et un événement d'audit devient
+possible pour qui détient la clé — donc pour une investigation légitime — et
+impossible pour tout autre. Avant, les deux valeurs étaient incomparables, et
+la moins protégée des deux vivait dans Tempo.
 
 Ces suppressions sont gardées par `monitoring/tests/test_collecteur.py`, qui
 échoue si une règle disparaît ou si un exportateur est ajouté hors du chemin
