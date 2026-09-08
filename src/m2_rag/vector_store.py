@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict
 from typing import Any, Protocol, Sequence
 
+from src.m2_rag.config import HNSWConfig
 from src.m2_rag.models import LegalChunk, RetrievedChunk
 
 
@@ -102,6 +103,7 @@ class QdrantVectorStore:
         *,
         qmodels: object | None = None,
         create_collection: bool = True,
+        hnsw_config: HNSWConfig = HNSWConfig(),
     ) -> None:
         if dimension <= 0:
             raise ValueError("dimension must be positive")
@@ -115,6 +117,7 @@ class QdrantVectorStore:
         self.collection_name = collection_name
         self.dimension = dimension
         self.models = qmodels
+        self.hnsw_config = hnsw_config
         if create_collection:
             self._ensure_collection()
 
@@ -125,9 +128,15 @@ class QdrantVectorStore:
                 vectors_config=self.models.VectorParams(
                     size=self.dimension, distance=self.models.Distance.COSINE
                 ),
-                hnsw_config=self.models.HnswConfigDiff(),
+                hnsw_config=self.models.HnswConfigDiff(
+                    m=self.hnsw_config.m,
+                    ef_construct=self.hnsw_config.ef_construct,
+                    full_scan_threshold=self.hnsw_config.full_scan_threshold,
+                ),
             )
-            for field_name in ("doc_id", "source", "date", "category", "language"):
+            for field_name in (
+                "doc_id", "source", "date", "category", "language", "jurisdiction"
+            ):
                 self.client.create_payload_index(
                     collection_name=self.collection_name,
                     field_name=field_name,
