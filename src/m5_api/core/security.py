@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import jwt
 from passlib.context import CryptContext
@@ -25,7 +25,7 @@ def verify_user(username: str, password: str):
     return pwd_context.verify(password, FAKE_USER["hashed_password"])
 
 def create_token(username: str):
-    expire = datetime.utcnow() + timedelta(minutes=EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=EXPIRE_MINUTES)
     data = {"sub": username, "exp": expire}
     return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -35,3 +35,4 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return payload.get("sub")
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Token invalide ou expiré")
+    

@@ -12,13 +12,23 @@ from src.m5_api.core.security import verify_user, create_token, get_current_user
 from src.m5_api.core.cache import get_cached_response, set_cached_response
 from src.m5_api.core.tasks import analyze_document_task, celery_app
 from slowapi.middleware import SlowAPIMiddleware
+from pydantic import BaseModel
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Assistant Juridique — API M5")
+service = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global service
+    service = build_light_service(load_m1_corpus())
+    yield
+
+app = FastAPI(title="Assistant Juridique — API M5", lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
-service = build_light_service(load_m1_corpus())
+
 
 @app.get("/health")
 def health_check():
@@ -31,9 +41,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     token = create_token(form_data.username)
     return {"access_token": token, "token_type": "bearer"}
 
+class ChatRequest(BaseModel):
+    question: str
+
+
 @app.post("/chat")
 @limiter.limit("5/minute")
-def chat(request: Request, question: str, current_user: str = Depends(get_current_user)):
+def chat(request: Request, payload: ChatRequest, current_user: str = Depends(get_current_user)):
+    question = payload.question
     cached = get_cached_response(question)
     if cached:
         cached["from_cache"] = True
@@ -54,9 +69,10 @@ def generate_chunks(text: str):
         yield f"data: {word}\n\n"
         time.sleep(0.05)
 
-@app.get("/chat/stream")
-def chat_stream(question: str, current_user: str = Depends(get_current_user)):
-    response = service.query(RAGRequest(question=question))
+@app.post("/chat/stream")
+@limiter.limit("5/minute")
+def chat_stream(request: Request, payload: ChatRequest, current_user: str = Depends(get_current_user)):
+    response = service.query(RAGRequest(question=payload.question))
     return StreamingResponse(generate_chunks(response.answer), media_type="text/event-stream")
 
 @app.post("/documents/analyze")
@@ -73,3 +89,4 @@ def get_task_status(task_id: str, current_user: str = Depends(get_current_user))
         return {"status": "completed", "result": task.result}
     else:
         return {"status": task.state}
+    

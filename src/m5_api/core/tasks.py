@@ -1,12 +1,13 @@
 import time
+import os
 from celery import Celery
 
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 celery_app = Celery(
     "m5_tasks",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/0",
+    broker=f"redis://{REDIS_HOST}:6379/0",
+    backend=f"redis://{REDIS_HOST}:6379/0",
 )
-
 @celery_app.task
 def analyze_document_task(document_name: str):
     time.sleep(10)  # simule un traitement long (10 secondes)

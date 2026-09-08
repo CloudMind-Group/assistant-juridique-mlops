@@ -45,6 +45,9 @@ jobs:
           # seulement pour l'étape qui l'exécute : tests/m1/test_expectations.py
           # importe great_expectations, la collecte de pytest échouerait sans lui.
           pip install great-expectations pandas
+          # Dépendances M5 : sans elles, tests/m5/ échoue à la collecte et
+          # emporte toute la suite, y compris les tests M1 et M7.
+          pip install pyjwt passlib bcrypt slowapi redis celery
 
       - name: Tests d'anonymisation
         run: python -m pytest tests/ -v

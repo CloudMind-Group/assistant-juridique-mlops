@@ -1,9 +1,10 @@
 import json
 import hashlib
+import os
 import redis
 
-# Connexion à Redis (celui qui tourne dans Docker)
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
 
 CACHE_EXPIRATION_SECONDS = 3600  # 1 heure
 
@@ -21,3 +22,4 @@ def get_cached_response(question: str):
 def set_cached_response(question: str, response_data: dict):
     key = make_cache_key(question)
     redis_client.set(key, json.dumps(response_data), ex=CACHE_EXPIRATION_SECONDS)
+    
