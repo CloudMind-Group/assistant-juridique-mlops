@@ -207,12 +207,57 @@ def valider(dataframe: pd.DataFrame) -> dict[str, Any]:
     return resultat.to_json_dict()
 
 
+# Colonnes dont une valeur peut être reproduite telle quelle dans le rapport.
+# La liste est une **liste blanche** : ce sont des valeurs de nomenclature,
+# des formats et des compteurs, qui ne peuvent désigner personne.
+#
+# Tout le reste est tu. `file_path` et `title` en particulier : quand
+# l'attente sur `file_path` échoue, c'est précisément parce que le chemin est
+# absolu — donc parce qu'il porte une arborescence locale, et souvent le nom
+# d'une partie dans le nom du fichier. Publier l'exemple, c'est republier
+# exactement ce que la PR #44 avait retiré d'`ingestion_report.json`
+# (écart E-R13 du registre). Ce module a rouvert la fuite par un autre
+# fichier ; cette liste la referme.
+COLONNES_A_EXEMPLES_PUBLIABLES = frozenset(
+    {
+        "source",
+        "language",
+        "date",
+        "category",
+        "source_format",
+        "extraction_method",
+        "status",
+        "anonymized",
+        "char_count_raw",
+        "word_count_raw",
+        "char_count_clean",
+        "word_count_clean",
+        "segment_count",
+    }
+)
+
+# Ce qui remplace les exemples tus. Le rapport part sur le remote partagé ;
+# la valeur fautive, elle, reste consultable en local dans metadata.jsonl.
+EXEMPLES_TUS = "<valeurs non publiées — voir metadata.jsonl en local>"
+
+
+def _exemples_publiables(colonne: str | None, valeurs: list[Any]) -> list[Any] | str:
+    """Filtre les valeurs d'exemple selon la colonne dont elles proviennent."""
+    if not valeurs:
+        return []
+    if colonne in COLONNES_A_EXEMPLES_PUBLIABLES:
+        return valeurs[:5]
+    return EXEMPLES_TUS
+
+
 def _resumer(resultat: dict[str, Any]) -> dict[str, Any]:
     """Réduit le résultat GE à ce qu'un humain lit dans un log de CI.
 
     Le rapport GE complet fait plusieurs milliers de lignes ; personne ne
     le lit dans une sortie d'Actions. On garde le verdict, le décompte, et
-    la liste des attentes en échec avec ce qui a été observé.
+    la liste des attentes en échec avec ce qui a été observé — mais on ne
+    reproduit une valeur fautive que si sa colonne ne peut désigner
+    personne (voir COLONNES_A_EXEMPLES_PUBLIABLES).
     """
     resultats = resultat.get("results", [])
     echecs = []
@@ -222,12 +267,15 @@ def _resumer(resultat: dict[str, Any]) -> dict[str, Any]:
         config = r.get("expectation_config", {})
         kwargs = config.get("kwargs", {})
         resultat_detail = r.get("result", {})
+        colonne = kwargs.get("column")
         echecs.append(
             {
                 "attente": config.get("type", "inconnue"),
-                "colonne": kwargs.get("column"),
+                "colonne": colonne,
                 "elements_en_echec": resultat_detail.get("unexpected_count"),
-                "exemples": resultat_detail.get("partial_unexpected_list", [])[:5],
+                "exemples": _exemples_publiables(
+                    colonne, resultat_detail.get("partial_unexpected_list", []) or []
+                ),
             }
         )
 

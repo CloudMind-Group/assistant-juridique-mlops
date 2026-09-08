@@ -12,7 +12,7 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:88,
+    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
@@ -22,11 +22,13 @@ const MEMBERS = [
       ['Dé-duplication (SHA-256 avant anonymisation) et segmentation par articles et alinéas (fr/ar) exportée dans segments.jsonl',1],
       ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
       ['Stockage distant du corpus versionné : remote DVC configuré et opérationnel (DAGsHub)',1],
-      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',0]
+      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',1],
+      ['Data Card du corpus générée par le pipeline DVC et la CI (data_card.json + DATA_CARD.md) : volumétrie, répartition par source et statut du corpus',1],
+      ['Correction orthographique adossée à un lexique juridique fermé, appliquée aux seuls textes océrisés (accents et confusions OCR), arabe laissé intact et corrections tracées',1]
     ],
-    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations (à intégrer)','DAGsHub (remote DVC)'],
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations','DAGsHub (remote DVC)'],
     collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et applique le schéma d'anonymisation défini avec <b>Taha</b> (conformité RGPD) — règles à valider par Taha avant mise en production. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapport de qualité (<code>quality_report.json</code>) et rapport d\'ingestion (<code>ingestion_report.json</code>) générés à chaque exécution']
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> : ingestion, contrôle qualité, Great Expectations puis notification de M2','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapports générés à chaque exécution : ingestion, qualité par document, Great Expectations et Data Card du corpus']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
@@ -144,20 +146,20 @@ const MEMBERS = [
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',
     module:'Module 8 · Security, Governance & Compliance', icon:'i-shield',
-    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:29,
+    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:43,
     desc:"Protection des données juridiques sensibles, conformité RGPD, contrôle d'accès et documentation d'ensemble du système.",
     subs:[
       ['Cartographie des données à caractère personnel, registre des traitements RGPD et analyse d\'impact (AIPD) — docs/RGPD.md et docs/AIPD.md',1],
-      ['Moteur d\'anonymisation branché dans le pipeline avant indexation — détection par regex, rappel insuffisant pour un corpus réel (NER/Presidio à venir)',0],
+      ['Moteur d\'anonymisation branché dans le pipeline avant indexation — détection par règles et propagation des noms ; Presidio écarté faute de modèle arabe, la détection NER reste la réserve ouverte',0],
       ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents — en attente de l\'API de M5',0],
       ['Chiffrement au repos et en transit, rotation des secrets et gestion des clés',0],
-      ['Journalisation d\'audit immuable des accès et des réponses générées — en attente de l\'observabilité de M7',0],
+      ['Journalisation d\'audit immuable des accès et des réponses générées — contrat et écriture livrés ; la rétention relève de la configuration de Loki (M7)',1],
       ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique définis — implémentation à la charge de M2, M5 et M6',1],
-      ['Documentation d\'architecture, guide de contribution et politique de sécurité — analyses Bandit/pip-audit intégrées à la CI, MkDocs restant à produire',0]
+      ['Documentation d\'architecture, guide de contribution et politique de sécurité — Bandit, pip-audit, scan de secrets et contrôle des artefacts publiés intégrés à la CI ; MkDocs restant à produire',0]
     ],
-    tools:['Microsoft Presidio','Vault','OPA / Casbin','Trivy','Bandit','MkDocs','TLS / KMS'],
+    tools:['Bandit','pip-audit','Pytest','HMAC-SHA-256','MkDocs'],
     collab:"Définit les règles d'anonymisation appliquées par <b>Douae</b>, valide les contrôles d'accès de <b>Nouhaila</b>, intègre les scans de sécurité dans la CI de <b>Salma</b> et audite les journaux collectés par <b>Youssef</b>.",
-    deliverables:['Registre RGPD + analyse d\'impact (AIPD) — livrés','Politique de sécurité et matrice des habilitations','Documentation technique complète (MkDocs)']
+    deliverables:['Registre RGPD + analyse d\'impact (AIPD) — livrés','Matrice des habilitations et politique de sécurité — livrées','Journal audit et contrôles de sécurité en CI — livrés']
   }
 ];
 

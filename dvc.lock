@@ -15,8 +15,8 @@ stages:
       size: 23333
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: fc6fdac49d4895ec25174b856b62a831
-      size: 35618
+      md5: 9b7a69bc502da4ac858ce3ea2d78fc16
+      size: 38071
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
       md5: e14631a565697e2249fe2d1ca4a89487
@@ -25,6 +25,10 @@ stages:
       hash: md5
       md5: 6958fe250e4d55f6883ccd9c1063fbd2
       size: 5576
+    - path: src/m1_ingestion/spelling.py
+      hash: md5
+      md5: 28cee0e8332836edb68264343dac0b62
+      size: 15153
     outs:
     - path: data/processed/documents
       hash: md5
@@ -33,11 +37,11 @@ stages:
       nfiles: 60
     - path: data/processed/ingestion_report.json
       hash: md5
-      md5: 9db971aa35d61c9d6d0cd3d9e2103784
-      size: 378
+      md5: 09348ed8b485c220317eec545eeee7e2
+      size: 404
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 9abfa37d57d0dd5275b9d9588adc3859
+      md5: 566dcc58a7df24a9d19e2e0cbcaf99e5
       size: 30280
     - path: data/processed/segments.jsonl
       hash: md5
@@ -54,7 +58,7 @@ stages:
       nfiles: 60
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 9abfa37d57d0dd5275b9d9588adc3859
+      md5: 566dcc58a7df24a9d19e2e0cbcaf99e5
       size: 30280
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
@@ -67,7 +71,7 @@ stages:
     outs:
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 6a1ae81840872b37f3ac6330808244a3
+      md5: 0072d7049523e4b8f64446f6fc25de65
       size: 7857
   data_card:
     cmd: python -m src.m1_ingestion.data_card --processed-dir data/processed 
@@ -75,15 +79,15 @@ stages:
     deps:
     - path: data/processed/ingestion_report.json
       hash: md5
-      md5: 9db971aa35d61c9d6d0cd3d9e2103784
-      size: 378
+      md5: 09348ed8b485c220317eec545eeee7e2
+      size: 404
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 9abfa37d57d0dd5275b9d9588adc3859
+      md5: 566dcc58a7df24a9d19e2e0cbcaf99e5
       size: 30280
     - path: data/processed/quality_report.json
       hash: md5
-      md5: 6a1ae81840872b37f3ac6330808244a3
+      md5: 0072d7049523e4b8f64446f6fc25de65
       size: 7857
     - path: data/processed/segments.jsonl
       hash: md5
@@ -99,16 +103,16 @@ stages:
       size: 22071
     - path: src/m1_ingestion/ingest.py
       hash: md5
-      md5: fc6fdac49d4895ec25174b856b62a831
-      size: 35618
+      md5: 9b7a69bc502da4ac858ce3ea2d78fc16
+      size: 38071
     outs:
     - path: data/processed/DATA_CARD.md
       hash: md5
-      md5: 85505c84b86d8d74edef89a24d39bbd0
+      md5: 4b3188463bb97468862712e607141951
       size: 6411
     - path: data/processed/data_card.json
       hash: md5
-      md5: 2922b8c2a013943d36a782d3428b0c26
+      md5: da3ac02efac217ff62942e45280f03b5
       size: 4735
   expectations:
     cmd: python -m src.m1_ingestion.expectations --processed-dir data/processed 
@@ -116,12 +120,12 @@ stages:
     deps:
     - path: data/processed/metadata.jsonl
       hash: md5
-      md5: 1b24e48db126afa39f6e5e70a63fcce5
+      md5: 566dcc58a7df24a9d19e2e0cbcaf99e5
       size: 30280
     - path: src/m1_ingestion/expectations.py
       hash: md5
-      md5: d9bf71920443124a018b960d19097972
-      size: 12151
+      md5: 53a5018cdb52b6a636adf698c7cfccbf
+      size: 13984
     - path: src/m1_ingestion/metadata_schema.py
       hash: md5
       md5: e14631a565697e2249fe2d1ca4a89487
@@ -129,5 +133,5 @@ stages:
     outs:
     - path: data/processed/expectations_report.json
       hash: md5
-      md5: 94d3728b3616fd8762d8ce997ff14477
+      md5: 7a47876ed9c33e17ec74615e7286df59
       size: 270

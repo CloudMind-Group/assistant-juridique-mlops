@@ -80,7 +80,7 @@ def load_m1_corpus(
 
 
 def validate_filter_fields(filters: dict[str, Any]) -> None:
-    allowed = {"doc_id", "source", "date", "category", "language"}
+    allowed = {"doc_id", "source", "date", "category", "language", "jurisdiction"}
     unknown = set(filters) - allowed
     if unknown:
         raise CorpusContractError(f"unsupported metadata filters: {sorted(unknown)}")
@@ -93,5 +93,8 @@ def filter_documents(
     return [
         document
         for document in documents
-        if all(getattr(document, key) == value for key, value in filters.items())
+        if all(
+            getattr(document, key, document.metadata.get(key)) == value
+            for key, value in filters.items()
+        )
     ]

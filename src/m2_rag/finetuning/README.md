@@ -14,7 +14,13 @@ Avant tout entraînement réel, le dataset doit être annoté, revu juridiquemen
 séparé en jeux train/validation/test et versionné par le processus convenu avec M1/M3.
 Les poids et caches de modèles ne doivent jamais être commités.
 
-**Not trained — annotated dataset unavailable.**
+```text
+BLOCKED EXTERNAL INPUT:
+- annotated legal QA training dataset unavailable
+- base LLM not selected
+```
+
+**Not trained. This task is not complete.**
 
 Validation JSONL et prévisualisation déterministe du split, sans écriture :
 
