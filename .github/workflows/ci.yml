@@ -131,6 +131,33 @@ jobs:
             pip-audit -r "$f" --progress-spinner off
           done
 
+  documentation:
+    name: Construction de la documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installation de MkDocs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+
+      - name: Construction stricte du site
+        # `--strict` transforme les alertes en erreurs. Le mode a d'emblee
+        # revele huit ancres cassees dans les sommaires du registre RGPD et de
+        # la matrice des habilitations : ecrites pour GitHub, elles ne
+        # correspondaient pas aux ancres calculees ici. Un sommaire qui ne mene
+        # nulle part, dans un document de conformite, est une section que le
+        # lecteur ne trouvera pas — et l'echec est silencieux sans ce controle.
+        run: mkdocs build --strict
+
   validate:
     name: Validation du site statique
     runs-on: ubuntu-latest
