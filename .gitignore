@@ -47,3 +47,6 @@ venv/
 
 # Local MLflow database
 mlflow.db
+
+# Site MkDocs construit — artefact de build, jamais versionne.
+site/
