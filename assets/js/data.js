@@ -12,7 +12,7 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:88,
+    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
@@ -22,11 +22,13 @@ const MEMBERS = [
       ['Dé-duplication (SHA-256 avant anonymisation) et segmentation par articles et alinéas (fr/ar) exportée dans segments.jsonl',1],
       ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
       ['Stockage distant du corpus versionné : remote DVC configuré et opérationnel (DAGsHub)',1],
-      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',0]
+      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',1],
+      ['Data Card du corpus générée par le pipeline DVC et la CI (data_card.json + DATA_CARD.md) : volumétrie, répartition par source et statut du corpus',1],
+      ['Correction orthographique adossée à un lexique juridique fermé, appliquée aux seuls textes océrisés (accents et confusions OCR), arabe laissé intact et corrections tracées',1]
     ],
-    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations (à intégrer)','DAGsHub (remote DVC)'],
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations','DAGsHub (remote DVC)'],
     collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et applique le schéma d'anonymisation défini avec <b>Taha</b> (conformité RGPD) — règles à valider par Taha avant mise en production. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapport de qualité (<code>quality_report.json</code>) et rapport d\'ingestion (<code>ingestion_report.json</code>) générés à chaque exécution']
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> : ingestion, contrôle qualité, Great Expectations puis notification de M2','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapports générés à chaque exécution : ingestion, qualité par document, Great Expectations et Data Card du corpus']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
