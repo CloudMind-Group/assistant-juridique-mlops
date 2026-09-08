@@ -1,0 +1,116 @@
+{
+  "app": {
+    "name": "المساعد القانوني",
+    "range30": "آخر 30 يومًا",
+    "refresh": "تحديث"
+  },
+  "nav": {
+    "dashboard": "لوحة القيادة",
+    "consultation": "استشارة",
+    "analysis": "تحليل العقد",
+    "designSystem": "نظام التصميم"
+  },
+  "history": {
+    "title": "السجل",
+    "item1": "عقد خدمات Nexus",
+    "item1Time": "اليوم، 11:32",
+    "item2": "اتفاقية سرية — شراكة Arvalis",
+    "item2Time": "أمس، 15:04",
+    "item3": "الشروط العامة للبيع — Bloom & Co.",
+    "item3Time": "5 سبتمبر 2026",
+    "item4": "عقد كراء تجاري — شارع Rivoli",
+    "item4Time": "3 سبتمبر 2026"
+  },
+  "dashboard": {
+    "title": "لوحة القيادة",
+    "stats": {
+      "consultations": "الاستشارات",
+      "consultationsDelta": "↑ 12% مقارنة بالفترة السابقة",
+      "documents": "الوثائق المحلَّلة",
+      "documentsDelta": "↑ 5% مقارنة بالفترة السابقة",
+      "satisfaction": "معدل الرضا",
+      "satisfactionDelta": "↑ نقطتان مقارنة بالفترة السابقة",
+      "latence": "متوسط زمن الاستجابة",
+      "latenceDelta": "↓ 0.3 ثانية مقارنة بالفترة السابقة"
+    },
+    "activity": {
+      "title": "نشاط الاستشارات"
+    },
+    "status": {
+      "title": "حالة الوثائق",
+      "enAttente": "قيد الانتظار",
+      "enCours": "قيد المعالجة",
+      "enRevision": "قيد المراجعة",
+      "approuve": "مقبول",
+      "rejete": "مرفوض"
+    },
+    "documentsTable": {
+      "title": "الوثائق المحلَّلة",
+      "search": "البحث عن وثيقة…",
+      "columnDocument": "الوثيقة",
+      "columnDate": "التاريخ",
+      "columnStatus": "الحالة"
+    },
+    "historyTable": {
+      "title": "سجل الاستشارات",
+      "search": "البحث عن استشارة…",
+      "columnQuestion": "السؤال",
+      "columnDate": "التاريخ",
+      "columnFeedback": "التقييم",
+      "columnExport": "تصدير",
+      "exportPdf": "تصدير PDF"
+    },
+    "statusLabels": {
+      "termine": "منتهٍ",
+      "ocr_en_cours": "المسح الضوئي جارٍ",
+      "echec": "فشل",
+      "en_attente": "قيد الانتظار"
+    }
+  },
+  "consultation": {
+    "title": "استشارة",
+    "emptyTitle": "استشارة قانونية",
+    "emptySubtitle": "اطرحوا أسئلتكم على المساعد الذكي.",
+    "placeholder": "اطرح سؤالاً قانونيًا…",
+    "send": "إرسال",
+    "disclaimer": "تستند الإجابات إلى مصادر مذكورة ولا تُغني عن استشارة محامٍ.",
+    "sourcesLabel": "المصادر المذكورة",
+    "thinking": "المساعد بصدد صياغة الإجابة…",
+    "feedbackPrompt": "هل كانت هذه الإجابة مفيدة؟",
+    "feedbackPlaceholder": "إضافة تعليق (اختياري)…",
+    "feedbackSend": "إرسال التقييم",
+    "feedbackSent": "شكرًا على تقييمكم."
+  },
+  "analysis": {
+    "title": "تحليل العقد",
+    "emptyTitle": "تحليل العقد",
+    "emptySubtitle": "أودعوا وثيقة لتحليلها.",
+    "dropTitle": "اسحبوا وأفلتوا العقد هنا",
+    "dropSubtitle": "أو تصفحوا ملفاتكم — PDF أو DOCX حتى 25 ميغابايت",
+    "browse": "تصفح الملفات",
+    "queueTitle": "الوثائق قيد المعالجة",
+    "status": {
+      "en_telechargement": "جارٍ التحميل…",
+      "ocr": "المسح الضوئي جارٍ",
+      "analyse": "التحليل جارٍ",
+      "termine": "منتهٍ",
+      "echec": "فشل"
+    }
+  },
+  "designSystem": {
+    "title": "نظام التصميم",
+    "subtitle": "لوحة الألوان والخطوط والمكوّنات المشتركة للمساعد القانوني.",
+    "colors": "لوحة الألوان",
+    "typography": "الخطوط",
+    "components": "المكوّنات",
+    "buttons": "الأزرار",
+    "badges": "الحالات",
+    "cards": "البطاقات"
+  },
+  "common": {
+    "toggleTheme": "تغيير السمة",
+    "toggleLanguage": "تغيير اللغة",
+    "lightMode": "فاتح",
+    "darkMode": "داكن"
+  }
+}
