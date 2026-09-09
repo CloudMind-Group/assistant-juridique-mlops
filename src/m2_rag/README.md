@@ -40,9 +40,11 @@ complets et demandent à M2 de les chunker. Pour ce contrat, le chunking est don
 réalisé dans M2. La documentation transverse devra être alignée avec les
 responsables concernés ; elle n'a pas été modifiée ici.
 
-Les seuls filtres publics acceptés sont les champs réellement disponibles :
-`doc_id`, `source`, `date`, `category`, `language`. M2 ne fabrique pas de
-`jurisdiction` ou `effective_date`.
+Les filtres publics acceptés sont `doc_id`, `source`, `date`, `category`,
+`language` et `jurisdiction`. Ce dernier est strictement optionnel : M2 le
+propage et le filtre lorsqu'un producteur le fournit comme métadonnée additive,
+mais ne le déduit jamais et ne modifie pas les données M1. `effective_date`
+n'est pas accepté.
 
 ## Chunking et identifiants
 
@@ -71,6 +73,13 @@ Le modèle réel n'est chargé que lors de l'instanciation explicite de
 Chaque point Qdrant conserve `doc_id` dans son payload. L'effacement appelle
 `delete_document(doc_id)`, qui envoie un `FilterSelector` sur ce champ sans
 recréer la collection. Un index payload keyword est créé pour `doc_id`.
+Des index keyword sont également créés pour les autres filtres, dont `date` et
+la juridiction optionnelle. `HNSWConfig` expose explicitement `m`,
+`ef_construct` et `full_scan_threshold`; un test de contrat vérifie leur
+transmission exacte au client Qdrant. Le moteur Qdrant `:memory:` ignore ces
+paramètres et ne peut donc pas prouver la construction effective de l'index :
+cette dernière validation exige un serveur Qdrant. Le filtre date est une
+égalité exacte sur la valeur M1 (`YYYY` ou `YYYY-MM-DD`), pas une plage.
 
 ## Retrieval et génération
 
@@ -78,13 +87,87 @@ Le pipeline est :
 
 ```text
 question → BM25 + dense → RRF → candidate_k
-         → cross-encoder optionnel → top_k → génération
+         → cross-encoder optionnel → top_k
+         → compression extractive → prompt → génération
 ```
 
 RRF fusionne les rangs et ne compare jamais directement les scores BM25 et
 cosinus. `candidate_k`, `top_k`, les deux poids, la constante RRF, le modèle et
 l'activation du reranker sont configurables. Le reranker est désactivé par
 défaut afin que le mode CPU/light reste utilisable.
+
+### Compression du contexte et grounding strict
+
+`ContextCompressionConfig` contrôle l'étape déterministe placée après le
+reranking et avant le prompt :
+
+```python
+from src.m2_rag import ContextCompressionConfig, RAGConfig
+
+config = RAGConfig(compression=ContextCompressionConfig(
+    enabled=True, max_tokens=2048, max_chunks=8,
+    redundancy_threshold=0.85,
+))
+```
+
+Les chunks sont parcourus dans leur ordre de classement. Les doublons dépassant
+le seuil de Jaccard lexical sont écartés, puis le texte source est conservé par
+phrases entières tant que possible et tronqué sur une frontière de token si le
+premier passage dépasse seul le budget. Aucun résumé, aucune paraphrase et
+aucun contenu juridique nouveau ne sont produits. Le comptage léger est un
+proxy déterministe par éléments non blancs, valable en français et en arabe ;
+le budget de production devra être calibré avec le tokenizer du LLM retenu.
+
+Les chunks conservés gardent `doc_id`, `chunk_id` et leurs métadonnées. Le
+prompt, le grounding, `retrieved_chunks` et les citations voient uniquement ces
+chunks : citer un passage supprimé entraîne un refus. `enabled=False` restitue
+intégralement la liste issue du retrieval.
+
+### Quantification, batching et streaming
+
+`TransformersGenerator` accepte `QuantizationConfig("none" | "int8" |
+"int4")`. `none` reste le défaut CPU/light. Les modes int8/int4 construisent le
+`BitsAndBytesConfig` standard de Transformers ; `bitsandbytes` est optionnel et
+une demande non supportée produit une erreur explicite. Le support réel dépend
+du modèle, des versions et du matériel. Aucun gain n'est revendiqué.
+`quantize_torch_cpu()` fournit en plus une quantification dynamique int8 CPU
+testée sur un réseau linéaire miniature ; l'int4 CPU y est explicitement refusé.
+
+```python
+from src.m2_rag import QuantizationConfig
+from src.m2_rag.generator import TransformersGenerator
+
+generator = TransformersGenerator(
+    "modele-local-approuve",
+    quantization=QuantizationConfig("int8"),
+)
+```
+
+`RAGService.query_batch(requests, batch_size=8)` conserve l'ordre et isole
+réponses, citations et refus. Si le générateur expose `generate_batch`, les
+requêtes générables utilisent le batch natif ; sinon `query()` est appelé
+séquentiellement. Le backend Transformers accepte déjà une liste de prompts.
+
+```python
+responses = service.query_batch(
+    ["Quelle règle de droit ?", "Que prévoit ce contrat ?"], batch_size=2,
+)
+```
+
+`RAGService.stream_query()` expose un itérateur Python, sans FastAPI/SSE. Les
+événements sont `start`, `text_delta`, `final`, `refusal`, `error` et `done`.
+`final` porte le `RAGResponse` validé et ses citations issues du contexte
+compressé. Le fake est streamable ; Transformers utilise
+`TextIteratorStreamer` si modèle et tokenizer sont disponibles, avec fallback
+pour un pipeline injecté. M5 reste responsable du transport réseau.
+
+```python
+for event in service.stream_query("Quelle obligation prévoit le contrat ?"):
+    if event.event == "text_delta":
+        print(event.text_delta, end="")
+    elif event.event in {"final", "refusal"}:
+        response = event.response
+```
 
 Le générateur doit retourner le texte et les `chunk_id` cités séparément. M2
 rejette une réponse sans citation ou citant un identifiant absent du contexte.
@@ -111,6 +194,10 @@ print(response.prompt_version, response.model_version, response.latencies)
 M5 injecte le générateur/LLM et n'a pas besoin de connaître les détails BM25 ou
 Qdrant. Aucune clé API n'est lue ou stockée par M2.
 
+Le contrat historique `query(RAGRequest | str) -> RAGResponse` est inchangé.
+`query_batch()` et `stream_query()` sont des extensions : les appelants M5
+existants n'ont pas à les adopter. M2 ne fournit ni endpoint, ni SSE, ni cache.
+
 ## Interface M3
 
 `tracking.experiment_parameters()` expose modèle/dimension d'embedding,
@@ -124,13 +211,27 @@ hook est un fonctionnement normal ; M2 n'importe jamais MLflow.
 Le dépôt ne contient aucune ground truth : **Recall@8 n'est donc pas mesuré et
 la cible ≥ 0,89 n'est pas déclarée atteinte**.
 
+Une comparaison purement technique pourrait mesurer dimension, temps
+d'encodage ou taille des vecteurs sur une machine donnée. Sans poids complets
+et sans jeu de pertinence annoté, elle ne permet ni de classer honnêtement les
+modèles multilingues pour le droit FR/AR, ni de sélectionner un vainqueur. Les
+doubles déterministes et le corpus synthétique restent donc des tests de
+contrat, jamais un benchmark comparatif de qualité.
+
 Les rapports de latence indiquent système/Python, backend, taille du corpus et
 nombre de runs. Une mesure sur le backend mémoire et les 60 documents
 synthétiques n'est pas une mesure Qdrant de production.
 
-`finetuning/` valide seulement le format d'un futur dataset QA sourcé et une
-configuration LoRA/QLoRA. Aucun dataset annoté réel n'existe : **aucun modèle
-n'a été entraîné**.
+`finetuning/` valide seulement le format d'un futur dataset QA sourcé, le split
+train/validation déterministe et une configuration LoRA/QLoRA. Aucun dataset
+annoté réel n'existe et aucun modèle de base n'a été officiellement choisi :
+**aucun modèle n'a été entraîné et cette sous-tâche reste bloquée**.
+
+```text
+BLOCKED EXTERNAL INPUT:
+- annotated legal QA training dataset unavailable
+- base LLM not selected
+```
 
 ## Limitation critique du corpus arabe
 
@@ -254,8 +355,8 @@ OFFICIEL**. Recall@8 ≥ 0,89 reste une cible non validée.
   jugements de pertinence doc/chunk et des experts juridiques ; M2 ne fabrique
   aucune ground truth.
 - **Fine-tuning LoRA/QLoRA** : nécessite un dataset QA sourcé et approuvé, des
-  ressources GPU et le tracking convenu avec M3/M4. **Not trained — annotated
-  dataset unavailable.**
+  ressources GPU et le tracking convenu avec M3/M4. **BLOCKED EXTERNAL INPUT:
+  annotated legal QA training dataset unavailable; base LLM not selected.**
 - **LLM juridique de production** : nécessite décision de modèle/provider,
   licence, ressources ou credentials gérés hors M2, et validation juridique et
   sécurité. L'interface injectable est terminée.

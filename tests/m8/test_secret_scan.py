@@ -160,3 +160,72 @@ def test_le_depot_ne_contient_aucun_secret():
     assert not findings, "secrets potentiels dans le dépôt :\n" + "\n".join(
         f"  {f}" for f in findings
     )
+
+
+# --------------------------------------------------------------------------
+# Cles qui doivent venir de l'environnement
+#
+# Classe distincte : ici le nom est le signal et la valeur ne l'est pas. Cas
+# reel, signale par @youssefelalem sur la PR #54 — la regle d'entropie
+# classait « cle-secrete-temporaire-a-changer-en-production » comme gabarit
+# de documentation, et elle avait raison sur sa propre question. Mais une cle
+# de signature previsible n'est pas un defaut moindre qu'une cle fuitee :
+# c'en est un autre, et il ne laisse aucune trace.
+# --------------------------------------------------------------------------
+
+
+def test_la_cle_de_signature_en_clair_est_signalee():
+    findings = scan_text(
+        'SECRET_KEY = "cle-secrete-temporaire-a-changer-en-production"', "s.py"  # m8:autorise valeur d'essai fabriquee, sujet meme du test
+    )
+    assert any(f.kind == "cle-a-charger-depuis-l-environnement" for f in findings)
+
+
+def test_le_gabarit_ne_protege_pas_une_cle_de_signature():
+    """Le filtre d'entropie ne s'applique pas a cette classe : pour une cle,
+    tout litteral est fautif, quelle que soit son entropie."""
+    assert scan_text('SIGNING_KEY = "REMPLACER"', "s.py")  # m8:autorise valeur d'essai fabriquee, sujet meme du test
+    assert scan_text('JWT_SECRET = "changeme"', "s.py")  # m8:autorise valeur d'essai fabriquee, sujet meme du test
+
+
+def test_la_lecture_de_l_environnement_ne_declenche_rien():
+    """Le correctif attendu ne doit pas etre signale, sans quoi la regle
+    punirait la bonne pratique."""
+    for ligne in (
+        'SECRET_KEY = os.environ["M5_JWT_SECRET"]',
+        'SECRET_KEY = os.getenv("M5_JWT_SECRET")',
+        'SECRET_KEY: str = Field(alias="M5_JWT_SECRET")',
+    ):
+        assert not scan_text(ligne, "s.py"), ligne
+
+
+def test_une_interpolation_n_est_pas_un_litteral():
+    """`${VAR}` est un renvoi vers l'environnement, donc exactement ce qui
+    est demande — meme entre guillemets, comme l'exige YAML."""
+    for ligne in (
+        'JWT_SECRET: "${M5_JWT_SECRET}"',
+        "JWT_SECRET: ${M5_JWT_SECRET}",
+        'signing_key = "{{ vault_jwt_secret }}"',
+    ):
+        assert not scan_text(ligne, "compose.yml"), ligne
+
+
+def test_un_fichier_d_exemple_montre_la_forme_sans_etre_fautif():
+    """Un `.env.example` a pour raison d'etre de montrer la configuration :
+    une valeur factice y est le contenu attendu."""
+    ligne = 'SECRET_KEY="valeur-a-remplacer"'  # m8:autorise valeur d'essai fabriquee, sujet meme du test
+    assert scan_text(ligne, "config.py")
+    assert not scan_text(ligne, ".env.example")
+
+
+def test_le_mot_de_passe_de_documentation_reste_silencieux():
+    """Non-regression : la regle d'entropie garde son terrain. Le README de
+    M7 documente une variable d'environnement, ce n'est pas une cle."""
+    assert not scan_text('GRAFANA_PASSWORD="un-mot-de-passe-choisi"', "README.md")
+
+
+def test_une_ligne_n_est_signalee_qu_une_fois():
+    """`SECRET_KEY` releve des deux classes ; le rapport ne doit pas la
+    compter deux fois."""
+    findings = scan_text('SECRET_KEY = "V4l3ur-H4ut3-3ntr0p13-1234"', "s.py")  # m8:autorise valeur d'essai fabriquee, sujet meme du test
+    assert len(findings) == 1

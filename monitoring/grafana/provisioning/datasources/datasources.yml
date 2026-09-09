@@ -21,3 +21,30 @@ datasources:
     access: proxy
     url: http://loki:3100
     editable: false
+    jsonData:
+      # Depuis une ligne du journal d'audit, ouvrir la trace correspondante.
+      # C'est l'usage du champ `trace_id` du contrat §2.2 : il relie un
+      # événement métier à sa trace technique sans que le journal ait à
+      # stocker quoi que ce soit du contenu de la requête.
+      derivedFields:
+        - name: TraceID
+          datasourceUid: cloudmind-tempo
+          matcherRegex: '"trace_id"\s*:\s*"([a-f0-9]{32})"'
+          url: '$${__value.raw}'
+
+  - name: Tempo
+    uid: cloudmind-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      # Le chemin inverse : depuis un segment de trace, retrouver les lignes
+      # de journal de la même requête.
+      tracesToLogsV2:
+        datasourceUid: cloudmind-loki
+        spanStartTimeShift: -2m
+        spanEndTimeShift: 2m
+        filterByTraceID: true
+      nodeGraph:
+        enabled: true
