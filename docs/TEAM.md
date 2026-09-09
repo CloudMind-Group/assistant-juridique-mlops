@@ -27,10 +27,44 @@ Pour les rôles et permissions sur le dépôt GitHub, voir [GITHUB.md](GITHUB.md
 | Nouhaila Fadli       | I | C | I | I | **A** | C | C | C | 5 |
 | Oumaima Jeraidi      | I | C | I | I | C | **A** | C | I | 4 |
 | Youssef El Alem      | C | I | C | C | C | I | **A** | I | 5 |
-| Taha Kachmar         | C | I | I | C | C | I | C | **A** | 5 |
+| Taha Kachmar         | C | C | I | C | C | I | C | **A** | 6 |
 
 Chaque module possède exactement un pilote ; aucun module n'est orphelin et chaque ingénieur
-intervient sur 4 à 5 modules, ce qui garantit la continuité en cas d'absence.
+intervient sur 4 à 6 modules, ce qui garantit la continuité en cas d'absence.
+
+### L'interface M8 ↔ M2
+
+Cette ligne a manqué à la matrice jusqu'au 07/09/2026, et son absence était
+l'écart **E-08** du registre RGPD. Elle mérite d'être explicite, car elle porte
+la seule dépendance du dispositif de conformité sur un module tiers.
+
+**M2 réalise l'opération après laquelle l'effacement cesse d'être une
+modification de texte.** Tant qu'un document est un fichier de
+`data/processed/`, retirer une personne est une édition. Une fois le texte
+découpé et vectorisé, ce n'est plus une édition mais une reconstruction. Le
+registre promet pourtant un droit à l'effacement : **sa faisabilité dépend donc
+de M2, pas de M8.**
+
+La dépendance tient à deux propriétés, vérifiées dans le code le 06/09/2026 et
+non déduites de l'architecture :
+
+| Propriété | Où elle est tenue |
+|---|---|
+| Un `doc_id` peut être effacé de l'index **sans reconstruire la collection** | `delete_document()` sur les deux implémentations de `VectorStore` ; la version Qdrant passe par un `FilterSelector` sur le payload `doc_id`. Verrouillé par `test_qdrant_delete_uses_doc_id_payload_filter_without_rebuild` |
+| M2 ne lit **jamais** `data/raw/` | `src/m2_rag/README.md` l'énonce, et `data/raw` n'apparaît nulle part ailleurs dans `src/m2_rag/` |
+
+Taha passe donc de **I** à **C** sur M2 : il n'y est pas seulement informé, il y
+détient une interface technique dont dépend un engagement du registre.
+
+**Imane reste I sur M8**, et c'est volontaire. L'interface n'est pas symétrique :
+M8 dépend d'une propriété que M2 doit préserver, mais M2 ne contribue pas au
+dispositif de conformité. Inscrire une charge de travail qui n'existe pas
+rendrait la matrice moins vraie, pas plus complète.
+
+**Ce qui est demandé à M2 tient en une phrase :** que l'effacement par `doc_id`
+reste possible sans reconstruction, et que le test qui le verrouille ne soit pas
+retiré. Tout changement de base vectorielle doit être vérifié contre ces deux
+points.
 
 ## 3. Fiches de rôle
 
