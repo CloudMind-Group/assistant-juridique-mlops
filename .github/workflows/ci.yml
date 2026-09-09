@@ -35,9 +35,50 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pydantic pytest
+          # Instrumentation M7 : le module importé par M5 est testé ici, pas
+          # seulement écrit. Une régression sur la règle de cardinalité est
+          # silencieuse en production — elle ne casse rien, elle sature.
+          pip install fastapi httpx prometheus-client
+          pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http \
+                      opentelemetry-instrumentation-fastapi
+          # PyYAML : sans elle, les tests du collecteur de traces se sautent au
+          # lieu d'echouer, et la regle d'expurgation ne serait plus gardee que
+          # par la relecture. Un test qui se saute en silence est pire qu'un
+          # test absent : il donne le vert.
+          pip install pyyaml
+          # Contrôle qualité déclaratif M1 (CdC carte 02). Installé ici et pas
+          # seulement pour l'étape qui l'exécute : tests/m1/test_expectations.py
+          # importe great_expectations, la collecte de pytest échouerait sans lui.
+          pip install great-expectations pandas
 
       - name: Tests d'anonymisation
         run: python -m pytest tests/ -v
+
+      - name: Génération du corpus synthétique M1
+        run: python -m src.m1_ingestion.dataset_generator --count 60
+
+      - name: Pipeline d'ingestion M1
+        run: python -m src.m1_ingestion.ingest --raw-dir data/raw --out-dir data/processed
+
+      - name: Contrôle qualité M1 par document (bloquant)
+        run: python -m src.m1_ingestion.quality --processed-dir data/processed --fail-on-error
+
+      # Les deux contrôles ne se recouvrent pas. Le précédent valide chaque
+      # document isolément ; celui-ci valide le jeu comme un tout — doc_id en
+      # doublon, colonne hors contrat, corpus vide. Deux documents partageant
+      # un identifiant sont chacun valides : seul le second contrôle le voit.
+      - name: Contrôle qualité M1 du jeu de données — Great Expectations (bloquant)
+        run: python -m src.m1_ingestion.expectations --processed-dir data/processed --fail-on-error
+
+      # La Data Card est generee a partir des sorties du pipeline. Si la CI
+      # ne l'execute pas, seuls ses tests unitaires la couvrent : une carte
+      # qui echoue sur le corpus reel ne se verrait qu'au prochain dvc repro,
+      # c'est-a-dire chez la personne suivante.
+      - name: Data Card du corpus M1
+        run: python -m src.m1_ingestion.data_card --processed-dir data/processed --corpus-status synthetique
+
+      - name: Tests d'instrumentation et de traçage (M7)
+        run: python -m pytest monitoring/tests/ -v
 
   # Garde-fou M8 : le code Python et les dépendances n'étaient soumis à aucun
   # contrôle de sécurité — l'étape « aucun secret » du job `validate` est une
@@ -66,10 +107,56 @@ jobs:
           pip install bandit pip-audit
 
       - name: Analyse statique du code (Bandit)
-        run: bandit -r src dags --severity-level medium --confidence-level medium
+        # `monitoring` ajouté avec la pile d'observabilité de M7 : le code
+        # Python qui y vit doit être soumis au même contrôle que le reste,
+        # sans quoi il constituerait un angle mort de l'écart E-R6.
+        run: bandit -r src dags monitoring --severity-level medium --confidence-level medium
 
       - name: Vulnérabilités connues des dépendances (pip-audit)
-        run: pip-audit -r requirements.txt --progress-spinner off
+        # Tout fichier `requirements*.txt` est analysé, pas seulement celui de
+        # la racine : la PR #28 en a introduit deux pour M2 qui échappaient au
+        # contrôle, et le prochain module en ajoutera d'autres. Découvrir les
+        # fichiers plutôt que les énumérer évite que la porte se vide d'elle-même
+        # à mesure que le projet grandit.
+        run: |
+          set -e
+          shopt -s nullglob
+          fichiers=(requirements*.txt)
+          if [ ${#fichiers[@]} -eq 0 ]; then
+            echo "::error::aucun fichier requirements*.txt trouvé"
+            exit 1
+          fi
+          for f in "${fichiers[@]}"; do
+            echo "→ $f"
+            pip-audit -r "$f" --progress-spinner off
+          done
+
+  documentation:
+    name: Construction de la documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installation de MkDocs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+
+      - name: Construction stricte du site
+        # `--strict` transforme les alertes en erreurs. Le mode a d'emblee
+        # revele huit ancres cassees dans les sommaires du registre RGPD et de
+        # la matrice des habilitations : ecrites pour GitHub, elles ne
+        # correspondaient pas aux ancres calculees ici. Un sommaire qui ne mene
+        # nulle part, dans un document de conformite, est une section que le
+        # lecteur ne trouvera pas — et l'echec est silencieux sans ce controle.
+        run: mkdocs build --strict
 
   validate:
     name: Validation du site statique
@@ -114,12 +201,21 @@ jobs:
               echo "ok → $ref"
             done
 
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Aucun secret ni donnée sensible
-        run: |
-          if grep -rInE '(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*["'\''][^"'\'']{8,}' \
-               --include='*.js' --include='*.html' --include='*.css' \
-               --include='*.py' --include='*.yaml' --include='*.yml' . ; then
-            echo "::error::valeur sensible potentielle détectée"
-            exit 1
-          fi
-          echo "aucune valeur sensible détectée"
+        # Remplace la recherche par mots-clés qui occupait cette place. Mesurée
+        # sur sept identifiants réels — clé AWS, jeton GitHub, clé OpenAI, jeton
+        # Slack, jeton DagsHub, secret AWS, en-tête de clé privée — elle n'en
+        # détectait aucun : sensible à la casse alors que les constantes
+        # s'écrivent `AWS_SECRET`, et dépendante d'un mot-clé dans le *nom* de
+        # la variable alors qu'un jeton se reconnaît à sa *forme*.
+        #
+        # Le scanner reconnaît les formes connues et n'utilise le nom qu'en
+        # signal secondaire. Une occurrence légitime se neutralise ligne à ligne
+        # par `# m8:autorise <motif>` — la justification est exigée, une
+        # exception muette n'étant jamais réexaminée.
+        run: python -m src.m8_compliance.secret_scan

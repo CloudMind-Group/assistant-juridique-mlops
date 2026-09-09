@@ -117,6 +117,92 @@ for r in records:
     # -> chunk / embed / index `text` using `r` as metadata
 ```
 
+## Collecte (connecteurs)
+
+`collect.py` alimente `data/raw/<source_slug>/` au format attendu par
+`ingest.py` (texte + sidecar `.meta.json`) :
+
+```bash
+python -m src.m1_ingestion.collect --source local --limit 50   # dépôts internes
+python -m src.m1_ingestion.collect --source legifrance          # squelette, non implémenté
+```
+
+`BaseConnector` définit le contrat ; `LocalDropConnector` (dépôts internes,
+lit `data/dropzone/`) est fonctionnel, `LegifranceConnector` est un
+squelette qui lève `NotImplementedError` — le scraping réel demande d'abord
+une revue CGU/robots.txt/quotas. Tout nouveau connecteur doit déclarer un
+`source_slug` présent dans `FOLDER_TO_SOURCE` (`ingest.py`), sinon
+`ingest.py` ignore silencieusement ce qu'il collecte —
+`tests/m1/test_collect.py` verrouille cette correspondance.
+
+## Dé-duplication
+
+`ingest.py` calcule un SHA-256 du texte **nettoyé** et saute tout document
+dont le contenu a déjà été ingéré dans le même run. Les doublons sont
+comptés dans `IngestResult.duplicates` et listés (fichier + `duplicate_of`)
+dans `ingestion_report.json`.
+
+Le hash porte sur le texte nettoyé **avant anonymisation**, délibérément :
+le masquage remplace les noms par `[NOM]`, donc deux jugements distincts
+qui ne diffèrent que par les parties deviennent identiques une fois
+anonymisés — dédupliquer après supprimerait un document réel en silence.
+
+## Segmentation par articles/alinéas
+
+`segmentation.py` détecte les frontières d'articles et d'alinéas (fr/ar) et
+`ingest.py` écrit `data/processed/segments.jsonl` — un objet JSON par
+segment (`doc_id`, `segment_index`, `kind`, `label`, `number`, `start`,
+`end`, `text`). `metadata.jsonl` gagne aussi un champ additif
+`segment_count`.
+
+**Pour M2 :** cette sortie est *additionnelle*, `documents/` et
+`metadata.jsonl` ne changent pas — le code de lecture actuel reste valide.
+Elle permet de découper en respectant la structure légale plutôt qu'à
+longueur fixe (un article coupé en son milieu perd son sens juridique).
+
+La détection exige que le marqueur soit en position de titre (début de
+ligne ou après une ponctuation de fin de phrase) : un renvoi comme
+« conformément à l'article 41 » ou « المنصوص عليها في المادة 5 » ne crée
+pas de frontière. `tests/m1/test_segmentation.py` verrouille les deux sens.
+
+## Correction orthographique (texte océrisé uniquement)
+
+`spelling.py` corrige le bruit d'OCR **sur les seuls documents océrisés**
+(`extraction_method` valant `ocr_pdf` ou `ocr_image`). Un `.txt` ou un PDF à
+texte natif n'y est jamais soumis : le corriger reviendrait à modifier un
+texte qui n'avait rien de cassé.
+
+Le correcteur ne connaît pas le français — il ne connaît qu'un **lexique
+juridique fermé** (~310 termes, curé à la main). Un mot n'est corrigé que si
+la correction produit un terme de ce lexique et qu'elle est **la seule** à le
+faire. Deux règles :
+
+| Règle | Exemple | S'applique à |
+| --- | --- | --- |
+| Restitution d'accents | `salarie` → `salarié` | mots entièrement alphabétiques |
+| Confusions de caractères | `artic1e` → `article` | mots mêlant lettres et chiffres, ou portant `\|`, `!`, `$`, `@` |
+
+C'est ce cloisonnement qui rend le correcteur inoffensif : un mot tout en
+lettres ne peut être touché que par la règle des accents, donc un nom de
+partie (`Benali`) ou un mot français ordinaire (`maison`) n'a aucun candidat
+dans le lexique et reste intact. Un numéro de loi (`65-99`) non plus.
+
+**Hors périmètre, assumé :** l'arabe n'est pas corrigé du tout. Les
+confusions de l'OCR arabe sont d'une autre nature (formes contextuelles,
+diacritiques) et aucun lexique juridique arabe n'est embarqué. Les mots
+arabes sont détectés et laissés strictement intacts — mieux vaut ne rien
+faire que faire semblant.
+
+Chaque correction est tracée (`avant`, `apres`, `position`, `regle`), comme
+pour l'anonymisation : une transformation du corpus qui ne laisse pas de
+trace n'est pas contestable. Le décompte par règle figure dans
+`ingestion_report.json` sous `ocr_corrections`.
+
+**Étendre le lexique :** ajouter le terme dans sa forme correcte (accents
+compris) à `LEXIQUE_JURIDIQUE`. Un terme dont la forme sans accent est
+ambiguë avec un autre terme du lexique est automatiquement ignoré par la
+règle des accents — aucune ambiguïté n'est arbitrée en silence.
+
 ## Ingestion report (pipeline-run stats)
 
 `ingest.py` writes `data/processed/ingestion_report.json` on every run:
@@ -166,18 +252,33 @@ Two design points worth knowing before you build on this:
 `--no-anonymize` exists for local debugging only; it logs a warning and must
 never be used on a real corpus.
 
-This remains a regex-based implementation. Recall on names written without a
-civility or a role marker is limited; replacing `DEFAULT_RULES` with an
-NER-backed detector is planned and requires no change to `ingest.py`.
+**Name propagation.** Anchored rules need a civility or a procedural role to
+fire, but a party is introduced once — "Monsieur Ahmed Benali" — then referred
+to bare for pages. A second pass therefore masks every other occurrence, in the
+same document, of a name an anchored rule already found. On a representative
+judgment this takes name recall from 50 % to 100 %; the mechanism is seeded
+only by anchored detections, so a false positive stays local instead of being
+amplified across the text. Institution and procedural vocabulary is excluded
+from propagation (`NON_PROPAGABLE_TOKENS`) so that `Cour`, `Tribunal` or
+`salarié` are never masked document-wide.
+
+Pass `propagate_names=False` to `anonymize_document()` to disable it — used in
+the tests to demonstrate the difference, not intended for production.
+
+**Known limit.** This remains a regex-based implementation, and propagation
+seeds on anchored detections: a name that appears *only* bare, without a
+civility or a role marker anywhere in the document, is still missed. Replacing
+`DEFAULT_RULES` with an NER-backed detector remains the full fix and requires
+no change to `ingest.py`.
 
 > **For M2:** if a document must later be removed for a person exercising
 > their right to erasure, the index has to support deleting a single
 > `doc_id`. Please design for that from the start — retrofitting it means
 > rebuilding the index.
 
-**`ingest.py` now applies `anonymize_text()` to every document** before it
+**`ingest.py` now applies `anonymize_document()` to every document** before it
 is written to `data/processed/documents/` — the pipeline flow is `raw file
--> extract -> clean_text -> anonymize_text -> save`. The `anonymized` field
+-> extract -> clean_text -> anonymize_document -> save`. The `anonymized` field
 in `metadata.jsonl` records whether a given document actually had a match
 masked (`false` on the current synthetic corpus, which contains no real
 PII by construction).
@@ -193,6 +294,7 @@ PII by construction).
 - `ingest.py` — multi-format extraction (with OCR fallback), cleaning, anonymization, validation, and `data/processed/` export. CLI entrypoint: `python -m src.m1_ingestion.ingest`.
 - `quality.py` — data quality checks + `quality_report.json`. CLI entrypoint: `python -m src.m1_ingestion.quality`.
 - `anonymization_schema.py` — PII detection/masking rule schema (RGPD, with Taha), applied by `ingest.py`.
+- `spelling.py` — correction orthographique adossée à un lexique juridique, appliquée par `ingest.py` au seul texte océrisé.
 - `dataset_generator.py` — generates the synthetic 50–100 doc sample corpus into `data/raw/` for offline testing. Output is gitignored (`data/raw/*`), never commit generated files.
 
 ## Notes

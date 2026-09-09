@@ -27,6 +27,20 @@ Délai de première réponse visé : **48 heures**.
 
 ## Données du projet applicatif
 
-Le traitement des corpus juridiques (anonymisation avant indexation, contrôle d'accès,
-journal d'audit, registre RGPD) est décrit dans
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) et [`docs/TEAM.md`](docs/TEAM.md).
+Le traitement des corpus juridiques fait l'objet d'un dossier de conformité
+dédié, tenu à jour en même temps que le code :
+
+| Document | Répond à la question |
+|---|---|
+| [`docs/RGPD.md`](docs/RGPD.md) | Quelles données sont traitées, d'où, pourquoi, où elles sont stockées, combien de temps |
+| [`docs/AIPD.md`](docs/AIPD.md) | Quels risques pour les personnes, quelles mesures, quel risque résiduel |
+| [`docs/HABILITATIONS.md`](docs/HABILITATIONS.md) | Qui accède à quoi, et sous quelle trace |
+| [`docs/OBSERVABILITE.md`](docs/OBSERVABILITE.md) §2 | Ce que le journal d'audit contient, et ce qu'il ne doit jamais contenir |
+
+L'architecture générale figure dans [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+et la répartition des responsabilités dans [`docs/TEAM.md`](docs/TEAM.md).
+
+> **Une réserve bloquante est en vigueur.** L'ingestion d'un corpus judiciaire
+> réel ne doit pas commencer avant la réalisation de l'action A-1 de l'AIPD —
+> le remplacement de la détection par expressions régulières par un détecteur
+> NER. Le corpus en circulation est aujourd'hui entièrement synthétique.

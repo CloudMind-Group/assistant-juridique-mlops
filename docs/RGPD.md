@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.1 — 29 août 2026
+**Version :** 1.5 — 7 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -28,18 +28,42 @@
 Le système ingère des textes juridiques marocains et les restitue via un
 assistant conversationnel qui cite ses sources.
 
-Trois sources sont admises, définies par
-[`metadata_schema.SourceType`](../src/m1_ingestion/metadata_schema.py) :
+[`metadata_schema.SourceType`](../src/m1_ingestion/metadata_schema.py) compte
+cinq valeurs, et elles ne relèvent pas du même axe. **Trois nomment une
+catégorie de document, deux nomment un canal de collecte.** La distinction
+n'est pas cosmétique : c'est la catégorie qui détermine le contenu attendu en
+données personnelles, jamais le canal.
 
-| Source | Données personnelles attendues |
+**Catégories de document**
+
+| Catégorie | Données personnelles attendues |
 |---|---|
 | Bulletin Officiel | Aucune — un texte de loi ne nomme pas de particulier |
 | Contrat Type | Aucune — modèle vierge, parties désignées par un rôle |
 | **Jurisprudence** | **Oui — identités des parties, témoins et conseils** |
 
-**Une seule source sur trois porte des données personnelles.** C'est elle qui
+**Canaux de collecte**
+
+| Canal | Données personnelles attendues |
+|---|---|
+| Portail Officiel | **Indéterminé** — dépend du document acheminé |
+| Dépôt Interne | **Indéterminé** — dépend du document acheminé |
+
+Une seule catégorie sur trois porte des données personnelles. C'est elle qui
 fait entrer le projet dans le champ de la loi 09-08, et c'est sur elle que
 portent les mesures décrites ici.
+
+**Ces deux canaux ne rouvrent pas la décision A-8.** Le point a été soulevé
+(issue #39) puis tranché par @DOUAEM449 : le `LocalDropConnector` lit un
+répertoire local où les fichiers sont déposés à la main. C'est un moyen
+d'acheminement, et il ne prétend rien sur le caractère publié ou non du
+document. **A-8 tient donc sans réserve** — l'origine des décisions de justice
+reste les recueils publiés déjà pseudonymisés.
+
+Reste que le canal, à lui seul, ne dit pas ce que le document contient. Un
+fichier arrivé par `Dépôt Interne` peut être un texte de loi comme un jugement
+nominatif, et le registre ne peut pas déclarer d'attente à son sujet. C'est
+l'objet de l'écart **E-11**.
 
 Le fait qu'une décision de justice soit publiée ne dispense pas du présent
 registre : la republication sous forme de moteur de réponse constitue un
@@ -93,8 +117,26 @@ l'incident, non après.
 nettoyage et l'écriture** :
 
 ```
-extraction → nettoyage → anonymisation → écriture dans data/processed/
+extraction → nettoyage → anonymisation → segmentation → écriture dans data/processed/
 ```
+
+**Trois artefacts sortent de ce traitement**, et non deux comme les versions
+précédentes de ce registre le laissaient croire :
+
+| Artefact | Contenu | Porte des données personnelles ? |
+|---|---|---|
+| `documents/` | Le texte anonymisé | Non — après masquage |
+| `metadata.jsonl` | La fiche de chaque document | Non — voir E-R3 |
+| **`segments.jsonl`** | Le texte découpé par articles et alinéas, avec ses positions | Non — **la segmentation s'exécute après le masquage** (PR #38) |
+
+Le troisième est arrivé avec la PR #38 et est déclaré ici pour une raison
+précise : **un artefact non déclaré est un artefact que personne ne pense à
+purger** le jour d'une demande d'effacement. Il est aussi le plus exposé des
+trois, puisqu'il est découpé, donc directement indexable.
+
+L'ordre a été vérifié ligne à ligne avant fusion : `anonymize_document()`
+réassigne le texte avant que `segment_document()` le reçoive. Les segments
+portent donc le texte masqué, jamais l'original.
 
 Ce placement est la mesure de fond du dispositif. Il est le dernier point où
 retirer une personne reste une édition de texte : après le découpage et la
@@ -102,13 +144,13 @@ vectorisation par M2, la même opération devient une reconstruction d'index.
 Aucune donnée personnelle n'atteint `data/processed/`, donc aucune n'atteint
 l'indexation.
 
-**Règles appliquées** — dix règles, définies dans
+**Règles appliquées** — onze règles, définies dans
 [`anonymization_schema.py`](../src/m1_ingestion/anonymization_schema.py) :
 
 | Catégorie | Règles | Traitement |
 |---|---|---|
 | CIN | annoncée par sa mention · isolée | remplacée par `[CIN]` |
-| Nom | civilité (fr) · qualité procédurale (fr) · `ENTRE` · لقب (ar) · صفة في الدعوى (ar) | remplacé par `[NOM]` |
+| Nom | civilité (fr) · qualité procédurale (fr) · `ENTRE` · لقب (ar) · صفة + نقطتان (ar) · صفة + لقب (ar) | remplacé par `[NOM]` |
 | Téléphone | fixe et mobile, `+212` ou `0` | masquage partiel, `06******78` |
 | E-mail | — | remplacé par `[EMAIL]` |
 | Adresse | voie, quartier, lotissement, résidence | remplacée par `[ADRESSE]` |
@@ -141,8 +183,31 @@ les citations affichées à l'utilisateur, en survivant à tout masquage du text
 par document et au total (`IngestResult.pii_masked`). Un jugement traité avec
 zéro masquage est un signal à examiner.
 
-**Limite connue.** Le dispositif repose sur des expressions régulières. Un nom
-écrit sans civilité ni qualité procédurale n'est pas détecté. Voir écart E-01.
+**Propagation des noms.** Les règles ancrées exigent une civilité ou une qualité
+procédurale, alors qu'une partie est introduite une fois puis désignée nue
+pendant des pages. Une seconde passe masque donc, dans le même document, toute
+autre occurrence d'un nom déjà identifié par une règle ancrée. Sur un jugement
+représentatif, le rappel sur les noms passe de 50 % à 100 % (§6). Seules les
+détections ancrées amorcent le mécanisme : un faux positif reste local au lieu
+d'être amplifié. Le vocabulaire d'institution et de procédure en est exclu, de
+sorte que « Cour », « Tribunal » ou « salarié » ne soient jamais masqués à
+l'échelle du document.
+
+**Ancrage en arabe — précision avant rappel.** Une qualité procédurale seule
+n'ancre plus un nom en arabe : « المشغل ملزم بأداء التعويضات » a exactement la
+même forme que « الشاهد رشيد العمراني أدلى ». Le français distingue les deux par
+la majuscule du nom propre ; l'arabe n'a pas cet équivalent. Mesuré sur douze
+formulations, toute variante positionnelle attrapait les trois noms d'essai
+**et** détruisait les six phrases juridiques d'essai, sans milieu (issue #31,
+signalée par M1). Les ancres retenues sont donc celles qui portent un signal
+réel : un titre, une qualité suivie de deux-points, une qualité suivie d'un
+titre. Le rappel perdu est rattrapé par la propagation dès que la personne est
+introduite une fois avec un titre dans le document.
+
+**Limite connue.** Le dispositif repose sur des expressions régulières, et la
+propagation s'amorce sur les détections ancrées : un nom qui n'apparaît
+**jamais** accompagné d'une civilité ou d'une qualité procédurale échappe
+encore à la détection. Voir écart E-01.
 
 ### T-02 — Stockage et versionnement du corpus
 
@@ -173,22 +238,54 @@ et l'administration du dépôt revient à l'organisation.
 
 **Reste à faire :** le contrôle d'accès par rôle et la journalisation ne sont
 pas configurés pour autant — la migration les rend possibles, elle ne les
-réalise pas. Voir écart E-04. Le chiffrement au repos demeure non documenté
+réalise pas. Le contrat de journal d'audit est en revanche arrêté — format,
+champs, immuabilité, conservation alignée sur la décision A-4, et interdictions
+renvoyant nommément aux risques R-01 et R-04 de l'analyse d'impact : voir
+[`OBSERVABILITE.md`](OBSERVABILITE.md) §2, livré par M7. Ce qui manque désormais
+est la **source** : aucun événement n'est produit tant que l'API de M5 n'existe
+pas. La nature de l'écart E-04 a donc changé, pas sa gravité — un écart « rien
+n'est conçu » et un écart « tout est conçu, personne n'émet » n'appellent ni le
+même travail ni les mêmes personnes. Le chiffrement au repos demeure non documenté
 (E-06).
 
-### T-03 — Indexation et restitution *(à venir — M2, M5, M6)*
+### T-03 — Indexation vectorielle
 
-Non mis en œuvre : M2 n'a pas démarré. Cette fiche sera renseignée dès que le
-schéma d'indexation sera arrêté.
+| | |
+|---|---|
+| **Finalité** | Rendre le corpus interrogeable par le sens, et restituer les extraits cités |
+| **Support** | Index vectoriel — `src/m2_rag/vector_store.py` (PR #28) |
+| **Contenu stocké** | Vecteurs **et** texte des passages, avec `doc_id`, `chunk_id`, titre, source, date, catégorie |
+| **Provenance** | `data/processed/` uniquement, c'est-à-dire du texte déjà anonymisé par T-01 |
+| **Responsable opérationnel** | Imane Ibnchakroune (M2) |
+| **Durée de conservation** | Alignée sur T-01 — trois ans, l'index étant dérivé du corpus |
+| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **non implémenté** |
 
-**Exigence à intégrer dès la conception, et non après :** l'index vectoriel doit
-permettre la suppression ciblée d'un `doc_id`. Sans cela, le droit à l'effacement
-devient non pas coûteux mais **techniquement inapplicable** — un texte vectorisé
-n'est plus consultable ni modifiable comme du texte, et la seule voie de
-suppression serait la reconstruction complète de l'index.
+**L'index est une seconde copie du corpus.** Les passages y sont stockés en
+clair à côté de leurs vecteurs, ce qui est nécessaire pour afficher les extraits
+cités. Il entre donc dans le champ du présent registre au même titre que
+`data/processed/`, et non comme un simple artefact technique.
 
-Exigence transmise à M2 et consignée dans le
-[README du paquet d'ingestion](../src/m1_ingestion/README.md).
+**Effacement — l'exigence a été respectée.** `vector_store.delete_document(doc_id)`
+existe sur l'interface et dans les deux implémentations, avec un filtre sur le
+champ `doc_id`, et il est couvert par des tests. Vérifié le 02/09/2026.
+
+C'est le point qui devait être obtenu **avant** que M2 ne construise : un index
+conçu sans cette capacité ne se corrige pas, il se reconstruit. Le stockage du
+texte en clair y contribue d'ailleurs — un passage rangé à côté d'un `doc_id` se
+supprime par filtre, là où un vecteur seul ne s'annule pas. Le risque R-02 de
+l'analyse d'impact passe de ce fait à une vraisemblance négligeable.
+
+**Point de vigilance — journalisation des requêtes.** Le service expose un hook
+`log_query(request, response)` qui reçoit la question et la réponse complètes.
+L'implémentation actuelle n'empile qu'en mémoire et **rien n'est persisté**
+(vérifié le 02/09/2026), mais la signature invite à une implémentation qui
+écrirait ces textes. Ce serait contraire à l'interdiction posée au contrat de
+journal d'audit ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2.3) et créerait un
+traitement de données personnelles là où il n'y en a pas. Signalé à M2 ; à
+reprendre si le hook est implémenté.
+
+**Reste hors périmètre à ce jour :** la restitution elle-même. M5 et M6
+n'existent pas, donc aucun utilisateur final n'accède au corpus.
 
 ## 4. Droits des personnes
 
@@ -208,11 +305,10 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
-| E-01 | Rappel limité sur les noms sans civilité ni qualité procédurale ; détection par regex, pas par NER | Élevée | M8 | S4 |
-| E-04 | Aucun journal d'audit des accès au corpus | Moyenne | M8 + M7 | S4 |
-| E-06 | Chiffrement au repos du corpus non documenté | Faible | M8 + M1 | S4 |
-| E-08 | M8 et M2 n'ont pas d'interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement devient impraticable | Faible | M8 | S4 |
-| E-09 | `Dockerfile` et `docker-compose.yml` ne relèvent d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, ports et secrets d'exécution échappent à la revue de conformité | Moyenne | M8 + M4 | S4 |
+| E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
+| E-04 | Journal d'audit : **contrat défini** ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2), **écriture non implémentée**. Ce n'est plus la conception qui manque mais la source d'événements | Moyenne | M8 + M5 | avant ouverture du service |
+| E-06 | Chiffrement au repos du corpus non documenté — l'hébergeur ne publie pas ses garanties et l'organisation ne peut pas les vérifier ; à traiter par le chiffrement côté client si le corpus réel l'exige | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
+| E-11 | `SourceType` mêle deux axes : trois catégories de document et deux canaux de collecte. Le canal ne détermine pas le contenu, donc pour un document arrivé par `Portail Officiel` ou `Dépôt Interne` le registre **ne peut déclarer aucune attente** en données personnelles — alors que c'est cette attente qui règle le niveau de vérification. Le masquage s'applique quoi qu'il arrive, l'écart porte sur la déclaration, pas sur la protection. Piste retenue avec @DOUAEM449 : renommer `Dépôt Interne` en un terme sans ambiguïté et porter la catégorie du document dans un champ distinct du canal | Faible | M8 + M1 | avant collecte réelle |
 
 ### Écarts résolus
 
@@ -227,6 +323,10 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R7 | Durée de conservation non définie | Trois ans à compter de l'ingestion — décision d'équipe du 29/08/2026, motivée en [AIPD.md](AIPD.md) §6 |
 | E-R8 | Origine des décisions de justice non arrêtée | Recueils publiés déjà pseudonymisés — décision d'équipe du 29/08/2026, §1 ci-dessus |
 | E-R9 | Corpus hébergé sur un compte personnel hors organisation | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15). Le contrôle d'accès et la journalisation restent à configurer — voir E-04 |
+| E-R10 | Le contrôle « aucun secret » de la CI ne détectait aucun identifiant réel : sensible à la casse, et dépendant d'un mot-clé dans le *nom* de la variable | Remplacé par `src/m8_compliance/secret_scan.py`, qui reconnaît les *formes* d'identifiants. Mesuré : 0/7 avant, 7/7 après, zéro faux positif sur le dépôt |
+| E-R11 | M8 et M2 n'avaient aucune interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement cesse d'être une modification de texte | **L'interface existait dans le code, seule la matrice ne la déclarait pas.** Vérifié ligne à ligne le 06/09/2026 : `delete_document(doc_id)` sur les deux implémentations de `VectorStore` ([`vector_store.py:88`](../src/m2_rag/vector_store.py) en mémoire, [`:184`](../src/m2_rag/vector_store.py) pour Qdrant via un `FilterSelector` sur le payload `doc_id`, **sans recréation de la collection**), verrouillé par [`test_vector_store.py:42`](../tests/m2/test_vector_store.py). Et `data/raw` n'apparaît nulle part dans `src/m2_rag/` hors d'une ligne de documentation. L'effacement par `doc_id` est donc **techniquement praticable**, et l'engagement du registre tient. Références signalées par @youssefelalem (PR #28), vérifiées avant fermeture |
+| E-R12 | `Dockerfile` et `docker-compose.yml` ne relevaient d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, montages et secrets d'exécution échappaient à la revue de conformité | PR #45 — les deux fichiers relèvent de `platform` **et** `security` ; la revue est doublée, pas déplacée. La revue de conteneur qui n'avait jamais eu lieu est faite : trois constats, dont le montage `./data` en lecture-écriture sur le corpus brut, laissés à l'arbitrage de M4 |
+| E-R13 | Les rapports poussés sur le remote partagé enregistraient le **chemin brut** du fichier source — or un nom de fichier porte régulièrement le nom d'une partie, raisonnement déjà appliqué au `doc_id` et au `title` (E-R3) mais pas aux rapports | PR #44 pour `ingestion_report.json`, **puis PR #62 pour `expectations_report.json`**. **Correction du 07/09/2026 :** la fiche annonçait initialement que la substitution « à la sérialisation » couvrait tout champ ajouté ensuite. C'était vrai *dans ce rapport*, et je l'ai laissé lire comme une garantie générale. La PR #52 a ouvert la même fuite dans un second rapport six jours plus tard, et @DOUAEM449 l'a trouvée et refermée en relisant la PR #58. **Le correctif portait sur un fichier, pas sur un principe** — et la règle vaut pour toute sortie publiée, pas pour celles qui existaient quand elle a été écrite |
 
 ## 6. Preuves
 
@@ -266,10 +366,92 @@ Aucun élément du nom de fichier n'a été propagé.
 La juridiction, le numéro de dossier, l'article, le dahir et le montant sont
 intacts. La qualité de salarié survit à la suppression du nom.
 
+**Propagation des noms** — mesure du 29/08/2026 sur un jugement représentatif
+comportant seize occurrences de noms, chacune introduite une fois puis répétée
+nue :
+
+| | occurrences restantes | rappel |
+|---|---|---|
+| Règles ancrées seules | 8 sur 16 | 50 % |
+| Avec propagation | **0 sur 16** | **100 %** |
+
+Références préservées dans les deux cas : juridiction, numéro de dossier,
+montant, article, et la dénomination sociale de la partie défenderesse — une
+personne morale n'étant pas une donnée à caractère personnel.
+
+Ce chiffre vaut pour ce document. Il ne se généralise pas : il dépend de ce que
+chaque nom soit ancré au moins une fois quelque part dans le texte.
+
+**Banc de cas limites** — 30 formulations construites le 30/08/2026 et passées
+sur le moteur tel qu'il tourne, réparties en cinq familles : noms latins, noms
+arabes, graphies de la CIN, noms ressemblant à du vocabulaire juridique, et
+autres catégories de données.
+
+| Famille | avant | après |
+|---|---|---|
+| Noms latins | 7 / 9 | 8 / 9 |
+| **Noms arabes** | **2 / 5** | **4 / 5** |
+| Graphies de la CIN | 4 / 8 | 6 / 8 |
+| Noms pièges (institution, ville) | 3 / 3 | 3 / 3 |
+| Téléphone · e-mail · adresse | 5 / 5 | 5 / 5 |
+| **Total** | **21 / 30** | **26 / 30** |
+
+Quatre écarts subsistent, tous documentés : un nom jamais accompagné d'une
+civilité ni d'une qualité, en français comme en arabe (E-01, corrigeable par
+NER seulement) ; une CIN en minuscules, écartée volontairement pour que
+« de 150000 » ne soit pas pris pour un identifiant ; et un cas où la formulation
+du test était fausse, non la règle — sept chiffres sortent du gabarit de la CIN
+marocaine.
+
+**L'appel à l'anonymisation est protégé par la CI, pas seulement par la revue.**
+`CODEOWNERS` appelle l'équipe `data` sur `ingest.py`, où réside l'appel à
+`anonymize_document()` : la conformité n'est donc pas consultée sur le fichier
+qui porte le contrôle central. Vérifié le 02/09/2026 en neutralisant l'appel —
+`test_pipeline_writes_no_personal_data` échoue immédiatement.
+
+La protection est donc effective, et par un moyen plus sûr qu'une règle de
+relecture : un test s'exécute toujours, une revue dépend de l'attention de
+quelqu'un. Aucune règle `CODEOWNERS` supplémentaire n'est demandée sur
+`ingest.py` — elle ajouterait de la friction sur chaque contribution de M1 pour
+une garantie plus faible que celle qui existe.
+
+**Un correctif ponctuel ne ferme pas une classe de défauts.** Le 07/09/2026,
+`expectations_report.json` a reproduit la fuite que la PR #44 avait retirée
+d'`ingestion_report.json` six jours plus tôt. Les deux sont des sorties DVC
+poussées sur le remote ; le raisonnement avait été appliqué à l'une et pas à
+l'autre, parce que la seconde n'existait pas encore.
+
+C'est la démonstration de ce que j'écris ailleurs dans ce registre à propos des
+contrôles : *un contrôle qui dépend de chaque contributeur futur pour s'en
+souvenir est un contrôle qui se périme.* Je l'avais écrit en croyant m'y
+conformer. **La substitution à la sérialisation protège un fichier, pas la
+catégorie « artefact publié ».**
+
+La règle générale est donc énoncée ici, et non laissée à la mémoire : **aucune
+sortie écrite dans `data/processed/` ne doit contenir de chemin brut ni de nom
+de fichier source.** Ce qui identifie un document dans un artefact publié est
+son `doc_id`. Un contrôle automatique portant sur l'ensemble de ces sorties
+reste à écrire — c'est la seule forme sous laquelle cette règle tiendra.
+
+**Détection de secrets** — mesure du 02/09/2026 sur sept identifiants réels
+(clé d'accès et secret AWS, jeton GitHub, clé OpenAI, jeton Slack, jeton
+DagsHub, en-tête de clé privée) :
+
+| | détectés | faux positifs sur le dépôt |
+|---|---|---|
+| Ancien contrôle (recherche de mots-clés) | **0 / 7** | 0 |
+| [`secret_scan.py`](../src/m8_compliance/secret_scan.py) | **7 / 7** | 0 |
+
+L'ancien contrôle échouait pour deux raisons cumulées : il était sensible à la
+casse — or une constante s'écrit `AWS_SECRET` — et il exigeait un mot-clé dans
+le *nom* de la variable, alors qu'un jeton se reconnaît à sa *forme*.
+
 **Non-régression** — [`tests/test_anonymization.py`](../tests/test_anonymization.py),
-13 tests exécutés à chaque pull request. Dix d'entre eux vérifient que montants,
-numéros de dossier et de registre, articles, dahirs et juridictions **ne sont
-pas** masqués.
+32 tests exécutés à chaque pull request. La moitié vérifient que montants,
+numéros de dossier et de registre, articles, dahirs, juridictions **et verbes
+arabes de procédure** ne sont **pas** masqués. Un test consigne explicitement la
+limite subsistante : un nom jamais ancré n'est pas détecté, et le jour où cela
+changera, ce test le dira.
 
 **Absence de données personnelles dans le corpus actuel** — vérifiée sur les
 gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).

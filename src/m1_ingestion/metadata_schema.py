@@ -21,11 +21,13 @@ _DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}-\d{2})?$")
 
 
 class SourceType(str, Enum):
-    """The 3 legal sources selected for the M1 sample corpus."""
+    """The legal sources recognized by the M1 pipeline."""
 
     BULLETIN_OFFICIEL = "Bulletin Officiel"
     JURISPRUDENCE = "Jurisprudence"
     CONTRAT_TYPE = "Contrat Type"
+    PORTAIL_OFFICIEL = "Portail Officiel"
+    DEPOT_INTERNE = "Dépôt Interne"
 
 
 class Language(str, Enum):
@@ -73,6 +75,9 @@ class DocumentMetadata(BaseModel):
     anonymized: bool = Field(default=False, description="Whether anonymize_text() was applied")
     status: str = Field(default="SUCCESS", description="'SUCCESS' — only successful docs reach metadata.jsonl")
     processed_at: str = Field(default="", description="ISO-8601 UTC timestamp of processing")
+    segment_count: int = Field(
+        default=0, ge=0, description="Articles/alineas detectes (voir segments.jsonl)"
+    )
 
     model_config = {"use_enum_values": True}
 

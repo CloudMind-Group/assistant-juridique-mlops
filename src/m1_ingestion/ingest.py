@@ -10,7 +10,14 @@ package for the output contract.
 
 Pipeline flow per document:
     Raw file -> extract (direct text, or OCR fallback) -> clean_text
-             -> anonymize_document -> build_metadata -> write
+             -> [corriger_document, si et seulement si le texte vient de
+                l'OCR] -> anonymize_document -> build_metadata -> write
+
+La correction orthographique ne s'applique qu'au texte ocerise : un .txt ou
+un PDF a texte natif n'a pas de bruit d'OCR, et le corriger reviendrait a
+modifier un texte qui n'avait rien de casse. Le correcteur ne connait qu'un
+lexique juridique ferme et laisse l'arabe intact — voir
+:mod:`src.m1_ingestion.spelling`.
 
 Anonymisation runs between cleaning and writing, so personal data never
 reaches ``data/processed/`` and therefore never reaches indexing. This
@@ -34,6 +41,7 @@ import hashlib
 import json
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,12 +51,20 @@ from pydantic import ValidationError
 
 from src.m1_ingestion.anonymization_schema import anonymize_document
 from src.m1_ingestion.metadata_schema import DocumentMetadata, Language, SourceType
+from src.m1_ingestion.segmentation import Segment, segment_document
+from src.m1_ingestion.spelling import corriger_document
+from src.m1_ingestion.spelling import resumer as resumer_corrections
 
 logger = logging.getLogger("m1_ingestion.ingest")
 
 SUPPORTED_TEXT_EXTENSIONS = {".txt"}
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 SUPPORTED_EXTENSIONS = {".txt", ".pdf", ".docx"} | SUPPORTED_IMAGE_EXTENSIONS
+
+# Seules ces methodes produisent du bruit d'OCR. La correction
+# orthographique ne s'applique qu'a elles : corriger du texte natif
+# reviendrait a modifier un texte qui n'avait rien de casse.
+OCR_EXTRACTION_METHODS = frozenset({"ocr_pdf", "ocr_image"})
 
 # Below this many non-whitespace chars, a PDF's direct text layer is treated
 # as "effectively empty" (scanned page, or a text layer that's just a
@@ -70,6 +86,8 @@ FOLDER_TO_SOURCE = {
     "bulletin_officiel": SourceType.BULLETIN_OFFICIEL,
     "jurisprudence": SourceType.JURISPRUDENCE,
     "contrats_types": SourceType.CONTRAT_TYPE,
+    "portails_officiels": SourceType.PORTAIL_OFFICIEL,
+    "depots_internes": SourceType.DEPOT_INTERNE,
 }
 
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
@@ -80,6 +98,37 @@ _BLANK_LINES_RE = re.compile(r"\n{3,}")
 # handles separately.
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
 
+# Lignes qui ne contiennent qu'une pagination : « Page 2 », « Page 2/4 »,
+# « Page 2 sur 4 », « - 2 - », « 2/4 », « صفحة 2 ». Ancré sur la ligne
+# entière (^...$ en mode MULTILINE) : une pagination citée dans une phrase
+# n'est pas touchée.
+_PAGE_ARTIFACT_RE = re.compile(
+    r"^[ \t]*(?:"
+    r"(?:page|صفحة)\s*n?[°o]?\s*\d+(?:\s*(?:/|sur|of|من)\s*\d+)?"
+    r"|-+\s*\d+\s*-+"
+    r"|\d+\s*/\s*\d+"
+    r")[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Marqueurs structurels : jamais supprimés, même répétés. Les retirer
+# casserait la segmentation par articles/alinéas.
+_STRUCTURAL_MARKER_RE = re.compile(
+    r"^\s*(?:Article|Alinéa|Al\.|المادة|الفقرة)\s*\d+", re.IGNORECASE
+)
+
+# Une ligne répétée au moins 3 fois et courte est un en-tête/pied de page.
+MIN_HEADER_OCCURRENCES = 3
+MAX_HEADER_LENGTH = 80
+
+# Un en-tête ne se termine pas par une ponctuation de fin de phrase ; une
+# phrase de dispositif, si. C'est le discriminant qui sépare
+# « Cour d'Appel de Casablanca » de « Le salarié est débouté de sa demande. ».
+# Sans lui, un jugement tranchant trois demandes voyait son dispositif — court
+# et répété une fois par demande — supprimé en entier. Le seuil de trois
+# occurrences ne protégeait pas ce cas : il le déplaçait seulement.
+_SENTENCE_ENDINGS = (".", "؟", "!", "۔")
+
 
 @dataclass
 class IngestResult:
@@ -87,12 +136,30 @@ class IngestResult:
     skipped: int = 0
     failed: int = 0
     pii_masked: int = 0
+    duplicates: int = 0
+    segments: int = 0
+    # Corrections orthographiques appliquees au texte ocerise, par regle.
+    # Comptees separement du reste : une correction est une modification du
+    # texte livre a M2, elle doit se voir dans le rapport et non seulement
+    # dans les logs.
+    ocr_corrections: dict[str, int] = field(default_factory=dict)
     extraction_methods: dict[str, int] = field(default_factory=dict)
     errors: list[dict[str, str]] = field(default_factory=list)
+    duplicate_files: list[dict[str, str]] = field(default_factory=list)
 
 
 class ExtractionError(RuntimeError):
     """Raised when a raw file's text cannot be extracted."""
+
+
+class DuplicateDocumentError(RuntimeError):
+    """Raised when a file's cleaned text was already ingested in this run."""
+
+    def __init__(self, source_file: Path, first_doc_id: str) -> None:
+        super().__init__(
+            f"{source_file} duplicates already-ingested document {first_doc_id}"
+        )
+        self.first_doc_id = first_doc_id
 
 
 @dataclass
@@ -175,7 +242,11 @@ def _ocr_image(image) -> str:  # image: PIL.Image.Image
 def _extract_pdf_direct(file_path: Path) -> str:
     import fitz  # PyMuPDF
 
-    doc = fitz.open(file_path)
+    # On lit les octets nous-mêmes et on ouvre un flux mémoire plutôt que de
+    # passer le chemin à fitz : sous Windows, un fichier non-PDF laisse sinon
+    # un handle ouvert après l'échec d'ouverture, et le fichier brut devient
+    # impossible à déplacer ou supprimer ensuite.
+    doc = fitz.open(stream=file_path.read_bytes(), filetype="pdf")
     try:
         return "\n".join(page.get_text("text") for page in doc)
     finally:
@@ -195,7 +266,7 @@ def _extract_pdf_via_ocr(file_path: Path) -> str:
     from PIL import Image
 
     pages_text: list[str] = []
-    doc = fitz.open(file_path)
+    doc = fitz.open(stream=file_path.read_bytes(), filetype="pdf")
     try:
         matrix = fitz.Matrix(PDF_OCR_ZOOM, PDF_OCR_ZOOM)
         for page in doc:
@@ -262,12 +333,81 @@ def extract_text_from_file(file_path: Path) -> ExtractionOutcome:
         raise ExtractionError(f"Failed to extract text from {file_path}: {exc}") from exc
 
 
+def strip_page_artifacts(text: str) -> str:
+    """Retire les lignes qui ne sont qu'un numéro de page.
+
+    Ne traite qu'une ligne *entière* : « Page 2/4 » seul sur sa ligne part,
+    « ... prévues page 2 du présent contrat » reste intact. Une pagination
+    citée à l'intérieur d'une phrase fait partie du texte juridique.
+    """
+    return _PAGE_ARTIFACT_RE.sub("", text)
+
+
+def strip_repeated_headers(
+    text: str,
+    *,
+    min_occurrences: int = MIN_HEADER_OCCURRENCES,
+    max_length: int = MAX_HEADER_LENGTH,
+) -> str:
+    """Retire les en-têtes/pieds de page répétés à l'identique.
+
+    Un PDF de plusieurs pages répète le nom de la juridiction en haut de
+    chaque page. Après extraction, ces répétitions se retrouvent au milieu
+    du texte et polluent aussi bien la lecture que la vectorisation en aval.
+
+    Trois garde-fous, parce qu'une suppression trop large abîmerait le fond
+    juridique :
+
+    1. **Seuls les marqueurs structurels sont protégés inconditionnellement.**
+       « Article 2 » peut légitimement apparaître plusieurs fois ; le
+       supprimer casserait la segmentation (voir :mod:`segmentation`).
+    2. **Seules les lignes courtes** (``max_length``) sont candidates : un
+       en-tête tient sur une ligne, un attendu de jugement non.
+    3. **Seuil de répétition** (``min_occurrences``) : deux occurrences
+       peuvent être une coïncidence, trois indiquent une structure de page.
+
+    Alternative rejetée : supprimer toute ligne dupliquée, sans seuil ni
+    borne de longueur. Plus simple, mais un contrat type qui répète deux
+    fois « Fait à Casablanca » perdait les deux mentions — dont une porte
+    une valeur juridique.
+    """
+    lines = text.split("\n")
+    counts = Counter(line.strip() for line in lines if line.strip())
+
+    repeated = {
+        line
+        for line, count in counts.items()
+        if count >= min_occurrences
+        and len(line) <= max_length
+        and not _STRUCTURAL_MARKER_RE.match(line)
+        and not line.rstrip().endswith(_SENTENCE_ENDINGS)
+    }
+    if not repeated:
+        return text
+
+    kept = [line for line in lines if line.strip() not in repeated]
+
+    # Garde-fou : un document composé presque uniquement de lignes courtes
+    # répétées serait entièrement effacé. Mieux vaut garder un texte avec
+    # ses en-têtes qu'un document vide — quality.py rejette le vide, et la
+    # perte serait alors silencieuse pour tout le reste de la chaîne.
+    if not "".join(kept).strip():
+        logger.warning(
+            "Header stripping would empty the document; keeping it unchanged."
+        )
+        return text
+
+    logger.debug("Removed %d repeated header/footer line(s)", len(lines) - len(kept))
+    return "\n".join(kept)
+
+
 def clean_text(text: str) -> str:
     """Normalize whitespace/control noise while preserving paragraph breaks.
 
     - Unifies line endings.
     - Strips non-printable control characters that can leak in from OCR or
       malformed PDFs.
+    - Removes page-number lines and repeated headers/footers.
     - Collapses runs of spaces/tabs, and collapses 3+ blank lines down to a
       single paragraph break (one blank line) — legal article/paragraph
       structure (single blank lines between articles/alinéas) is preserved.
@@ -275,6 +415,11 @@ def clean_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = _CONTROL_CHARS_RE.sub("", text)
     text = _WHITESPACE_RE.sub(" ", text)
+    # L'ordre compte : la normalisation des espaces d'abord, sinon deux
+    # en-têtes identiques à l'espacement près ne sont pas reconnus comme
+    # répétés et survivent tous les deux.
+    text = strip_page_artifacts(text)
+    text = strip_repeated_headers(text)
     text = _BLANK_LINES_RE.sub("\n\n", text)
     return text.strip()
 
@@ -304,12 +449,34 @@ def make_doc_id(source_file: Path, raw_dir: Path) -> str:
     would otherwise put a real name into the doc_id, which propagates into the
     metadata index, into M2's vector store, and finally into the citations the
     assistant shows to end users — surviving any masking applied to the text.
+
+    Le condensé porte sur le **chemin relatif à ``raw_dir``**, normalisé en
+    POSIX. Il était auparavant calculé sur ``source_file.resolve()``, donc
+    sur un chemin absolu : le même document produisait un ``doc_id``
+    différent sur chaque machine, et les identifiants ne se recoupaient plus
+    entre le poste qui ingère et celui qui indexe.
+
+    Alternative rejetée — hacher le *contenu* du fichier : rendrait l'ID
+    stable même après déplacement, mais toute correction ultérieure du texte
+    (reprise d'OCR, coquille corrigée) produirait un nouvel identifiant. M2
+    verrait un document supplémentaire au lieu d'une mise à jour, et l'index
+    accumulerait des doublons de versions. Le chemin relatif garde l'identité
+    du document à travers les re-traitements, ce qui est la propriété utile
+    ici.
     """
+    try:
+        relative = source_file.relative_to(raw_dir)
+    except ValueError:
+        # Fichier hors de raw_dir : on se rabat sur le nom seul, qui reste
+        # indépendant de la machine.
+        relative = Path(source_file.name)
+
+    # as_posix() : sans cela, Windows produit « a\\b » et Linux « a/b »,
+    # donc deux condensés différents pour le même document.
     # usedforsecurity=False : le condensé sert d'identifiant, pas de garantie
-    # d'intégrité. Rend l'intention explicite et lève l'alerte B324 de Bandit
-    # sans changer les doc_id déjà produits.
+    # d'intégrité. Rend l'intention explicite et lève l'alerte B324 de Bandit.
     digest = hashlib.sha1(  # noqa: S324
-        str(source_file.resolve()).encode("utf-8"), usedforsecurity=False
+        relative.as_posix().encode("utf-8"), usedforsecurity=False
     ).hexdigest()[:16]
     return f"{source_slug(source_file, raw_dir)}-{digest}"
 
@@ -342,6 +509,7 @@ def build_metadata(
     *,
     extraction: Optional[ExtractionOutcome] = None,
     anonymized: bool = False,
+    segment_count: int = 0,
 ) -> DocumentMetadata:
     overrides = load_sidecar_metadata(source_file)
     doc_id = overrides.get("doc_id") or make_doc_id(source_file, raw_dir)
@@ -383,6 +551,7 @@ def build_metadata(
         anonymized=anonymized,
         status="SUCCESS",
         processed_at=datetime.now(timezone.utc).isoformat(),
+        segment_count=segment_count,
     )
 
 
@@ -401,6 +570,13 @@ class IngestionPipeline:
         self.anonymise = anonymise
         self.documents_dir = out_dir / "documents"
         self.documents_dir.mkdir(parents=True, exist_ok=True)
+        # content hash -> doc_id du premier document rencontre. Sert a la
+        # deduplication : un corpus collecte depuis plusieurs sources contient
+        # regulierement le meme texte deux fois (meme arret republie, meme
+        # article repris dans deux bulletins).
+        self._seen_hashes: dict[str, str] = {}
+        # Corrections orthographiques cumulees sur le run, par regle.
+        self.ocr_corrections: dict[str, int] = {}
         if not anonymise:
             logger.warning(
                 "ANONYMISATION DISABLED - personal data will be written to %s. "
@@ -418,11 +594,39 @@ class IngestionPipeline:
             if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS
         )
 
-    def process_file(self, source_file: Path) -> tuple[DocumentMetadata, int]:
+    def process_file(
+        self, source_file: Path
+    ) -> tuple[DocumentMetadata, int, list[Segment]]:
         extraction = extract_text_from_file(source_file)
         cleaned = clean_text(extraction.text)
         if not cleaned:
             raise ValueError(f"{source_file} produced empty text after cleaning")
+
+        # Correction orthographique : uniquement sur du texte ocerise.
+        # Un .txt ou un PDF a texte natif n'a pas de bruit d'OCR ; le passer
+        # au correcteur ne pourrait qu'introduire une modification la ou il
+        # n'y avait rien a corriger. Le correcteur ne connait que le lexique
+        # juridique et laisse l'arabe intact (voir spelling.py).
+        if extraction.method in OCR_EXTRACTION_METHODS:
+            cleaned, corrections = corriger_document(cleaned)
+            for regle, nombre in resumer_corrections(corrections).items():
+                self.ocr_corrections[regle] = self.ocr_corrections.get(regle, 0) + nombre
+            if corrections:
+                logger.info(
+                    "%s: %d correction(s) orthographique(s) sur texte ocerise",
+                    diagnostic_ref(source_file, self.raw_dir),
+                    len(corrections),
+                )
+
+        # Deduplication sur le texte *nettoye*, avant anonymisation.
+        # Deliberement pas apres : le masquage remplace les noms par [NOM],
+        # donc deux jugements distincts qui ne different que par les parties
+        # deviennent identiques une fois anonymises. Dedupliquer apres
+        # supprimerait silencieusement un document reel.
+        content_hash = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+        first_doc_id = self._seen_hashes.get(content_hash)
+        if first_doc_id is not None:
+            raise DuplicateDocumentError(source_file, first_doc_id)
 
         masked_count = 0
         if self.anonymise:
@@ -430,6 +634,11 @@ class IngestionPipeline:
             masked_count = len(applied)
             if not cleaned:
                 raise ValueError(f"{source_file} produced empty text after anonymisation")
+
+        # Segmentation sur le texte final : les offsets stockes dans
+        # segments.jsonl doivent correspondre au fichier reellement ecrit
+        # dans documents/, pas a une version intermediaire.
+        segments = segment_document(cleaned)
 
         # Metadata (language, doc_id, title) is derived from the anonymised
         # text so downstream consumers never see the original.
@@ -440,18 +649,29 @@ class IngestionPipeline:
             cleaned,
             extraction=extraction,
             anonymized=masked_count > 0,
+            segment_count=len(segments),
         )
         target = self.documents_dir / f"{metadata.doc_id}.txt"
         target.write_text(cleaned, encoding="utf-8")
-        return metadata, masked_count
+
+        self._seen_hashes[content_hash] = metadata.doc_id
+        return metadata, masked_count, segments
 
     def run(self) -> IngestResult:
         result = IngestResult()
         all_metadata: list[DocumentMetadata] = []
+        all_segments: list[dict[str, object]] = []
 
         for source_file in self.discover_files():
             try:
-                metadata, masked_count = self.process_file(source_file)
+                metadata, masked_count, segments = self.process_file(source_file)
+            except DuplicateDocumentError as exc:
+                logger.info("Skipping duplicate %s: %s", source_file, exc)
+                result.duplicates += 1
+                result.duplicate_files.append(
+                    {"file": str(source_file), "duplicate_of": exc.first_doc_id}
+                )
+                continue
             except (ExtractionError, ValueError) as exc:
                 logger.error("Skipping %s: %s", source_file, exc)
                 result.skipped += 1
@@ -469,8 +689,13 @@ class IngestionPipeline:
                 continue
 
             all_metadata.append(metadata)
+            all_segments.extend(
+                segment.to_dict(metadata.doc_id, index)
+                for index, segment in enumerate(segments)
+            )
             result.processed += 1
             result.pii_masked += masked_count
+            result.segments += len(segments)
             result.extraction_methods[metadata.extraction_method] = (
                 result.extraction_methods.get(metadata.extraction_method, 0) + 1
             )
@@ -482,14 +707,23 @@ class IngestionPipeline:
                 masked_count,
             )
 
+        # Les corrections sont cumulees sur l'instance (process_file n'a pas
+        # a elargir son tuple de retour pour ca) ; le resultat les recopie
+        # pour que le rapport et l'appelant voient la meme chose.
+        result.ocr_corrections = dict(self.ocr_corrections)
+
         self._write_metadata_index(all_metadata)
+        self._write_segments_index(all_segments)
         self._write_ingestion_report(result)
         logger.info(
-            "Ingestion complete: %d processed, %d skipped, %d failed, %d PII masked",
+            "Ingestion complete: %d processed, %d duplicates, %d skipped, "
+            "%d failed, %d PII masked, %d segments",
             result.processed,
+            result.duplicates,
             result.skipped,
             result.failed,
             result.pii_masked,
+            result.segments,
         )
         return result
 
@@ -499,6 +733,22 @@ class IngestionPipeline:
             for meta in all_metadata:
                 f.write(meta.model_dump_json() + "\n")
         logger.info("Wrote metadata index: %s (%d entries)", index_path, len(all_metadata))
+
+    def _write_segments_index(self, all_segments: list[dict[str, object]]) -> None:
+        """Ecrit `segments.jsonl` : un objet JSON par article/alinea detecte.
+
+        Sortie *additionnelle* : `documents/` et `metadata.jsonl` ne changent
+        pas, donc le contrat de lecture actuel de M2 reste valide tel quel.
+        M2 peut s'en servir pour decouper en respectant la structure legale
+        plutot qu'a longueur fixe.
+        """
+        index_path = self.out_dir / "segments.jsonl"
+        with index_path.open("w", encoding="utf-8") as f:
+            for segment in all_segments:
+                f.write(json.dumps(segment, ensure_ascii=False) + "\n")
+        logger.info(
+            "Wrote segments index: %s (%d segments)", index_path, len(all_segments)
+        )
 
     def _write_ingestion_report(self, result: IngestResult) -> None:
         """Ingestion-stage summary: files processed/skipped/failed, success
@@ -512,7 +762,7 @@ class IngestionPipeline:
         covers a different concern: did extraction/anonymization succeed,
         not whether the resulting text/metadata is well-formed.
         """
-        total = result.processed + result.skipped + result.failed
+        total = result.processed + result.skipped + result.failed + result.duplicates
         success_rate = round(result.processed / total, 4) if total else 0.0
         report = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -523,15 +773,92 @@ class IngestionPipeline:
             "skipped": result.skipped,
             "failed": result.failed,
             "success_rate": success_rate,
+            "duplicates": result.duplicates,
+            "duplicate_files": result.duplicate_files,
+            "segments": result.segments,
             "pii_masked": result.pii_masked,
+            "ocr_corrections": result.ocr_corrections,
             "extraction_methods": result.extraction_methods,
             "errors": result.errors,
         }
+        # Le rapport part dans `data/processed/`, donc sur le remote partage :
+        # les chemins bruts y sont substitues par une reference sans nom.
+        report = redact_paths(report, self.raw_dir)
+
         report_path = self.out_dir / "ingestion_report.json"
         report_path.write_text(
             json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         logger.info("Wrote ingestion report: %s", report_path)
+
+
+def diagnostic_ref(source_file: Path, raw_dir: Path) -> str:
+    """Reference a file in a *published* report without naming it.
+
+    `ingestion_report.json` is written to ``data/processed/``, which is a DVC
+    output pushed to the shared remote. A raw file name is chosen by whoever
+    collected the document and routinely carries a party's name — the same
+    reasoning that already governs `doc_id` and `title` (see `make_doc_id`).
+    Applying it there and not here left the identity in a published artifact.
+
+    The reference stays useful for diagnosis: it is deterministic, so the same
+    file always yields the same reference, and the extension is kept because
+    an extraction failure is usually a question of format. Whoever needs the
+    real name recomputes the mapping locally against ``data/raw/`` — the one
+    place where file names are allowed to exist.
+    """
+    return f"{make_doc_id(source_file, raw_dir)}{source_file.suffix.lower()}"
+
+
+def _raw_path_pattern(raw_dir: Path) -> re.Pattern[str]:
+    """Match a path pointing *inside* ``raw_dir``.
+
+    At least one further segment is required, so ``data/raw`` on its own is
+    left alone: the report legitimately states which directory it read, and a
+    directory name is one of the fixed source types — safe to surface, unlike
+    a file name (see `source_slug`).
+    """
+    return re.compile(re.escape(raw_dir.as_posix()) + r"/[^\s\"':;,]+")
+
+
+def redact_paths(payload: object, raw_dir: Path) -> object:
+    """Substitute every raw path in a report tree by a diagnostic reference.
+
+    Applied when the report is serialised rather than at each recording site:
+    a field added later — a duplicate list, a quarantine list — is covered
+    without its author having to know this rule exists. A control that depends
+    on every future contributor remembering it is a control that lapses.
+
+    Every string is scanned, not only the values of a ``file`` key. The first
+    version of this function did only the latter, and running the pipeline
+    showed the name still in the report: an extraction failure carries the
+    path inside its *message* (``Failed to extract text from …``). Redacting
+    the field a name is expected in, and not the free text beside it, is the
+    kind of half-measure that reads as a control and is not one.
+    """
+    motif = _raw_path_pattern(raw_dir)
+
+    def _sur_chaine(valeur: str) -> str:
+        # Les séparateurs sont uniformisés avant la recherche : le même chemin
+        # s'écrit `data/raw/…` dans un champ construit par le code et
+        # `data\raw\…` dans le message d'une exception levée sous Windows.
+        # Chercher les deux formes dans le motif imposerait une classe de
+        # caractères que la moindre erreur d'échappement rend inopérante —
+        # silencieusement, ce qui est le pire mode d'échec pour un garde-fou.
+        normalisee = valeur.replace("\\", "/")
+        if not motif.search(normalisee):
+            return valeur
+        return motif.sub(
+            lambda m: diagnostic_ref(Path(m.group(0)), raw_dir), normalisee
+        )
+
+    if isinstance(payload, dict):
+        return {key: redact_paths(value, raw_dir) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [redact_paths(item, raw_dir) for item in payload]
+    if isinstance(payload, str):
+        return _sur_chaine(payload)
+    return payload
 
 
 def parse_args() -> argparse.Namespace:

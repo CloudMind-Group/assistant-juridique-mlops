@@ -5,6 +5,13 @@ pytesseract>=0.3.10
 Pillow>=10.0
 requests>=2.31
 
+# Contrôle qualité déclaratif du jeu de données (CdC carte 02 : « Great
+# Expectations, exécuté dans la CI — un jeu non conforme bloque la chaîne »).
+# pandas est la dépendance de calcul de GE ; elle est déclarée explicitement
+# parce que src/m1_ingestion/expectations.py l'importe directement.
+great-expectations>=1.0
+pandas>=2.0
+
 # Tests (exécutés en CI : `python -m pytest tests/`)
 pytest>=8.0
 
