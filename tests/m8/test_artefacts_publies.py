@@ -157,3 +157,73 @@ def test_le_constat_est_lisible():
     constat = Constat("rapport.json", "errors[0].file", "chemin absolu", "C:/x/y.txt")
     rendu = str(constat)
     assert "rapport.json" in rendu and "errors[0].file" in rendu
+
+
+# --------------------------------------------------------------------------
+# Un chemin cité à l'intérieur d'une phrase
+#
+# Défaut relevé par @youssefelalem sur la PR #66, et le reproche portait :
+# les ancres `^` et le test `endswith` laissaient passer la forme *exacte*
+# d'E-R13. Mon rapport de la PR #44 disait pourtant, noir sur blanc, que
+# j'avais trouvé le chemin dans le *message* de l'exception — et un message
+# est précisément ce que contient le champ `errors` du rapport d'ingestion.
+#
+# Le contrôle n'aurait donc pas attrapé l'écart qui l'a fait naître.
+# --------------------------------------------------------------------------
+
+
+def test_un_chemin_cite_dans_un_message_est_signale():
+    """La forme exacte d'E-R13 : le chemin figurait dans le *message* de
+    l'exception, pas seulement dans un champ dédié."""
+    motifs = _motifs(
+        "echec de lecture de C:/Users/douae/corpus/arret_ahmed_benali_2024.txt"
+    )
+    assert "chemin absolu" in motifs
+    assert "nom de fichier source" in motifs
+
+
+def test_un_nom_suivi_de_texte_est_signale():
+    """`endswith` ne voyait rien dès qu'un mot suivait le nom de fichier."""
+    motifs = _motifs("fichier introuvable : /home/douae/corpus/arret_benali.pdf (code 2)")
+    assert "chemin absolu" in motifs
+    assert "nom de fichier source" in motifs
+
+
+def test_une_valeur_fautive_n_est_signalee_qu_une_fois_par_motif():
+    constats = analyser_valeur(
+        "champ",
+        "echec sur arret_benali.pdf puis sur arret_amrani.pdf",
+        "f.json",
+        DOC_IDS,
+    )
+    assert [c.motif for c in constats] == ["nom de fichier source"]
+
+
+# --------------------------------------------------------------------------
+# L'apostrophe — le faux positif qui a coûté un caractère
+# --------------------------------------------------------------------------
+
+DOC_ID_APOSTROPHE = "contrat-contrat-de-bail-à-usage-d'habitation"
+
+
+def test_un_doc_id_a_apostrophe_reste_dans_la_liste_blanche():
+    """Un jeton qui exclurait l'apostrophe couperait ce `doc_id` en deux : la
+    souche ne correspondrait plus à la liste blanche, et le contrôle
+    signalerait une sortie parfaitement légitime.
+
+    Mesuré sur le corpus réel avant correction : quatre faux positifs, pour ce
+    seul caractère. Le corpus synthétique en produit quatre à chaque
+    génération, donc la régression serait visible — mais seulement pour qui
+    exécute le contrôle sur un corpus, et pas pour qui lit le motif.
+    """
+    doc_ids = frozenset({DOC_ID_APOSTROPHE})
+    assert not _motifs(
+        f"data/processed/documents/{DOC_ID_APOSTROPHE}.txt", doc_ids
+    )
+    assert not _motifs(f"{DOC_ID_APOSTROPHE}.txt", doc_ids)
+
+
+def test_un_nom_a_apostrophe_hors_liste_blanche_reste_signale():
+    """La tolérance porte sur la liste blanche, pas sur l'apostrophe : un nom
+    de partie qui en contient une doit rester détecté."""
+    assert "nom de fichier source" in _motifs("arret_d'ahmed_benali_2024.txt")

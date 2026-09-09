@@ -47,7 +47,26 @@ REFERENCE_DIAGNOSTIC = re.compile(r"^[a-z_]+-[0-9a-f]{16}$")
 
 # Chemin absolu, quelle que soit la plateforme. Il porte l'arborescence de la
 # machine qui a produit l'artefact, donc souvent un nom d'utilisateur.
-CHEMIN_ABSOLU = re.compile(r"(?:^[A-Za-z]:[/\\])|(?:^/(?:home|Users|root|var|mnt)/)")
+#
+# Sans ancre `^` : un chemin cité *au milieu* d'une phrase compte autant qu'un
+# champ qui ne contiendrait que lui. C'est même la forme la plus fréquente —
+# « Failed to extract text from <chemin> » — et c'est celle d'E-R13. Ancrées,
+# ces deux expressions laissaient passer l'écart qui a fait naître ce contrôle.
+# Signalé par @youssefelalem sur la PR #66.
+CHEMIN_ABSOLU = re.compile(r"(?:\b[A-Za-z]:[/\\])|(?:/(?:home|Users|root|var|mnt)/)")
+
+# Un chemin ou un nom de fichier cité à l'intérieur d'une valeur. Remplace un
+# test sur la fin de la chaîne, qui ne voyait rien dès qu'un mot suivait le nom
+# — « fichier introuvable : /home/…/arret.pdf (code 2) ».
+#
+# L'apostrophe est délibérément absente de la classe exclue. Une première
+# version la retirait, ce qui coupait en deux les `doc_id` de contrats —
+# `contrat-de-bail-à-usage-d'habitation` — dont la souche ne correspondait plus
+# à la liste blanche : quatre faux positifs sur le corpus réel, pour un seul
+# caractère. Mesuré par @youssefelalem avant de proposer le correctif.
+_JETON_FICHIER = re.compile(
+    r"[^\s\"(),;]+\.(?:pdf|docx|txt|png|jpe?g)\b", re.IGNORECASE
+)
 
 # Chemin pointant dans le corpus brut, seul endroit où les noms de fichiers
 # ont le droit d'exister.
@@ -111,20 +130,20 @@ def analyser_valeur(
             Constat(fichier, chemin_champ, "chemin vers le corpus brut", _tronquer(valeur))
         )
 
-    if not valeur.lower().endswith(EXTENSIONS_SOURCE):
-        return constats
-
-    nom = valeur.replace("\\", "/").rsplit("/", 1)[-1]
-    souche = nom.rsplit(".", 1)[0]
-    if not souche:
-        # « .txt » seul est un format, pas un nom de fichier.
-        return constats
-    if souche in doc_ids or REFERENCE_DIAGNOSTIC.match(souche):
-        return constats
-
-    constats.append(
-        Constat(fichier, chemin_champ, "nom de fichier source", _tronquer(valeur))
-    )
+    for jeton in _JETON_FICHIER.finditer(valeur):
+        nom = jeton.group(0).replace("\\", "/").rsplit("/", 1)[-1]
+        souche = nom.rsplit(".", 1)[0]
+        if not souche:
+            # « .txt » seul est un format, pas un nom de fichier.
+            continue
+        if souche in doc_ids or REFERENCE_DIAGNOSTIC.match(souche):
+            continue
+        constats.append(
+            Constat(fichier, chemin_champ, "nom de fichier source", _tronquer(valeur))
+        )
+        # Un seul constat par valeur : signaler deux fois la même ligne
+        # n'apprend rien de plus à qui doit la corriger.
+        break
     return constats
 
 
