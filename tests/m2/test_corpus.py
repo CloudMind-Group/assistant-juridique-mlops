@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 
 from src.m2_rag.corpus import (
-    CorpusContractError, filter_documents, load_m1_corpus, validate_filter_fields,
+    CorpusContractError,
+    filter_documents,
+    load_m1_corpus,
+    validate_filter_fields,
 )
 
 
