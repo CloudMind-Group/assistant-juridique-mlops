@@ -40,7 +40,23 @@ export interface ChatMessage {
   sources?: SourceCitation[];
   feedback?: "up" | "down" | null;
   streaming?: boolean;
+  /** True when the backend deliberately declined to answer (out of scope,
+   * no-legal-advice guardrail, etc). Must be rendered differently from a
+   * normal grounded answer — see MessageBubble. */
+  refused?: boolean;
   createdAt: string;
+}
+
+/** A single row shown in the sidebar "Historique" list and in the dashboard's
+ * "Historique des consultations" table. Both views read from the same
+ * useHistoryStore so a new consultation or a newly analyzed document appears
+ * in every place it should, instead of two mock lists drifting apart. */
+export interface HistoryEntry {
+  id: string;
+  kind: "consultation" | "document";
+  title: string;
+  date: string;
+  feedback?: "up" | "down" | null;
 }
 
 export interface UploadedDocument {

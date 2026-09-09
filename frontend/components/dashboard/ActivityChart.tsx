@@ -47,7 +47,7 @@ export default function ActivityChart() {
                 border: "1px solid #e4e0d2",
                 fontSize: 12,
               }}
-              labelFormatter={(day) => `Jour ${day}`}
+              labelFormatter={(day) => t("dashboard.activity.dayLabel", { day })}
               formatter={(value: number) => [value, t("dashboard.activity.title")]}
             />
             <Area

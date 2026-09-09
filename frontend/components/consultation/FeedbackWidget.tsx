@@ -33,7 +33,7 @@ export default function FeedbackWidget({
               type="button"
               onClick={() => choose("up")}
               aria-pressed={feedback === "up"}
-              aria-label="Retour positif"
+              aria-label={t("common.feedbackPositive") ?? undefined}
               className={cn(
                 "rounded-lg p-1.5 hover:bg-sand-100 dark:hover:bg-forest-800",
                 feedback === "up" && "bg-forest-100 text-forest-700 dark:bg-forest-800"
@@ -45,7 +45,7 @@ export default function FeedbackWidget({
               type="button"
               onClick={() => choose("down")}
               aria-pressed={feedback === "down"}
-              aria-label="Retour négatif"
+              aria-label={t("common.feedbackNegative") ?? undefined}
               className={cn(
                 "rounded-lg p-1.5 hover:bg-sand-100 dark:hover:bg-forest-800",
                 feedback === "down" && "bg-clay-400/15 text-clay-600"

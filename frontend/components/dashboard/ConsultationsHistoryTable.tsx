@@ -5,19 +5,25 @@ import { useTranslation } from "react-i18next";
 import { Download, Search, ThumbsDown, ThumbsUp } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { consultationHistory } from "@/lib/mockData";
+import { useHistoryStore } from "@/lib/historyStore";
 import { formatDate } from "@/lib/format";
 
 export default function ConsultationsHistoryTable() {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
+  const entries = useHistoryStore((s) => s.entries);
+
+  const consultations = useMemo(
+    () => entries.filter((entry) => entry.kind === "consultation"),
+    [entries]
+  );
 
   const filtered = useMemo(
     () =>
-      consultationHistory.filter((entry) =>
-        entry.question.toLowerCase().includes(query.toLowerCase())
+      consultations.filter((entry) =>
+        entry.title.toLowerCase().includes(query.toLowerCase())
       ),
-    [query]
+    [consultations, query]
   );
 
   return (
@@ -67,7 +73,7 @@ export default function ConsultationsHistoryTable() {
                 className="border-b border-sand-100 last:border-0 dark:border-forest-800/60"
               >
                 <td className="max-w-xs truncate py-3 pe-3 font-medium text-ink-800 dark:text-sand-100">
-                  {entry.question}
+                  {entry.title}
                 </td>
                 <td className="py-3 pe-3 text-ink-500 dark:text-sand-400">
                   {formatDate(entry.date, i18n.language)}
@@ -77,14 +83,14 @@ export default function ConsultationsHistoryTable() {
                     <ThumbsUp
                       size={16}
                       className="text-forest-600 dark:text-forest-300"
-                      aria-label="Retour positif"
+                      aria-label={t("common.feedbackPositive") ?? undefined}
                     />
                   )}
                   {entry.feedback === "down" && (
                     <ThumbsDown
                       size={16}
                       className="text-clay-500"
-                      aria-label="Retour négatif"
+                      aria-label={t("common.feedbackNegative") ?? undefined}
                     />
                   )}
                 </td>
@@ -96,6 +102,13 @@ export default function ConsultationsHistoryTable() {
                 </td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-6 text-center text-ink-400">
+                  —
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

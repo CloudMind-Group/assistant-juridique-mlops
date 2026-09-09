@@ -11,8 +11,10 @@ export default function ChatComposer() {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const isResponding = useChatStore((s) => s.isResponding);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // Pure submit logic, independent of which event triggered it (form submit
+  // vs. Enter keydown) — avoids passing a KeyboardEvent where a FormEvent was
+  // expected, which the two call sites below used to do.
+  function submit() {
     const trimmed = value.trim();
     if (!trimmed || isResponding) return;
     sendMessage(trimmed);
@@ -21,7 +23,10 @@ export default function ChatComposer() {
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
       className="flex items-end gap-2 border-t border-sand-200 bg-white p-4 dark:border-forest-800 dark:bg-forest-900"
     >
       <textarea
@@ -30,7 +35,7 @@ export default function ChatComposer() {
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit(e);
+            submit();
           }
         }}
         rows={1}

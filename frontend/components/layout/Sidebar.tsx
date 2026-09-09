@@ -3,17 +3,37 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { FileText, LayoutDashboard, MessageSquare, Palette, X } from "lucide-react";
+import { FileText, LayoutDashboard, MessageSquare, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sidebarHistory } from "@/lib/mockData";
+import { useHistoryStore } from "@/lib/historyStore";
 import { useUiStore } from "@/lib/store";
+import { formatDate } from "@/lib/format";
 
 const navItems = [
   { href: "/tableau-de-bord", key: "nav.dashboard", icon: LayoutDashboard },
   { href: "/consultation", key: "nav.consultation", icon: MessageSquare },
   { href: "/analyse-de-contrat", key: "nav.analysis", icon: FileText },
-  { href: "/design-system", key: "nav.designSystem", icon: Palette },
 ] as const;
+
+const MAX_HISTORY_ITEMS = 6;
+
+function formatHistoryTime(iso: string, locale: string, todayLabel: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isToday) {
+    const time = new Intl.DateTimeFormat(locale === "ar" ? "ar-MA" : "fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+    return `${todayLabel}, ${time}`;
+  }
+  return formatDate(iso, locale);
+}
 
 export default function Sidebar({
   variant = "static",
@@ -22,13 +42,15 @@ export default function Sidebar({
   variant?: "static" | "drawer";
   onClose?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const pathname = usePathname();
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
+  const entries = useHistoryStore((s) => s.entries);
+  const recentEntries = entries.slice(0, MAX_HISTORY_ITEMS);
 
   return (
     <nav
-      aria-label="Navigation principale"
+      aria-label={t("common.mainNav") ?? undefined}
       className={cn(
         "flex h-full w-72 shrink-0 flex-col border-e border-sand-200 bg-white",
         "dark:border-forest-800 dark:bg-forest-900",
@@ -51,7 +73,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer le menu"
+            aria-label={t("common.closeMenu") ?? undefined}
             className="rounded-lg p-2 text-ink-500 hover:bg-sand-100 dark:text-sand-300 dark:hover:bg-forest-800"
           >
             <X size={18} />
@@ -89,21 +111,29 @@ export default function Sidebar({
             {t("history.title")}
           </h2>
           <ul className="flex flex-col gap-4">
-            {sidebarHistory.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className="block w-full rounded-lg text-start hover:text-forest-700 dark:hover:text-gold-300"
-                >
-                  <p className="text-sm font-medium text-ink-700 dark:text-sand-100">
-                    {t(item.titleKey)}
-                  </p>
-                  <p className="text-xs text-ink-400 dark:text-sand-400">
-                    {t(item.timeKey)}
-                  </p>
-                </button>
-              </li>
-            ))}
+            {recentEntries.map((entry) => {
+              const EntryIcon = entry.kind === "consultation" ? MessageSquare : FileText;
+              return (
+                <li key={entry.id} className="flex items-start gap-2.5">
+                  <EntryIcon
+                    size={14}
+                    className="mt-0.5 shrink-0 text-ink-400 dark:text-sand-500"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    className="block min-w-0 flex-1 rounded-lg text-start hover:text-forest-700 dark:hover:text-gold-300"
+                  >
+                    <p className="truncate text-sm font-medium text-ink-700 dark:text-sand-100">
+                      {entry.title}
+                    </p>
+                    <p className="text-xs text-ink-400 dark:text-sand-400">
+                      {formatHistoryTime(entry.date, i18n.language, t("common.today"))}
+                    </p>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -34,7 +34,8 @@
       "latenceDelta": "↓ 0.3 s vs période précédente"
     },
     "activity": {
-      "title": "Activité des consultations"
+      "title": "Activité des consultations",
+      "dayLabel": "Jour {{day}}"
     },
     "status": {
       "title": "Statut des documents",
@@ -79,7 +80,8 @@
     "feedbackPrompt": "Cette réponse vous a-t-elle été utile ?",
     "feedbackPlaceholder": "Ajouter un commentaire (facultatif)…",
     "feedbackSend": "Envoyer le retour",
-    "feedbackSent": "Merci pour votre retour."
+    "feedbackSent": "Merci pour votre retour.",
+    "refusedLabel": "Hors périmètre"
   },
   "analysis": {
     "title": "Analyse de contrat",
@@ -111,6 +113,12 @@
     "toggleTheme": "Changer de thème",
     "toggleLanguage": "Changer de langue",
     "lightMode": "Clair",
-    "darkMode": "Sombre"
+    "darkMode": "Sombre",
+    "openMenu": "Ouvrir le menu de navigation",
+    "closeMenu": "Fermer le menu",
+    "mainNav": "Navigation principale",
+    "feedbackPositive": "Retour positif",
+    "feedbackNegative": "Retour négatif",
+    "today": "Aujourd'hui"
   }
 }

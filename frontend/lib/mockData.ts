@@ -1,9 +1,4 @@
-import type {
-  AnalyzedDocument,
-  ConsultationHistoryEntry,
-  DonutSegment,
-  StatSummary,
-} from "@/types";
+import type { AnalyzedDocument, DonutSegment, StatSummary } from "@/types";
 
 export const statSummaries: StatSummary[] = [
   {
@@ -122,43 +117,4 @@ export const analyzedDocuments: AnalyzedDocument[] = [
   },
 ];
 
-export const consultationHistory: ConsultationHistoryEntry[] = [
-  {
-    id: "c_1",
-    question: "Quelles clauses limitent la responsabilité du prestataire ?",
-    date: "2026-09-08",
-    feedback: "up",
-  },
-  {
-    id: "c_2",
-    question: "Le délai de préavis est-il conforme au droit français ?",
-    date: "2026-09-07",
-    feedback: "up",
-  },
-  {
-    id: "c_3",
-    question: "Y a-t-il des clauses abusives dans ce contrat de bail ?",
-    date: "2026-09-05",
-    feedback: "down",
-  },
-  {
-    id: "c_4",
-    question: "Résumé des obligations du distributeur dans l'accord Medixa",
-    date: "2026-09-03",
-    feedback: "up",
-  },
-  {
-    id: "c_5",
-    question:
-      "Vérifier la conformité RGPD des clauses de données personnelles",
-    date: "2026-09-01",
-    feedback: "up",
-  },
-];
 
-export const sidebarHistory = [
-  { id: "h_1", titleKey: "history.item1", timeKey: "history.item1Time" },
-  { id: "h_2", titleKey: "history.item2", timeKey: "history.item2Time" },
-  { id: "h_3", titleKey: "history.item3", timeKey: "history.item3Time" },
-  { id: "h_4", titleKey: "history.item4", timeKey: "history.item4Time" },
-];

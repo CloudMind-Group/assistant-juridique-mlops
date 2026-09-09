@@ -34,7 +34,8 @@
       "latenceDelta": "↓ 0.3 ثانية مقارنة بالفترة السابقة"
     },
     "activity": {
-      "title": "نشاط الاستشارات"
+      "title": "نشاط الاستشارات",
+      "dayLabel": "اليوم {{day}}"
     },
     "status": {
       "title": "حالة الوثائق",
@@ -79,7 +80,8 @@
     "feedbackPrompt": "هل كانت هذه الإجابة مفيدة؟",
     "feedbackPlaceholder": "إضافة تعليق (اختياري)…",
     "feedbackSend": "إرسال التقييم",
-    "feedbackSent": "شكرًا على تقييمكم."
+    "feedbackSent": "شكرًا على تقييمكم.",
+    "refusedLabel": "خارج النطاق"
   },
   "analysis": {
     "title": "تحليل العقد",
@@ -111,6 +113,12 @@
     "toggleTheme": "تغيير السمة",
     "toggleLanguage": "تغيير اللغة",
     "lightMode": "فاتح",
-    "darkMode": "داكن"
+    "darkMode": "داكن",
+    "openMenu": "فتح قائمة التصفح",
+    "closeMenu": "إغلاق القائمة",
+    "mainNav": "التصفح الرئيسي",
+    "feedbackPositive": "تقييم إيجابي",
+    "feedbackNegative": "تقييم سلبي",
+    "today": "اليوم"
   }
 }

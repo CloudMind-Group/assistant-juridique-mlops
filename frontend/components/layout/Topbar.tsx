@@ -17,7 +17,6 @@ const titleByPath: Record<string, string> = {
   "/tableau-de-bord": "dashboard.title",
   "/consultation": "consultation.title",
   "/analyse-de-contrat": "analysis.title",
-  "/design-system": "designSystem.title",
 };
 
 export default function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
@@ -38,7 +37,7 @@ export default function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         <button
           type="button"
           onClick={onOpenMenu}
-          aria-label="Ouvrir le menu de navigation"
+          aria-label={t("common.openMenu") ?? undefined}
           className="rounded-lg p-2 text-ink-600 hover:bg-sand-100 dark:text-sand-200 dark:hover:bg-forest-800 lg:hidden"
         >
           <Menu size={20} />

@@ -1,3 +1,44 @@
+## Corrections apportées suite à la review PR #74
+
+- **`store.ts` — bug corrigé** : `simulateProcessing` plafonnait à 75 % au
+  lieu de 100 % (division par `stages.length` au lieu de `stages.length - 1`).
+  La barre de progression atteint maintenant 100 % quand le statut passe à
+  "Terminé".
+- **i18n complet** : les `aria-label` codés en dur en français dans
+  `Topbar.tsx`, `Sidebar.tsx`, `FeedbackWidget.tsx` et
+  `ConsultationsHistoryTable.tsx`, ainsi que le "Jour {n}" du tooltip dans
+  `ActivityChart.tsx`, passent maintenant par `locales/fr.json` /
+  `locales/ar.json`. Un lecteur d'écran en session arabe entend désormais de
+  l'arabe partout, pas seulement le texte visible.
+- **`lib/api.ts` — couche frontière** : traduit le format `/chat` de M5
+  (`answer` / `citations[].chunk_id,title,excerpt` / `refused`) vers le
+  format interne (`content` / `sources[].id,label,excerpt`) sans toucher un
+  seul composant. Bascule vers l'API réelle en remplaçant uniquement le corps
+  de `fetchChatReply` — voir le commentaire en tête de fichier.
+  Champ `reference` : en attente de la réponse d'Iman (issue #76) — utilise
+  `title + date` pour l'instant, marqué `TODO` dans le code.
+- **`refused` traité visuellement** : une réponse hors périmètre (guardrail
+  M2) s'affiche maintenant dans une bulle distincte (bordure/fond doré +
+  étiquette "Hors périmètre"), jamais comme une réponse normale — voir
+  `MessageBubble.tsx`.
+- **Historique connecté** : `lib/historyStore.ts` centralise les
+  consultations et les documents analysés. La sidebar (visible sur toutes les
+  pages, y compris Analyse de contrat) et la table "Historique des
+  consultations" du tableau de bord se mettent maintenant à jour
+  automatiquement dès qu'une consultation se termine ou qu'un document
+  atteint le statut "Terminé" — plus besoin de rafraîchir.
+- **Design system retiré de la navigation** (page supprimée, plus de lien
+  dans la sidebar) — non nécessaire pour la démo.
+- **Corrections mineures** : type de `ChatComposer` (un `KeyboardEvent` était
+  passé à un handler typé `FormEvent`), `baseUrl` manquant dans
+  `tsconfig.json`, timers factices non réinitialisés dans
+  `chatStore.test.ts` (ajout de `afterEach(() => vi.useRealTimers())`).
+
+`npx tsc --noEmit` passe sans erreur sur l'ensemble du projet après ces
+correctifs.
+
+---
+
 # Assistant Juridique — Frontend (Oumaïma · Design system & UX)
 
 Interface produit de la plateforme **Assistant Juridique Intelligent** (CloudMind Group).
@@ -14,7 +55,6 @@ Construit avec le stack demandé : **React · TypeScript · Next.js (App Router)
 | Tableau de bord | `/tableau-de-bord` | KPIs, activité des consultations (aire), statut des documents (donut), table des documents analysés, historique des consultations exportable |
 | Consultation | `/consultation` | Interface conversationnelle en flux, historique persistant (Zustand), citations de sources, widget de feedback 👍/👎 + commentaire |
 | Analyse de contrat | `/analyse-de-contrat` | Upload par glisser-déposer ou sélecteur de fichiers, file de traitement avec barre de progression (téléchargement → OCR → analyse → terminé) |
-| Design system | `/design-system` | Palette, typographie, boutons, badges de statut — référence pour les autres modules front |
 
 La barre latérale (navigation + historique) et l'en-tête (titre de page, sélecteur de
 période, bouton Actualiser, thème, langue) sont communs à tous les écrans via `AppShell`.
