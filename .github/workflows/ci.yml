@@ -47,7 +47,7 @@ jobs:
           pip install great-expectations pandas
           # Dépendances M5 : sans elles, tests/m5/ échoue à la collecte et
           # emporte toute la suite, y compris les tests M1 et M7.
-          pip install pyjwt passlib bcrypt==4.0.1 slowapi redis celery
+         pip install pyjwt passlib bcrypt==4.0.1 slowapi redis celery python-multipart
 
       - name: Tests d'anonymisation
         run: python -m pytest tests/ -v
