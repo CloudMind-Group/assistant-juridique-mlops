@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.5 — 7 septembre 2026
+**Version :** 1.6 — 9 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -287,6 +287,81 @@ reprendre si le hook est implémenté.
 **Reste hors périmètre à ce jour :** la restitution elle-même. M5 et M6
 n'existent pas, donc aucun utilisateur final n'accède au corpus.
 
+### T-04 — Journal d'audit des accès
+
+| | |
+|---|---|
+| **Finalité** | Rendre compte des accès au corpus et des réponses produites — obligation de responsabilité, art. 5.2 RGPD |
+| **Base légale** | Obligation légale de rendre compte, et intérêt légitime à détecter un usage anormal |
+| **Support** | `monitoring/audit/audit.jsonl`, collecté par Promtail vers Loki |
+| **Écriture** | [`src/m8_compliance/audit.py`](../src/m8_compliance/audit.py) (PR #59) |
+| **Contenu stocké** | Empreintes HMAC-SHA-256 de l'identifiant d'acteur et de la question, rôle applicatif, `doc_id` consultés, horodatage, résultat |
+| **Personnes concernées** | Utilisateurs du service — particuliers, juristes, gestionnaires, administrateurs |
+| **Responsable opérationnel** | Taha Kachmar (M8) — événements émis par M5 |
+| **Durée de conservation** | **Trois ans** à compter de l'écriture — décision A-4 |
+| **Transfert hors Maroc** | Non — la pile d'observabilité est locale |
+
+**Ce journal traite des données à caractère personnel.** Le contrat
+d'observabilité affirme l'inverse ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2.3) ;
+c'est inexact, et la fiche est ici pour le corriger.
+
+Un identifiant pseudonymisé reste une donnée personnelle tant que la clé
+existe : c'est l'article 4.5 du RGPD, et son considérant 26 réserve la sortie du
+champ aux seules données **anonymes**, c'est-à-dire irréversibles pour
+quiconque. Le document se contredit d'ailleurs lui-même, et c'est ce qui rend
+l'erreur visible : il justifie le choix du HMAC en expliquant que la corrélation
+**reste possible pour qui détient la clé**. Si le journal était réellement
+anonyme, ce choix n'aurait aucun objet.
+
+**L'immuabilité reste défendable, mais pas pour la raison écrite.** Ce n'est pas
+que le droit à l'effacement soit sans objet — c'est qu'il n'est pas absolu.
+L'article 17.3 écarte l'effacement lorsque le traitement est nécessaire au
+respect d'une obligation légale ou à la constatation d'un droit. Un journal tenu
+pour rendre compte relève des deux. Une demande d'effacement reçoit donc une
+réponse motivée, et non un constat d'absence d'objet.
+
+La distinction n'est pas théorique : dans le premier cas la personne a des
+droits qu'on lui refuse pour un motif opposable, dans le second on lui répond
+qu'elle n'en a pas. **Seul le premier tient devant un contrôle.**
+
+**Ce qui n'est jamais écrit** — texte d'une question ou d'une réponse, donnée
+personnelle extraite d'un document, adresse IP brute, jeton d'authentification.
+L'interdiction n'est pas seulement documentée : le module refuse d'écrire un
+événement qui en contiendrait, plutôt que de l'expurger. Un événement
+silencieusement nettoyé est un événement que personne n'ira examiner.
+
+**La clé du HMAC est détenue par le serveur** et lue depuis l'environnement. Le
+module refuse d'écrire en son absence : un journal signé sous une clé prévisible
+n'anonymise rien, l'ensemble des comptes étant énumérable.
+
+### T-05 — Traces d'exécution
+
+| | |
+|---|---|
+| **Finalité** | Diagnostiquer les erreurs et les lenteurs de la chaîne de réponse |
+| **Base légale** | Intérêt légitime — maintien en condition opérationnelle |
+| **Support** | Tempo, alimenté par le collecteur OpenTelemetry |
+| **Contenu stocké** | Durées, statuts, identifiants de trace, et `enduser.pseudo_id` |
+| **Personnes concernées** | Utilisateurs du service |
+| **Responsable opérationnel** | Youssef El Alem (M7) |
+| **Durée de conservation** | À arrêter avec M7 — voir écart E-12 |
+| **Transfert hors Maroc** | Non |
+
+**Le pseudonyme est calculé par l'application, sous la même clé que le journal
+d'audit** (PR #63). Le collecteur supprime `enduser.id`, `user.email` et
+`client.address` avant tout export, et il le fait au point d'entrée unique
+plutôt que dans chaque service : une expurgation qui dépendrait de la mémoire de
+chaque appelant ne survivrait pas au service suivant.
+
+Conséquence utile : les deux magasins portent **le même** pseudonyme. Corréler
+une trace et un événement d'audit est possible pour qui détient la clé — donc
+pour une investigation légitime — et pour personne d'autre.
+
+Une première version du collecteur employait un condensé sans clé. Signalé
+(issue #68) et corrigé avant toute mise en service ; un test refuse désormais
+`action: hash` sur **toute** clé d'identité, ce qui couvre les attributs qui
+seront ajoutés plus tard.
+
 ## 4. Droits des personnes
 
 | Droit | Exerçable aujourd'hui | Condition de maintien |
@@ -306,8 +381,9 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
 | E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
-| E-04 | Journal d'audit : **contrat défini** ([`OBSERVABILITE.md`](OBSERVABILITE.md) §2), **écriture non implémentée**. Ce n'est plus la conception qui manque mais la source d'événements | Moyenne | M8 + M5 | avant ouverture du service |
+| E-04 | Journal d'audit : contrat défini et **écriture implémentée** (PR #59). Ce qui reste dépend de la configuration de Loki — rétention de trois ans et purge — donc de M7, et non plus de M8. L'écart demeure ouvert tant que cette configuration n'est pas posée, mais il a changé de nature et de responsable | Faible | M7 | avant ouverture du service |
 | E-06 | Chiffrement au repos du corpus non documenté — l'hébergeur ne publie pas ses garanties et l'organisation ne peut pas les vérifier ; à traiter par le chiffrement côté client si le corpus réel l'exige | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
+| E-12 | La durée de conservation des traces (Tempo) n'est pas arrêtée. Elles portent un pseudonyme sous la clé serveur, donc une donnée personnelle : une conservation indéfinie contredirait la limitation de conservation, quand bien même le contenu est minime | Faible | M7 + M8 | avant ouverture du service |
 | E-11 | `SourceType` mêle deux axes : trois catégories de document et deux canaux de collecte. Le canal ne détermine pas le contenu, donc pour un document arrivé par `Portail Officiel` ou `Dépôt Interne` le registre **ne peut déclarer aucune attente** en données personnelles — alors que c'est cette attente qui règle le niveau de vérification. Le masquage s'applique quoi qu'il arrive, l'écart porte sur la déclaration, pas sur la protection. Piste retenue avec @DOUAEM449 : renommer `Dépôt Interne` en un terme sans ambiguïté et porter la catégorie du document dans un champ distinct du canal | Faible | M8 + M1 | avant collecte réelle |
 
 ### Écarts résolus
