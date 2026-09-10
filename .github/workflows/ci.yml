@@ -77,6 +77,22 @@ jobs:
       - name: Data Card du corpus M1
         run: python -m src.m1_ingestion.data_card --processed-dir data/processed --corpus-status synthetique
 
+      - name: Aucun nom de fichier source dans les artefacts publiés (M8)
+        # Placée après toutes les étapes qui écrivent dans data/processed/,
+        # parce qu'elle contrôle ce qui a été écrit et non ce que le code
+        # promet d'écrire.
+        #
+        # La règle a déjà été enfreinte deux fois par deux personnes, à six
+        # jours d'intervalle : ingestion_report.json (écart E-R13, PR #44) puis
+        # expectations_report.json (PR #52, corrigée par la PR #62). Le premier
+        # correctif substituait les chemins à la sérialisation du rapport
+        # concerné — juste pour ce fichier, insuffisant pour la catégorie.
+        #
+        # Un contrôle qui dépend de chaque contributeur futur pour s'en
+        # souvenir est un contrôle qui se périme. Celui-ci ne demande rien à
+        # personne : il lit les fichiers produits.
+        run: python -m src.m8_compliance.artefacts_publies --repertoire data/processed
+
       - name: Tests d'instrumentation et de traçage (M7)
         run: python -m pytest monitoring/tests/ -v
 
