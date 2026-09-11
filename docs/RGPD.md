@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.6 — 9 septembre 2026
+**Version :** 1.7 — 11 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -341,10 +341,10 @@ n'anonymise rien, l'ensemble des comptes étant énumérable.
 | **Finalité** | Diagnostiquer les erreurs et les lenteurs de la chaîne de réponse |
 | **Base légale** | Intérêt légitime — maintien en condition opérationnelle |
 | **Support** | Tempo, alimenté par le collecteur OpenTelemetry |
-| **Contenu stocké** | Durées, statuts, identifiants de trace, et `enduser.pseudo_id` |
+| **Contenu stocké** | Durées, statuts, identifiants de trace, et `enduser.pseudo_id`. **Réserve** : tant que l'écart E-13 est ouvert, un attribut d'URL peut y ajouter la question de l'utilisateur — cette ligne décrit donc ce qui est voulu, pas ce qui sera stocké le jour où M5 est instrumenté |
 | **Personnes concernées** | Utilisateurs du service |
 | **Responsable opérationnel** | Youssef El Alem (M7) |
-| **Durée de conservation** | À arrêter avec M7 — voir écart E-12 |
+| **Durée de conservation** | **Trente jours** — `block_retention: 720h`. Volontairement plus courte que les trois ans du journal d'audit : une trace technique ne porte pas de preuve de conformité |
 | **Transfert hors Maroc** | Non |
 
 **Le pseudonyme est calculé par l'application, sous la même clé que le journal
@@ -381,10 +381,9 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | Réf | Écart | Gravité | Responsable | Échéance |
 |---|---|---|---|---|
 | E-01 | Détection par regex, pas par NER. La propagation des noms a fortement réduit l'écart, mais un nom qui n'est **jamais** ancré dans le document échappe encore au masquage | Moyenne *(était élevée)* | M8 | S4 |
-| E-04 | Journal d'audit : contrat défini et **écriture implémentée** (PR #59). Ce qui reste dépend de la configuration de Loki — rétention de trois ans et purge — donc de M7, et non plus de M8. L'écart demeure ouvert tant que cette configuration n'est pas posée, mais il a changé de nature et de responsable | Faible | M7 | avant ouverture du service |
 | E-06 | Chiffrement au repos du corpus non documenté — l'hébergeur ne publie pas ses garanties et l'organisation ne peut pas les vérifier ; à traiter par le chiffrement côté client si le corpus réel l'exige | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
-| E-12 | La durée de conservation des traces (Tempo) n'est pas arrêtée. Elles portent un pseudonyme sous la clé serveur, donc une donnée personnelle : une conservation indéfinie contredirait la limitation de conservation, quand bien même le contenu est minime | Faible | M7 + M8 | avant ouverture du service |
 | E-11 | `SourceType` mêle deux axes : trois catégories de document et deux canaux de collecte. Le canal ne détermine pas le contenu, donc pour un document arrivé par `Portail Officiel` ou `Dépôt Interne` le registre **ne peut déclarer aucune attente** en données personnelles — alors que c'est cette attente qui règle le niveau de vérification. Le masquage s'applique quoi qu'il arrive, l'écart porte sur la déclaration, pas sur la protection. Piste retenue avec @DOUAEM449 : renommer `Dépôt Interne` en un terme sans ambiguïté et porter la catégorie du document dans un champ distinct du canal | Faible | M8 + M1 | avant collecte réelle |
+| E-13 | Le collecteur supprime `rag.question` mais aucun attribut d'URL. Or la PR #54 place la question dans la chaîne de requête — `/chat?question=…` — et l'instrumentation HTTP renseigne `url.full` par défaut : **la question serait stockée intacte dans la trace**, le dispositif contourné sans que personne ait rien fait de mal. Signalé par @DOUAEM449 (issue #78) après l'avoir déjà relevé en relisant la PR #63, que **j'ai approuvée sans le voir**. Deux correctifs, complémentaires : supprimer les attributs d'URL au collecteur, et faire voyager la question dans le corps de la requête. Le second est le seul qui ferme aussi les journaux d'accès, le proxy et l'historique du navigateur — que nul collecteur n'expurge | Moyenne | M7 + M5 | avant instrumentation de M5 |
 
 ### Écarts résolus
 
@@ -403,6 +402,8 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R11 | M8 et M2 n'avaient aucune interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement cesse d'être une modification de texte | **L'interface existait dans le code, seule la matrice ne la déclarait pas.** Vérifié ligne à ligne le 06/09/2026 : `delete_document(doc_id)` sur les deux implémentations de `VectorStore` ([`vector_store.py:88`](../src/m2_rag/vector_store.py) en mémoire, [`:184`](../src/m2_rag/vector_store.py) pour Qdrant via un `FilterSelector` sur le payload `doc_id`, **sans recréation de la collection**), verrouillé par [`test_vector_store.py:42`](../tests/m2/test_vector_store.py). Et `data/raw` n'apparaît nulle part dans `src/m2_rag/` hors d'une ligne de documentation. L'effacement par `doc_id` est donc **techniquement praticable**, et l'engagement du registre tient. Références signalées par @youssefelalem (PR #28), vérifiées avant fermeture |
 | E-R12 | `Dockerfile` et `docker-compose.yml` ne relevaient d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, montages et secrets d'exécution échappaient à la revue de conformité | PR #45 — les deux fichiers relèvent de `platform` **et** `security` ; la revue est doublée, pas déplacée. La revue de conteneur qui n'avait jamais eu lieu est faite : trois constats, dont le montage `./data` en lecture-écriture sur le corpus brut, laissés à l'arbitrage de M4 |
 | E-R13 | Les rapports poussés sur le remote partagé enregistraient le **chemin brut** du fichier source — or un nom de fichier porte régulièrement le nom d'une partie, raisonnement déjà appliqué au `doc_id` et au `title` (E-R3) mais pas aux rapports | PR #44 pour `ingestion_report.json`, **puis PR #62 pour `expectations_report.json`**. **Correction du 07/09/2026 :** la fiche annonçait initialement que la substitution « à la sérialisation » couvrait tout champ ajouté ensuite. C'était vrai *dans ce rapport*, et je l'ai laissé lire comme une garantie générale. La PR #52 a ouvert la même fuite dans un second rapport six jours plus tard, et @DOUAEM449 l'a trouvée et refermée en relisant la PR #58. **Le correctif portait sur un fichier, pas sur un principe** — et la règle vaut pour toute sortie publiée, pas pour celles qui existaient quand elle a été écrite |
+| E-R14 | Journal d'audit : contrat défini, écriture non implémentée, puis rétention supposée non configurée | **Écart clos, et les deux moitiés l'étaient déjà.** L'écriture est livrée (PR #59). La rétention de trois ans est configurée dans [`loki-config.yml`](../monitoring/loki/loki-config.yml) — `retention_period: 26280h`, `retention_enabled: true` — **depuis la PR #25 du 01/09/2026**. *Correction du 11/09/2026 : j'ai maintenu cet écart ouvert le 10/09 en écrivant que la configuration restait à poser, sans ouvrir le fichier. Elle y était depuis dix jours.* |
+| E-R15 | Durée de conservation des traces non arrêtée | **Écart ouvert à tort le 10/09/2026 et clos le 11/09.** `block_retention: 720h` — trente jours — figure dans [`tempo-config.yml`](../monitoring/tempo/tempo-config.yml) **depuis la PR #63 du 09/09**, avec son motif écrit : une trace technique ne porte pas de preuve de conformité, la conserver trois ans augmenterait la surface sans servir d'obligation. *J'avais relu et approuvé cette PR la veille.* |
 
 ## 6. Preuves
 
