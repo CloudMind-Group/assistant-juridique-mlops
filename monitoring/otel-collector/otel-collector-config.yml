@@ -1,0 +1,98 @@
+# Collecteur OpenTelemetry — point d'entrée unique des traces (M7).
+#
+# On aurait pu faire écrire les services directement dans Tempo : Tempo reçoit
+# l'OTLP. Le collecteur est là pour une raison précise, et une seule.
+#
+# **C'est le seul endroit où une trace peut être expurgée avant d'être
+# stockée.** Une trace de requête RAG porte l'URL appelée, les en-têtes, et
+# tout attribut que l'appelant a jugé utile d'ajouter — une question juridique
+# posée en clair, un jeton d'authentification, une adresse. Le §2.3 de
+# docs/OBSERVABILITE.md l'interdit pour le journal d'audit ; rien ne serait
+# cohérent à l'interdire là et à le tolérer ici.
+#
+# Le faire côté application supposerait que chaque service pense à le faire.
+# Le faire ici, c'est le garantir pour tous, y compris pour un service écrit
+# plus tard par quelqu'un qui n'aura pas lu ce fichier.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Suppression avant tout autre traitement : ce qui est supprimé ici ne peut
+  # être exporté par aucune voie, même si un exportateur est ajouté ensuite.
+  attributes/expurger:
+    actions:
+      # Secrets d'authentification — jamais dans un magasin de traces.
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.request.header.x-api-key
+        action: delete
+
+      # Contenu utilisateur. `question`, `query` et `prompt` sont les noms que
+      # la chaîne RAG emploie ; les trois sont supprimés plutôt que masqués,
+      # car un extrait de question juridique reste identifiant.
+      - key: rag.question
+        action: delete
+      - key: rag.query
+        action: delete
+      - key: llm.prompt
+        action: delete
+      - key: llm.completion
+        action: delete
+
+      # Identité de l'appelant : supprimée, et non condensée.
+      #
+      # `action: hash` produit ici un SHA-256 **nu**, et le §2.2 du contrat
+      # traite exactement ce cas : un condensé sans clé n'anonymise rien quand
+      # l'espace d'entrée est petit et énumérable. La liste des comptes est
+      # connue ; qui détient le magasin de traces hache chaque candidat et
+      # retrouve la correspondance en quelques secondes. L'attaque est
+      # l'énumération, pas la collision — une fonction plus forte n'y changerait
+      # rien. Signalé par @taha588, issue #68.
+      #
+      # Le pseudonyme est donc calculé par l'application sous la clé serveur,
+      # avec `empreinte()` de src/m8_compliance/audit.py, et transmis dans
+      # `enduser.pseudo_id`. Cet attribut n'apparaît nulle part dans ce
+      # processeur : il traverse intact, c'est voulu, et c'est ce qui rend une
+      # trace corrélable à un événement d'audit pour qui détient la clé — donc
+      # pour une investigation légitime, et pour personne d'autre.
+      - key: enduser.id
+        action: delete
+      - key: user.email
+        action: delete
+      - key: client.address
+        action: delete
+
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+  # Garde-fou mémoire : un collecteur qui meurt sous la charge emporte la
+  # visibilité au moment précis où elle est le plus utile.
+  memory_limiter:
+    check_interval: 2s
+    limit_mib: 384
+    spike_limit_mib: 96
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true   # réseau Docker interne ; TLS relève de M4 en déploiement
+
+service:
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/expurger, batch]
+      exporters: [otlp/tempo]

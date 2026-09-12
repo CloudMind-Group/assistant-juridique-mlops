@@ -39,6 +39,8 @@
     $('#lanes').innerHTML         = LANES.map(CM.laneHTML).join('');
     $('#qualityBars').innerHTML   = QUALITY.map(CM.qualityBarHTML).join('');
     $('#timeline').innerHTML      = TIMELINE.map(CM.timelineHTML).join('');
+    $('#depGrid').innerHTML       = MEMBERS.map(CM.depCardHTML).join('');
+    $('#roadWrap').innerHTML      = CM.roadmapHTML();
     $('#delivGrid').innerHTML     = DELIVERABLES.map(CM.deliverableHTML).join('');
     $('#footTeam').innerHTML      = MEMBERS.map(CM.footTeamHTML).join('');
 
