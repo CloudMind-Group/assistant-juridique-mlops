@@ -146,7 +146,7 @@ const MEMBERS = [
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',
     module:'Module 8 · Security, Governance & Compliance', icon:'i-shield',
-    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:43,
+    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:57,
     desc:"Protection des données juridiques sensibles, conformité RGPD, contrôle d'accès et documentation d'ensemble du système.",
     subs:[
       ['Cartographie des données à caractère personnel, registre des traitements RGPD et analyse d\'impact (AIPD) — docs/RGPD.md et docs/AIPD.md',1],
@@ -155,7 +155,7 @@ const MEMBERS = [
       ['Chiffrement au repos et en transit, rotation des secrets et gestion des clés',0],
       ['Journalisation d\'audit immuable des accès et des réponses générées — contrat et écriture livrés ; la rétention relève de la configuration de Loki (M7)',1],
       ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique définis — implémentation à la charge de M2, M5 et M6',1],
-      ['Documentation d\'architecture, guide de contribution et politique de sécurité — Bandit, pip-audit, scan de secrets et contrôle des artefacts publiés intégrés à la CI ; MkDocs restant à produire',0]
+      ['Documentation d\'architecture, guide de contribution et politique de sécurité — Bandit, pip-audit, scan de secrets et contrôle des artefacts publiés intégrés à la CI ; documentation MkDocs construite en CI',1]
     ],
     tools:['Bandit','pip-audit','Pytest','HMAC-SHA-256','MkDocs'],
     collab:"Définit les règles d'anonymisation appliquées par <b>Douae</b>, valide les contrôles d'accès de <b>Nouhaila</b>, intègre les scans de sécurité dans la CI de <b>Salma</b> et audite les journaux collectés par <b>Youssef</b>.",
