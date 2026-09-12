@@ -1,0 +1,124 @@
+{
+  "app": {
+    "name": "Assistant Juridique",
+    "range30": "30 derniers jours",
+    "refresh": "Actualiser"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "consultation": "Consultation",
+    "analysis": "Analyse de contrat",
+    "designSystem": "Design system"
+  },
+  "history": {
+    "title": "Historique",
+    "item1": "Contrat de prestation Nexus",
+    "item1Time": "Aujourd'hui, 11h32",
+    "item2": "NDA — Partenariat Arvalis",
+    "item2Time": "Hier, 15h04",
+    "item3": "CGV e-commerce Bloom & Co.",
+    "item3Time": "5 sept. 2026",
+    "item4": "Bail commercial — Rue de Rivoli",
+    "item4Time": "3 sept. 2026"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "stats": {
+      "consultations": "Consultations",
+      "consultationsDelta": "↑ 12% vs période précédente",
+      "documents": "Documents analysés",
+      "documentsDelta": "↑ 5% vs période précédente",
+      "satisfaction": "Taux de satisfaction",
+      "satisfactionDelta": "↑ 2 pts vs période précédente",
+      "latence": "Temps de réponse moyen",
+      "latenceDelta": "↓ 0.3 s vs période précédente"
+    },
+    "activity": {
+      "title": "Activité des consultations",
+      "dayLabel": "Jour {{day}}"
+    },
+    "status": {
+      "title": "Statut des documents",
+      "enAttente": "En attente",
+      "enCours": "En cours",
+      "enRevision": "En révision",
+      "approuve": "Approuvé",
+      "rejete": "Rejeté"
+    },
+    "documentsTable": {
+      "title": "Documents analysés",
+      "search": "Rechercher un document…",
+      "columnDocument": "Document",
+      "columnDate": "Date",
+      "columnStatus": "Statut"
+    },
+    "historyTable": {
+      "title": "Historique des consultations",
+      "search": "Rechercher une consultation…",
+      "columnQuestion": "Question",
+      "columnDate": "Date",
+      "columnFeedback": "Retour",
+      "columnExport": "Export",
+      "exportPdf": "Exporter en PDF"
+    },
+    "statusLabels": {
+      "termine": "Terminé",
+      "ocr_en_cours": "OCR en cours",
+      "echec": "Échec",
+      "en_attente": "En attente"
+    }
+  },
+  "consultation": {
+    "title": "Consultation",
+    "emptyTitle": "Consultation juridique",
+    "emptySubtitle": "Posez vos questions à l'assistant IA.",
+    "placeholder": "Posez une question juridique…",
+    "send": "Envoyer",
+    "disclaimer": "Les réponses citent leurs sources mais ne remplacent pas l'avis d'un avocat.",
+    "sourcesLabel": "Sources citées",
+    "thinking": "L'assistant rédige une réponse…",
+    "feedbackPrompt": "Cette réponse vous a-t-elle été utile ?",
+    "feedbackPlaceholder": "Ajouter un commentaire (facultatif)…",
+    "feedbackSend": "Envoyer le retour",
+    "feedbackSent": "Merci pour votre retour.",
+    "refusedLabel": "Hors périmètre"
+  },
+  "analysis": {
+    "title": "Analyse de contrat",
+    "emptyTitle": "Analyse de contrat",
+    "emptySubtitle": "Déposez un document pour l'analyser.",
+    "dropTitle": "Glissez-déposez un contrat ici",
+    "dropSubtitle": "ou parcourez vos fichiers — PDF, DOCX jusqu'à 25 Mo",
+    "browse": "Parcourir les fichiers",
+    "queueTitle": "Documents en cours de traitement",
+    "status": {
+      "en_telechargement": "Téléchargement…",
+      "ocr": "OCR en cours",
+      "analyse": "Analyse en cours",
+      "termine": "Terminé",
+      "echec": "Échec"
+    }
+  },
+  "designSystem": {
+    "title": "Design system",
+    "subtitle": "Palette, typographie et composants partagés de l'Assistant Juridique.",
+    "colors": "Palette de couleurs",
+    "typography": "Typographie",
+    "components": "Composants",
+    "buttons": "Boutons",
+    "badges": "Statuts",
+    "cards": "Cartes"
+  },
+  "common": {
+    "toggleTheme": "Changer de thème",
+    "toggleLanguage": "Changer de langue",
+    "lightMode": "Clair",
+    "darkMode": "Sombre",
+    "openMenu": "Ouvrir le menu de navigation",
+    "closeMenu": "Fermer le menu",
+    "mainNav": "Navigation principale",
+    "feedbackPositive": "Retour positif",
+    "feedbackNegative": "Retour négatif",
+    "today": "Aujourd'hui"
+  }
+}
