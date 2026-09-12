@@ -50,3 +50,5 @@ mlflow.db
 
 # Site MkDocs construit — artefact de build, jamais versionne.
 site/
+.next/ 
+coverage/ 
