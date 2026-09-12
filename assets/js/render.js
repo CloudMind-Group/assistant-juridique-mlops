@@ -183,6 +183,78 @@ const CM = (() => {
   const deliverableHTML = ([tag, title, desc]) => `
     <div class="dcard"><div class="dt">${esc(tag)}</div><h5>${esc(title)}</h5><p>${esc(desc)}</p></div>`;
 
+  /* --------------------------------------------------------- dépendances */
+  /* Une pastille de module : sert d'ancre cliquable vers la carte du membre. */
+  const modChipHTML = id => {
+    const m = MEMBERS.find(x => x.id === id);
+    return `<a class="dep-chip" href="#card-${id}" style="--c1:${m.c1};--c2:${m.c2}"
+              title="${esc(m.name)} — ${esc(m.module)}">${avatar(m, 'av av-xs')}${esc(id)}</a>`;
+  };
+
+  const depCardHTML = m => {
+    const attend = blockedBy(m.id);
+    const bloque = blocking(m.id);
+    const libre  = !attend.length;
+    return `
+    <div class="dep-card ${libre ? 'dep-free' : ''}" style="--c1:${m.c1};--c2:${m.c2}">
+      <div class="dep-head">
+        ${avatar(m)}
+        <span><b>${esc(m.id)}</b><small>${esc(m.name)}</small></span>
+        ${libre ? `<span class="dep-tag dep-tag-free">Rien ne le bloque</span>` : ''}
+      </div>
+
+      ${attend.length ? `
+      <div class="dep-blk">
+        <div class="dep-lbl">${icon('i-clock')} Attend</div>
+        <ul class="dep-list">${attend.map(d =>
+          `<li>${modChipHTML(d.on)}<span>${esc(d.what)}</span></li>`).join('')}</ul>
+      </div>` : ''}
+
+      ${bloque.length ? `
+      <div class="dep-blk">
+        <div class="dep-lbl">${icon('i-link')} Bloque</div>
+        <ul class="dep-list">${bloque.map(d =>
+          `<li>${modChipHTML(d.from)}<span>${esc(d.what)}</span></li>`).join('')}</ul>
+      </div>` : ''}
+
+      ${!attend.length && !bloque.length
+        ? `<p class="dep-none">Aucune dépendance déclarée dans les deux sens.</p>` : ''}
+    </div>`;
+  };
+
+  /* ---------------------------------------------------- feuille de route */
+  const roadmapHTML = () => `
+    <table class="road-table">
+      <thead>
+        <tr>
+          <th class="road-corner">Module \\ Version</th>
+          ${RELEASES.map(r => `
+            <th class="road-h road-${r.state}">
+              <span class="mono">${esc(r.id)}</span>
+              <small>${esc(r.note)}</small>
+            </th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${MEMBERS.map(m => `
+        <tr>
+          <th scope="row" class="road-row">
+            <div class="raci-row-in">${avatar(m)}<span><b>${esc(m.id)}</b><small>${esc(m.name)}</small></span></div>
+          </th>
+          ${ROADMAP[m.id].map((cell, i) => {
+            if (!cell) return `<td class="road-void" aria-label="rien livré dans ${esc(RELEASES[i].id)}"><span>—</span></td>`;
+            const [state, what] = cell;
+            return `<td class="road-cell">
+              <div class="road-bar road-${state}" style="--c1:${m.c1};--c2:${m.c2}">
+                <i class="dot${state === 'progress' ? ' pulse' : ''}"></i>
+                <span>${esc(what)}</span>
+              </div>
+            </td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
   const footTeamHTML = m => `<li>${avatar(m)}${esc(m.name)}</li>`;
 
   const legendHTML = ([letter, label, color]) =>
@@ -192,6 +264,7 @@ const CM = (() => {
     esc, ini, icon, avatar,
     kpiHTML, memberFilterHTML, cardHTML, columnHTML, emptyHTML,
     raciHTML, legendHTML, stageHTML, laneHTML, stackRowHTML,
-    qualityBarHTML, timelineHTML, deliverableHTML, footTeamHTML
+    qualityBarHTML, timelineHTML, deliverableHTML, footTeamHTML,
+    depCardHTML, roadmapHTML
   };
 })();

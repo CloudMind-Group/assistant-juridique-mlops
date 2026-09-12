@@ -33,14 +33,14 @@ const MEMBERS = [
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
     module:'Module 2 · Model Engineering & Fine-Tuning', icon:'i-brain',
-    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:13,
+    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:63,
     desc:"Conception de l'architecture RAG, indexation vectorielle, ingénierie de prompts et fine-tuning léger du LLM sur le domaine juridique.",
     subs:[
-      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',0],
+      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',1],
       ['Découpage sémantique des documents M1 en fragments de 512 jetons avec chevauchement de 64, sensible à la structure (articles/sections, fr et ar)',1],
-      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',0],
-      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',0],
-      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',0],
+      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',1],
+      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',1],
+      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',1],
       ['Fine-tuning paramétrique efficace (LoRA / QLoRA) sur corpus annoté questions-réponses',0],
       ['Compression du contexte et stratégie anti-hallucination (grounding strict sur sources)',0],
       ['Optimisation d\'inférence : quantification, batching et streaming des jetons',0]
@@ -128,12 +128,12 @@ const MEMBERS = [
   {
     id:'M7', name:'Youssef El Alem', role:'SRE / ML Observability — Lead Monitoring',
     module:'Module 7 · Model Monitoring & Observability', icon:'i-activity',
-    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:29,
+    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:43,
     desc:"Supervision du système et du modèle en production : dérive, qualité des réponses, latence, coûts et boucle de rétroaction.",
     subs:[
       ['Contrats d\'interface figés : métriques attendues de M5 et journal d\'audit fourni à M8 (docs/OBSERVABILITE.md)',1],
       ['Alerting multi-niveaux : 8 règles sur deux gravités, routage Slack/e-mail, inhibitions et procédure par alerte',1],
-      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',0],
+      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',1],
       ['Instrumentation Prometheus : module réutilisable écrit et vérifié, branchement sur les endpoints en attente de M5',0],
       ['Traçage distribué des requêtes RAG (OpenTelemetry) — squelette prêt, inerte tant qu\'aucun collecteur n\'est déployé',0],
       ['Détection de dérive des données et des embeddings (Evidently) — exige un flux de requêtes réel (M2 + M5)',0],
@@ -255,3 +255,102 @@ const WEEKS = {
   M5:'S2 → S3', M6:'S1 → S4', M7:'S3 → S4', M8:'S1 → S4'
 };
 MEMBERS.forEach(m => { m.week = WEEKS[m.id]; });
+
+/* =====================================================================
+   DÉPENDANCES INTER-MODULES
+
+   À ne pas confondre avec SUPPORTS, qui dit « qui aide qui ». Ceci dit
+   « qui ne peut pas commencer tant que l'autre n'a pas livré ». Un module
+   peut aider sans bloquer, et bloquer sans aider.
+
+   La distinction a une histoire : Oumaima a attendu Nouhaila, qui
+   attendait Douae pour des données que M5 n'a jamais requises. Personne
+   n'était en faute — la chaîne réelle n'était écrite nulle part. C'est ce
+   tableau qui manquait.
+
+   `from` ne démarre pas tant que `on` n'a pas fourni `what`.
+   ===================================================================== */
+const DEPENDENCIES = [
+  { from:'M2', on:'M1', what:'corpus nettoyé, segmenté et versionné' },
+  { from:'M3', on:'M2', what:'runs et modèles à tracer' },
+  { from:'M4', on:'M1', what:'pipeline à conteneuriser' },
+  { from:'M5', on:'M2', what:"chaîne d'inférence à exposer" },
+  { from:'M4', on:'M5', what:'service à déployer' },
+  { from:'M6', on:'M5', what:'API à consommer' },
+  { from:'M7', on:'M5', what:'endpoints à instrumenter' },
+  { from:'M7', on:'M4', what:'infrastructure à superviser' }
+];
+
+/* Ce dont un module a besoin avant de pouvoir avancer. */
+function blockedBy(moduleId){
+  return DEPENDENCIES.filter(d => d.from === moduleId);
+}
+
+/* Ce que ce module bloque chez les autres. */
+function blocking(moduleId){
+  return DEPENDENCIES.filter(d => d.on === moduleId);
+}
+
+/* =====================================================================
+   FEUILLE DE ROUTE PAR VERSION
+
+   Volontairement sans dates. Le calendrier S1 → S4 est un plan interne,
+   pas une échéance : y adosser un diagramme produirait une précision que
+   nous n'avons pas — le défaut même que ce tableau de bord a passé une
+   semaine à corriger.
+
+   Une version, elle, est un fait vérifiable. `v0.1.0` est étiquetée dans
+   le dépôt, et son contenu se lit dans son arbre : au 26 août, seul
+   `src/m1_ingestion` existait. Chaque case ci-dessous est adossée à ce
+   qui est réellement dans le dépôt, ou déclarée planifiée.
+   ===================================================================== */
+const RELEASES = [
+  { id:'v0.1.0', state:'done',     note:'étiquetée le 26 août 2026' },
+  { id:'v0.2.0', state:'progress', note:'en préparation — issue #19' },
+  { id:'v0.3.0', state:'planned',  note:'non ouverte' }
+];
+
+/* Une entrée par module et par version, dans l'ordre de RELEASES.
+   `null` = le module ne livre rien dans cette version. */
+const ROADMAP = {
+  M1:[
+    ['done',    "Schéma de métadonnées validé et pipeline d'ingestion"],
+    ['progress',"OCR, dé-duplication, segmentation, porte qualité en CI"],
+    null
+  ],
+  M2:[
+    null,
+    ['progress',"Découpage sémantique, indexation, chaîne RAG"],
+    ['planned', "Fine-tuning LoRA et optimisation d'inférence"]
+  ],
+  M3:[
+    null,
+    ['progress',"Suivi MLflow, registre de modèles, évaluation RAGAS"],
+    ['planned', "Benchmark « LLM-as-a-judge » sur corpus annoté"]
+  ],
+  M4:[
+    null,
+    ['progress',"Images Docker multi-stage et pipelines GitHub Actions"],
+    ['planned', "Kubernetes, Terraform, déploiement canari"]
+  ],
+  M5:[
+    null,
+    ['progress',"API FastAPI : santé, authentification, requête"],
+    ['planned', "Cache sémantique, streaming, SDK client"]
+  ],
+  M6:[
+    null,
+    ['progress',"Maquettes et garde-fous produit"],
+    ['planned', "Interface conversationnelle reliée à l'API"]
+  ],
+  M7:[
+    null,
+    ['progress',"Contrats d'interface, pile d'observabilité, alertes"],
+    ['planned', "Instrumentation branchée et détection de dérive"]
+  ],
+  M8:[
+    null,
+    ['progress',"Registre RGPD, anonymisation, journal d'audit"],
+    ['planned', "Détection NER et matrice des habilitations appliquée"]
+  ]
+};
