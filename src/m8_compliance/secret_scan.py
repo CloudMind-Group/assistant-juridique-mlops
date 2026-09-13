@@ -61,11 +61,34 @@ KNOWN_FORMS: tuple[tuple[str, str], ...] = (
 # `AWS_SECRET` ne contient pas de frontière de mot avant `SECRET`, le tiret bas
 # étant un caractère de mot. C'est exactement ce qui faisait échouer l'ancienne
 # étape, et le répéter ici aurait été le comble.
-NAMED_ASSIGNMENT = re.compile(
-    r"(?i)[A-Za-z0-9_\-]*"
+_MOTS_CLES = (
     r"(?:api[_\-]?key|secret|passwd|password|token|credential|private[_\-]?key)"
-    r"[A-Za-z0-9_\-]*\s*[:=]\s*[\"']([^\"']{12,})[\"']"
 )
+
+NAMED_ASSIGNMENT = re.compile(
+    r"(?i)[A-Za-z0-9_\-]*" + _MOTS_CLES + r"[A-Za-z0-9_\-]*"
+    r"\s*[:=]\s*[\"']([^\"']{12,})[\"']"
+)
+
+# La même chose, mais **valeur nue**, et réservée aux formats de configuration.
+#
+# La version initiale n'acceptait que la forme entre guillemets — celle du
+# Python, du JS et du YAML cité. Elle ratait donc toute la famille des fichiers
+# de configuration, où l'on écrit `password = valeur` sans rien autour : c'est
+# exactement la forme de `.dvc/config`, de `.gitconfig` et de tout `.ini`.
+#
+# Restreinte à ces formats, et non appliquée partout : essayée sur l'ensemble
+# du dépôt, elle a produit six faux positifs dans le code de M2 — `_TOKEN_RE =
+# re.compile(...)`, `getattr(...)`. En Python, la partie droite non citée est
+# une expression, jamais un secret ; dans un `.ini`, c'est l'inverse. Le format
+# du fichier décide, et c'est le seul discriminant qui tienne.
+NAMED_ASSIGNMENT_NU = re.compile(
+    r"(?i)^[^\S\n]*[A-Za-z0-9_\-]*" + _MOTS_CLES + r"[A-Za-z0-9_\-]*"
+    r"\s*[:=]\s*([^\s\"'#][^\s#]{11,})\s*$"
+)
+
+# Formats où une valeur s'écrit sans guillemets.
+FORMATS_DE_CONFIGURATION = (".ini", ".cfg", ".conf", ".env", ".toml", ".properties")
 
 # Valeurs manifestement non secrètes : gabarits, exemples, variables déférées.
 PLACEHOLDER = re.compile(
@@ -117,14 +140,49 @@ DEFERRED_VALUE = re.compile(r"^(?:\$\{[^}]*\}|\{\{[^}]*\}\}|\$[A-Za-z_][A-Za-z0-
 # Une valeur factice y est le contenu attendu, pas un defaut.
 SHAPE_ONLY_SUFFIXES = (".example", ".sample", ".template", ".dist")
 
+# Répertoires écartés du parcours. Principe : **on n'écarte jamais un fichier
+# que git suit.** Un contrôle dont l'objet est « aucun secret n'entre dans le
+# dépôt » ne peut pas être aveugle à un fichier versionné, quel que soit le
+# répertoire où il se range.
+#
+# `.dvc` figurait ici et a été retiré : `.dvc/config` **est versionné**, et
+# `dvc remote modify` sans `--local` y écrit un mot de passe. Le seul cas que
+# ce contrôle existe pour empêcher tombait donc dans son angle mort. Signalé
+# par @DOUAEM449 (issue #71), qui avait relevé le répertoire ; la version
+# versionnée du fichier est apparue en instruisant son constat.
 DEFAULT_EXCLUDED_DIRS = frozenset(
-    {".git", ".venv", "venv", "node_modules", "__pycache__", ".dvc", ".pytest_cache"}
+    {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache"}
 )
+
+# Sous-arbres écartés par leur chemin, et non par un composant de nom. Aucun
+# n'est versionné : `.dvc/cache` et `.dvc/tmp` sont ignorés par
+# `.dvc/.gitignore`, et ils contiennent des objets binaires en grand nombre.
+EXCLUDED_PREFIXES = (
+    ".dvc/cache",
+    ".dvc/tmp",
+)
+
+# `.git/` reste écarté du parcours — des objets compressés par milliers, que
+# lire n'apprendrait rien. Mais `.git/config` porte l'URL du remote, et une URL
+# de remote se recopie : un `git remote -v` collé dans une conversation sort le
+# jeton de la machine sans qu'aucun commit ait lieu. Le fichier est donc lu à
+# part, hors du parcours.
+#
+# Ce n'est pas un secret « dans le dépôt » mais dans le clone local, et le
+# rapport le dit : le correctif est `git remote set-url`, pas une suppression
+# de fichier.
+FICHIERS_HORS_PARCOURS = (".git/config",)
 
 SCANNED_SUFFIXES = frozenset(
     {".py", ".js", ".mjs", ".ts", ".json", ".yml", ".yaml", ".html", ".css",
      ".md", ".txt", ".sh", ".cfg", ".ini", ".toml", ".env"}
 )
+
+# Fichiers de configuration sans extension. Second angle mort, independant du
+# precedent : `.dvc/config` echappait au controle pour deux raisons cumulees —
+# son repertoire etait exclu, *et* son nom n'a pas de suffixe. Lever une seule
+# des deux n'aurait rien change, et l'aurait laisse croire corrige.
+SCANNED_NAMES = frozenset({"config", "credentials", "Dockerfile", ".env"})
 
 # Un commentaire `# m8:autorise <motif>` sur la ligne, ou juste au-dessus,
 # neutralise la détection. La justification est obligatoire : une exception
@@ -158,7 +216,13 @@ def _is_allowed(lines: list[str], index: int) -> bool:
 
 def scan_text(text: str, path: str = "<texte>") -> list[Finding]:
     findings: list[Finding] = []
-    shape_only = Path(path).suffix.lower() in SHAPE_ONLY_SUFFIXES
+    chemin = Path(path)
+    shape_only = chemin.suffix.lower() in SHAPE_ONLY_SUFFIXES
+    # Un format de configuration : valeur nue attendue, guillemets facultatifs.
+    config = (
+        chemin.suffix.lower() in FORMATS_DE_CONFIGURATION
+        or chemin.name in SCANNED_NAMES
+    )
     lines = text.splitlines()
     for index, line in enumerate(lines):
         if _is_allowed(lines, index):
@@ -186,13 +250,17 @@ def scan_text(text: str, path: str = "<texte>") -> list[Finding]:
                     )
                 )
 
-        for match in NAMED_ASSIGNMENT.finditer(line):
-            value = match.group(1).strip()
-            if PLACEHOLDER.match(value) or LOW_ENTROPY.match(value):
-                continue
-            findings.append(
-                Finding(path, index + 1, "affectation-nommee", _redact(value))
-            )
+        motifs_nommes = [NAMED_ASSIGNMENT]
+        if config:
+            motifs_nommes.append(NAMED_ASSIGNMENT_NU)
+        for motif in motifs_nommes:
+            for match in motif.finditer(line):
+                value = match.group(1).strip()
+                if PLACEHOLDER.match(value) or LOW_ENTROPY.match(value):
+                    continue
+                findings.append(
+                    Finding(path, index + 1, "affectation-nommee", _redact(value))
+                )
 
     # Une même ligne peut relever des deux classes ; ne la signaler qu'une
     # fois, sous le genre le plus précis, qui vient en premier.
@@ -212,21 +280,47 @@ def iter_files(
 ) -> Iterator[Path]:
     excluded = set(excluded)
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in SCANNED_SUFFIXES:
+        if not path.is_file():
+            continue
+        if (
+            path.suffix.lower() not in SCANNED_SUFFIXES
+            and path.name not in SCANNED_NAMES
+        ):
             continue
         if any(part in excluded for part in path.parts):
             continue
+        relatif = path.relative_to(root).as_posix()
+        if relatif.startswith(EXCLUDED_PREFIXES):
+            continue
         yield path
+
+
+def iter_fichiers_hors_parcours(root: Path) -> Iterator[Path]:
+    """Fichiers lus explicitement, bien que leur répertoire soit écarté.
+
+    Aujourd'hui `.git/config` seul. Il n'entre pas dans le dépôt, mais il sort
+    de la machine autrement : par un `git remote -v` recopié.
+    """
+    for relatif in FICHIERS_HORS_PARCOURS:
+        chemin = root / relatif
+        if chemin.is_file():
+            yield chemin
+
+
+def _lire(path: Path, root: Path) -> list[Finding]:
+    try:
+        texte = path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return []
+    return scan_text(texte, path.relative_to(root).as_posix())
 
 
 def scan_tree(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     for path in iter_files(root):
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        findings.extend(scan_text(text, str(path.relative_to(root)).replace("\\", "/")))
+        findings.extend(_lire(path, root))
+    for path in iter_fichiers_hors_parcours(root):
+        findings.extend(_lire(path, root))
     return findings
 
 

@@ -87,6 +87,7 @@
       <a href="#architecture">Architecture</a>
       <a href="#pipeline">Workflow</a>
       <a href="#metriques">Métriques</a>
+      <a href="#dependances">Dépendances</a>
       <a href="#livrables">Livrables</a>
     </nav>
     <button class="icon-btn" id="printBtn" title="Exporter en PDF / Imprimer" aria-label="Imprimer"><svg><use href="#i-print"/></svg></button>
@@ -300,6 +301,29 @@
   </div>
 </section>
 
+<!-- ===== DÉPENDANCES & FEUILLE DE ROUTE ===== -->
+<section class="sec" id="dependances">
+  <div class="shell">
+    <div class="sec-head rv">
+      <div>
+        <div class="sec-kicker">Chaîne de production</div>
+        <h2 class="sec-title">Qui attend <span class="grad-text">qui</span></h2>
+        <p class="sec-sub">Une dépendance n'est pas une collaboration : elle dit ce qu'un module ne peut pas commencer tant qu'un autre n'a pas livré. Écrite ici pour qu'on cesse de la deviner.</p>
+      </div>
+    </div>
+    <div class="dep-grid rv" id="depGrid"></div>
+
+    <div class="sec-head rv" style="margin-top:56px">
+      <div>
+        <div class="sec-kicker">Feuille de route</div>
+        <h2 class="sec-title">Ce que porte <span class="grad-text">chaque version</span></h2>
+        <p class="sec-sub">Par version, jamais par date : une version est un fait vérifiable du dépôt, une date serait une précision que nous n'avons pas.</p>
+      </div>
+    </div>
+    <div class="road-wrap rv" id="roadWrap"></div>
+  </div>
+</section>
+
 <!-- ===== LIVRABLES ===== -->
 <section class="sec" id="livrables">
   <div class="shell">
@@ -334,6 +358,7 @@
           <li><a href="#architecture" style="text-decoration:none">Stack technique</a></li>
           <li><a href="#pipeline" style="text-decoration:none">Workflow MLOps</a></li>
           <li><a href="#metriques" style="text-decoration:none">Métriques &amp; SLO</a></li>
+          <li><a href="#dependances" style="text-decoration:none">Dépendances &amp; versions</a></li>
           <li><a href="#livrables" style="text-decoration:none">Livrables</a></li>
         </ul>
       </div>
