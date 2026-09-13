@@ -135,6 +135,39 @@ for (const [id, cells] of Object.entries(ROADMAP)) {
   });
 }
 
+/* ------------------------------------------- RACI : data.js ↔ TEAM.md
+   La même matrice est écrite à deux endroits : ici sous forme de `SUPPORTS`,
+   et dans docs/TEAM.md sous forme de tableau. Rien ne les reliait, et elles
+   ont divergé — la PR #58 a fait passer Taha de `I` à `C` sur M2 dans
+   TEAM.md sans toucher `SUPPORTS`, si bien que le registre et le tableau de
+   bord affichaient deux rôles différents pour la même case, CI au vert.
+
+   Le contrôle compare cellule par cellule plutôt que de recopier une valeur :
+   une seule des deux sources peut être modifiée sans que l'autre suive, et
+   c'est exactement ce qu'il faut attraper. */
+const TEAM_MD = 'docs/TEAM.md';
+const teamRows = readFileSync(TEAM_MD, 'utf8')
+  .split('\n')
+  .map(line => line.match(/^\|\s*([^|]+?)\s*\|((?:\s*\**[ACI]\**\s*\|){8})/))
+  .filter(Boolean);
+
+check(teamRows.length === MEMBERS.length,
+      `${TEAM_MD} : ${teamRows.length} ligne(s) RACI pour ${MEMBERS.length} membres`);
+
+for (const [, nom, cellules] of teamRows) {
+  const membre = MEMBERS.find(m => m.name === nom);
+  if (!membre) { check(false, `${TEAM_MD} : membre inconnu « ${nom} »`); continue; }
+
+  cellules.split('|').slice(0, -1).forEach((cellule, i) => {
+    const moduleId = `M${i + 1}`;
+    const attendu = raciRole(membre, moduleId);
+    const declare = cellule.replaceAll('*', '').trim();
+    check(declare === attendu,
+          `RACI ${nom} / ${moduleId} : ${TEAM_MD} dit « ${declare} », ` +
+          `data.js dit « ${attendu} » (via SUPPORTS[${membre.id}])`);
+  });
+}
+
 /* ----------------------------------------------------------------- bilan */
 if (errors.length) {
   for (const e of errors) console.error(`::error::${e}`);
