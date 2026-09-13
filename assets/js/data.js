@@ -239,7 +239,7 @@ const SUPPORTS = {
   M5:['M2','M6','M7','M8'],
   M6:['M2','M5','M7'],
   M7:['M1','M3','M4','M5'],
-  M8:['M1','M4','M5','M7']
+  M8:['M1','M2','M4','M5','M7']
 };
 MEMBERS.forEach(m => { m.supports = SUPPORTS[m.id] || []; });
 
