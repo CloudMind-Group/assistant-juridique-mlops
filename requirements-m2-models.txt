@@ -1,3 +1,6 @@
 # Optional heavy embedding, reranking, and local-generator runtime.
 # Installation does not download weights; adapters load only on instantiation.
 sentence-transformers>=3.0,<6
+transformers>=4.45,<6
+# Optional for TransformersGenerator quantization modes int8/int4:
+# bitsandbytes>=0.43

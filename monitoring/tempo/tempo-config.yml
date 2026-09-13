@@ -1,0 +1,52 @@
+# Tempo — stockage des traces distribuées (M7).
+#
+# Choisi plutôt que Jaeger pour une raison pratique : Grafana est déjà la
+# console de la pile, et Tempo s'y branche comme Loki, avec la même corrélation
+# par `trace_id`. Un second outil de visualisation aurait dispersé la lecture
+# d'un incident sur deux interfaces.
+#
+# Stockage local sur volume : suffisant tant que la pile tourne sur un poste.
+# Le jour où M4 déploie sur une infrastructure partagée, seul le bloc `storage`
+# change — le reste de la configuration et tous les tableaux de bord tiennent.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        # Le collecteur pousse en gRPC. Le port HTTP reste ouvert pour qu'un
+        # service puisse écrire directement pendant un diagnostic, sans
+        # dépendre du collecteur.
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  # Court : sur un poste local, attendre cinq minutes qu'une trace devienne
+  # interrogeable rendrait l'outil inutilisable pendant une mise au point.
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    # Trente jours. Volontairement bien plus court que les trois ans du journal
+    # d'audit : une trace technique porte des durées et des noms d'étapes, pas
+    # une preuve de conformité. La conserver plus longtemps augmenterait la
+    # surface de données sans servir aucune obligation.
+    block_retention: 720h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+usage_report:
+  reporting_enabled: false

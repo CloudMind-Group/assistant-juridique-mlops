@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.m2_rag.config import HNSWConfig
 from src.m2_rag.models import LegalChunk
 from src.m2_rag.vector_store import InMemoryVectorStore, QdrantVectorStore
 
@@ -24,6 +25,14 @@ def test_memory_store_upsert_filters_and_delete_by_doc_id():
 
 
 class FakeModels:
+    class Distance:
+        COSINE = "Cosine"
+    class VectorParams:
+        def __init__(self, **kwargs): self.kwargs = kwargs
+    class HnswConfigDiff:
+        def __init__(self, **kwargs): self.kwargs = kwargs
+    class PayloadSchemaType:
+        KEYWORD = "keyword"
     class MatchValue:
         def __init__(self, value): self.value = value
     class FieldCondition:
@@ -39,6 +48,25 @@ class FakeClient:
     def delete(self, **kwargs): self.deleted = kwargs
 
 
+class FakeCreationClient:
+    def __init__(self):
+        self.created = None
+        self.indexed = []
+    def collection_exists(self, name): return False
+    def create_collection(self, **kwargs): self.created = kwargs
+    def create_payload_index(self, **kwargs): self.indexed.append(kwargs)
+
+
+def test_qdrant_receives_explicit_hnsw_and_optional_jurisdiction_index():
+    client = FakeCreationClient()
+    hnsw = HNSWConfig(m=12, ef_construct=80, full_scan_threshold=500)
+    QdrantVectorStore(client, "fixture", 3, qmodels=FakeModels, hnsw_config=hnsw)
+    assert client.created["hnsw_config"].kwargs == {
+        "m": 12, "ef_construct": 80, "full_scan_threshold": 500,
+    }
+    assert "jurisdiction" in {item["field_name"] for item in client.indexed}
+
+
 def test_qdrant_delete_uses_doc_id_payload_filter_without_rebuild():
     client = FakeClient()
     store = QdrantVectorStore(client, "legal_test", 3, qmodels=FakeModels, create_collection=False)
@@ -52,7 +80,8 @@ def test_qdrant_delete_uses_doc_id_payload_filter_without_rebuild():
 def test_real_qdrant_local_upsert_query_filters_and_targeted_delete():
     qdrant_client = pytest.importorskip("qdrant_client")
     client = qdrant_client.QdrantClient(":memory:")
-    store = QdrantVectorStore(client, "m2_integration", 3)
+    hnsw = HNSWConfig(m=12, ef_construct=80, full_scan_threshold=500)
+    store = QdrantVectorStore(client, "m2_integration", 3, hnsw_config=hnsw)
     chunks = [
         _chunk("a1", "opaque-A"),
         _chunk("a2", "opaque-A"),
@@ -63,6 +92,12 @@ def test_real_qdrant_local_upsert_query_filters_and_targeted_delete():
     chunks[1] = LegalChunk(**{**chunks[1].__dict__, "category": "Social", "source": "BO"})
     chunks[2] = LegalChunk(**{**chunks[2].__dict__, "category": "Civil", "source": "Cour"})
     chunks[2] = LegalChunk(**{**chunks[2].__dict__, "date": "2025"})
+    chunks[0] = LegalChunk(**{
+        **chunks[0].__dict__, "metadata": {"jurisdiction": "Rabat"}
+    })
+    chunks[1] = LegalChunk(**{
+        **chunks[1].__dict__, "metadata": {"jurisdiction": "Casablanca"}
+    })
     store.upsert(chunks, [[1, 0, 0], [0.9, 0.1, 0], [0, 1, 0]])
 
     assert client.collection_exists("m2_integration")
@@ -71,6 +106,10 @@ def test_real_qdrant_local_upsert_query_filters_and_targeted_delete():
     assert [item.chunk_id for item in store.search([1, 0, 0], 5, {"category": "Social"})] == ["a2"]
     assert [item.chunk_id for item in store.search([1, 0, 0], 5, {"source": "Cour"})] == ["b1"]
     assert [item.chunk_id for item in store.search([1, 0, 0], 5, {"date": "2025"})] == ["b1"]
+    # Synthetic metadata fixture only: no jurisdiction is invented for M1 data.
+    assert [item.chunk_id for item in store.search(
+        [1, 0, 0], 5, {"jurisdiction": "Rabat"}
+    )] == ["a1"]
 
     store.delete_document("opaque-A")
     remaining = store.search([1, 0, 0], 5)

@@ -81,3 +81,11 @@ class RAGResponse:
     latencies: dict[str, float]
     refused: bool = False
     refusal_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class StreamEvent:
+    event: str
+    text_delta: str | None = None
+    response: RAGResponse | None = None
+    error: str | None = None

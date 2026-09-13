@@ -41,6 +41,11 @@ jobs:
           pip install fastapi httpx prometheus-client
           pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http \
                       opentelemetry-instrumentation-fastapi
+          # PyYAML : sans elle, les tests du collecteur de traces se sautent au
+          # lieu d'echouer, et la regle d'expurgation ne serait plus gardee que
+          # par la relecture. Un test qui se saute en silence est pire qu'un
+          # test absent : il donne le vert.
+          pip install pyyaml
           # Contrôle qualité déclaratif M1 (CdC carte 02). Installé ici et pas
           # seulement pour l'étape qui l'exécute : tests/m1/test_expectations.py
           # importe great_expectations, la collecte de pytest échouerait sans lui.
@@ -74,6 +79,22 @@ jobs:
       # c'est-a-dire chez la personne suivante.
       - name: Data Card du corpus M1
         run: python -m src.m1_ingestion.data_card --processed-dir data/processed --corpus-status synthetique
+
+      - name: Aucun nom de fichier source dans les artefacts publiés (M8)
+        # Placée après toutes les étapes qui écrivent dans data/processed/,
+        # parce qu'elle contrôle ce qui a été écrit et non ce que le code
+        # promet d'écrire.
+        #
+        # La règle a déjà été enfreinte deux fois par deux personnes, à six
+        # jours d'intervalle : ingestion_report.json (écart E-R13, PR #44) puis
+        # expectations_report.json (PR #52, corrigée par la PR #62). Le premier
+        # correctif substituait les chemins à la sérialisation du rapport
+        # concerné — juste pour ce fichier, insuffisant pour la catégorie.
+        #
+        # Un contrôle qui dépend de chaque contributeur futur pour s'en
+        # souvenir est un contrôle qui se périme. Celui-ci ne demande rien à
+        # personne : il lit les fichiers produits.
+        run: python -m src.m8_compliance.artefacts_publies --repertoire data/processed
 
       - name: Tests d'instrumentation et de traçage (M7)
         run: python -m pytest monitoring/tests/ -v
@@ -128,6 +149,33 @@ jobs:
             echo "→ $f"
             pip-audit -r "$f" --progress-spinner off
           done
+
+  documentation:
+    name: Construction de la documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installation de MkDocs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-docs.txt
+
+      - name: Construction stricte du site
+        # `--strict` transforme les alertes en erreurs. Le mode a d'emblee
+        # revele huit ancres cassees dans les sommaires du registre RGPD et de
+        # la matrice des habilitations : ecrites pour GitHub, elles ne
+        # correspondaient pas aux ancres calculees ici. Un sommaire qui ne mene
+        # nulle part, dans un document de conformite, est une section que le
+        # lecteur ne trouvera pas — et l'echec est silencieux sans ce controle.
+        run: mkdocs build --strict
 
   validate:
     name: Validation du site statique

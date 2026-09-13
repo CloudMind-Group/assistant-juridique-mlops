@@ -1,0 +1,82 @@
+site_name: Assistant Juridique Intelligent — Documentation
+site_description: >-
+  Documentation technique et de conformité du projet CloudMind Group :
+  architecture, gouvernance, registre RGPD, analyse d'impact et contrats
+  d'interface entre modules.
+repo_url: https://github.com/CloudMind-Group/assistant-juridique-mlops
+repo_name: CloudMind-Group/assistant-juridique-mlops
+edit_uri: edit/develop/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: fr
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Passer au thème sombre
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Passer au thème clair
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+      # Slugify compatible avec GitHub, qui conserve les caractères accentués.
+      # Sans cela, « ## 1. Périmètre » produit ici une ancre différente de celle
+      # que GitHub calcule, et le sommaire de chaque document de conformité —
+      # écrit et vérifié sur GitHub — pointe dans le vide une fois publié.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+# La navigation est explicite plutôt que déduite du répertoire. Un document de
+# conformité qui n'apparaît pas dans le sommaire est un document que personne
+# ne trouve, et l'oubli serait silencieux avec une navigation automatique.
+nav:
+  - Accueil: index.md
+  - Le projet:
+      - Architecture: ARCHITECTURE.md
+      - Équipe et matrice RACI: TEAM.md
+      - Gouvernance GitHub: GITHUB.md
+  - Conformité et sécurité:
+      - Registre des traitements (RGPD): RGPD.md
+      - Analyse d'impact (AIPD): AIPD.md
+      - Matrice des habilitations: HABILITATIONS.md
+  - Contrats entre modules:
+      - Observabilité (M7): OBSERVABILITE.md
+      - Réponse à incident: RUNBOOK.md
+      - Suivi des expérimentations (M3): M3.md
+
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+  links:
+    # Une ancre morte est la seule de ces alertes qui signale un vrai défaut :
+    # un sommaire qui ne mène nulle part dans un registre de conformité, c'est
+    # une section que le lecteur ne trouvera pas. Elle reste bloquante, et elle
+    # a d'ailleurs révélé huit ancres cassées à la première construction.
+    anchors: warn
+    # Les liens vers le code (`../src/...`) sortent volontairement de
+    # l'arborescence du site : le registre cite les fichiers qui portent les
+    # mesures qu'il décrit, et ces chemins doivent rester relatifs au dépôt pour
+    # qu'une relecture depuis GitHub fonctionne. Les traiter comme des erreurs
+    # ferait échouer la construction sur des liens corrects.
+    not_found: info
+    unrecognized_links: info
+    absolute_links: info

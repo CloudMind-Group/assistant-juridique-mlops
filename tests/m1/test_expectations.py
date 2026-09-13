@@ -16,6 +16,7 @@ import pytest
 
 from src.m1_ingestion.expectations import (
     COLONNES_INTERDITES,
+    EXEMPLES_TUS,
     EXPECTED_COLUMNS,
     executer,
 )
@@ -217,3 +218,60 @@ def test_un_metadata_jsonl_corrompu_fait_echouer_la_lecture(tmp_path):
 
     with pytest.raises(ValueError, match="JSON invalide ligne 2"):
         executer(processed)
+
+
+# --- Ce que le rapport a le droit de republier -------------------------
+
+
+def test_un_chemin_absolu_fautif_n_est_pas_reproduit_dans_le_rapport(tmp_path):
+    """La regression que ce module avait rouverte.
+
+    Quand l'attente sur `file_path` echoue, c'est precisement parce que le
+    chemin est absolu : il porte une arborescence locale, et souvent le nom
+    d'une partie dans le nom du fichier. `expectations_report.json` part sur
+    le remote partage — republier l'exemple, c'est remettre en clair ce que
+    la PR #44 avait retire d'`ingestion_report.json` (ecart E-R13).
+    """
+    chemin = "C:/Users/douae/corpus/arret_ahmed_benali_2024.txt"
+    rapport = executer(_corpus(tmp_path, [_document("a", file_path=chemin)]))
+
+    assert rapport["succes"] is False
+    serialise = json.dumps(rapport, ensure_ascii=False)
+    assert "benali" not in serialise.lower(), "un nom de partie a fuite dans le rapport"
+    assert chemin not in serialise
+
+    echec = next(e for e in rapport["echecs"] if e["colonne"] == "file_path")
+    assert echec["exemples"] == EXEMPLES_TUS
+    # Le diagnostic reste exploitable : on sait quoi, ou et combien.
+    assert echec["elements_en_echec"] == 1
+
+
+def test_un_titre_fautif_n_est_pas_reproduit_dans_le_rapport(tmp_path):
+    """Meme raisonnement : un titre de jurisprudence nomme regulierement les
+    parties. Le titre est derive du texte anonymise, mais rien ne garantit
+    que ce sera toujours vrai — la liste blanche ne fait pas ce pari."""
+    rapport = executer(_corpus(tmp_path, [_document("a", title="")]))
+
+    echec = next(
+        (e for e in rapport["echecs"] if e["colonne"] == "title"), None
+    )
+    assert echec is not None
+    assert echec["exemples"] == EXEMPLES_TUS
+
+
+def test_les_valeurs_de_nomenclature_restent_publiees(tmp_path):
+    """La liste blanche ne doit pas rendre le rapport inutile : une valeur
+    de nomenclature ne designe personne et reste le meilleur diagnostic."""
+    rapport = executer(_corpus(tmp_path, [_document("a", source="Blog juridique")]))
+
+    echec = next(e for e in rapport["echecs"] if e["colonne"] == "source")
+    assert "Blog juridique" in echec["exemples"]
+
+
+def test_aucune_colonne_sensible_n_est_dans_la_liste_blanche():
+    """Garde-fou explicite : personne ne doit ajouter file_path ou title a la
+    liste blanche sans que ce test le refuse."""
+    from src.m1_ingestion.expectations import COLONNES_A_EXEMPLES_PUBLIABLES
+
+    for sensible in ("file_path", "title", "doc_id"):
+        assert sensible not in COLONNES_A_EXEMPLES_PUBLIABLES
