@@ -14,6 +14,7 @@ from src.m5_api.core.tasks import analyze_document_task, celery_app
 from slowapi.middleware import SlowAPIMiddleware
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
+from monitoring.instrumentation.metrics import instrumenter
 
 service = None
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Assistant Juridique — API M5", lifespan=lifespan)
+instrumenter(app)
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
