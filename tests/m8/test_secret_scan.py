@@ -229,3 +229,75 @@ def test_une_ligne_n_est_signalee_qu_une_fois():
     compter deux fois."""
     findings = scan_text('SECRET_KEY = "V4l3ur-H4ut3-3ntr0p13-1234"', "s.py")  # m8:autorise valeur d'essai fabriquee, sujet meme du test
     assert len(findings) == 1
+
+
+# --------------------------------------------------------------------------
+# Le périmètre — issue #71
+#
+# @DOUAEM449 a relevé que `.git` et `.dvc` étaient exclus du parcours, alors
+# que ce sont les deux seuls endroits où vivent les identifiants DagsHub. Son
+# constat en a découvert deux autres en l'instruisant : `.dvc/config` est
+# **versionné**, et il échappait au contrôle pour trois raisons indépendantes
+# — répertoire exclu, nom sans extension, valeur non citée. Lever une seule
+# des trois n'aurait rien changé, en donnant l'impression du contraire.
+# --------------------------------------------------------------------------
+
+import tempfile
+from pathlib import Path
+
+# Jeton fabriqué, assemblé en deux morceaux comme le reste du fichier.
+_JETON = "a1b2c3" + "d4e5f60718293a4b5c6d7e8f90123456789abcd"
+
+
+def _depot(fichiers: dict[str, str]) -> list:
+    """Construire une arborescence jetable et la parcourir entièrement."""
+    with tempfile.TemporaryDirectory() as d:
+        racine = Path(d)
+        for chemin, contenu in fichiers.items():
+            cible = racine / chemin
+            cible.parent.mkdir(parents=True, exist_ok=True)
+            cible.write_text(contenu, encoding="utf-8")
+        return scan_tree(racine)
+
+
+def test_un_jeton_dans_l_url_du_remote_git_est_signale():
+    """Il n'entre jamais dans le dépôt — mais il sort de la machine par un
+    `git remote -v` recopié, ce qui est arrivé."""
+    constats = _depot(
+        {".git/config": '[remote "origin"]\n\turl = https://u:' + _JETON + "@dagshub.com/x/y.git\n"}
+    )
+    assert [c.kind for c in constats] == ["url-avec-identifiants"]
+
+
+def test_un_mot_de_passe_dans_le_dvc_config_versionne_est_signale():
+    """Le cas que ce contrôle existe pour empêcher, et qui lui échappait :
+    `dvc remote modify` sans `--local` écrit dans un fichier versionné."""
+    constats = _depot(
+        {".dvc/config": '[\'remote "dagshub"\']\n    password = ' + _JETON + "\n"}  # m8:autorise fixture fabriquee, sujet meme du test
+    )
+    assert constats, "un secret versionné ne doit jamais échapper au contrôle"
+
+
+def test_un_fichier_sans_extension_est_lu():
+    """Second angle mort, indépendant du premier : `config` n'a pas de suffixe."""
+    constats = _depot({"quelque/part/config": "password = " + _JETON + "\n"})  # m8:autorise fixture fabriquee, sujet meme du test
+    assert constats
+
+
+def test_la_valeur_nue_n_est_cherchee_que_dans_les_formats_de_configuration():
+    """En Python, une partie droite non citée est une expression, jamais un
+    secret. Appliquer la règle partout produisait six faux positifs sur le
+    code de M2 — `_TOKEN_RE = re.compile(...)`."""
+    ligne = "_TOKEN_RE = re.compile(r\"[A-Za-z]+\")"
+    assert not scan_text(ligne, "compression.py")
+    assert not scan_text("PASSWORD_MIN = calculer(valeur_par_defaut)", "service.py")
+
+
+def test_la_valeur_nue_est_cherchee_dans_un_ini():
+    assert scan_text("password = " + _JETON, "quelque.ini")
+
+
+def test_le_cache_dvc_reste_hors_parcours():
+    """Non versionné, binaire et volumineux : le lire n'apprendrait rien."""
+    constats = _depot({".dvc/cache/ab/cdef.json": '{"password": "' + _JETON + '"}'})
+    assert not constats

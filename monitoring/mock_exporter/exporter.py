@@ -27,6 +27,12 @@ import time
 
 from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
+# Un journal nommé, et non le journal racine. Sur le journal racine, ces lignes
+# se mélangent à celles de toute bibliothèque tierce qui en fait autant, et
+# rien ne dit plus d'où elles viennent. `monitoring/instrumentation/tracing.py`
+# suit déjà cette règle ; ce fichier ne la suivait pas.
+_logger = logging.getLogger(__name__)
+
 # --- Intervalles : identiques au contrat §1.4 --------------------------------
 
 HTTP_BUCKETS = (0.1, 0.25, 0.5, 1, 2, 2.5, 5, 10)
@@ -116,7 +122,7 @@ def _configurer_tracage() -> None:
     """
     global _tracer
     if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
-        logging.info("Traces desactivees : OTEL_EXPORTER_OTLP_ENDPOINT absent.")
+        _logger.info("Traces desactivees : OTEL_EXPORTER_OTLP_ENDPOINT absent.")
         return
     try:
         from opentelemetry import trace
@@ -127,7 +133,7 @@ def _configurer_tracage() -> None:
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
     except ImportError:
-        logging.warning("Traces desactivees : dependances OpenTelemetry absentes.")
+        _logger.warning("Traces desactivees : dependances OpenTelemetry absentes.")
         return
 
     fournisseur = TracerProvider(
@@ -145,7 +151,7 @@ def _configurer_tracage() -> None:
     fournisseur.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
     trace.set_tracer_provider(fournisseur)
     _tracer = trace.get_tracer("cloudmind.mock")
-    logging.info("Traces actives vers %s", os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"])
+    _logger.info("Traces actives vers %s", os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"])
 
 
 def _tracer_requete(route: str, retrieval: float, generation: float,
@@ -235,7 +241,7 @@ def main() -> None:
     start_http_server(port, addr=adresse)
     # Message volontairement en ASCII : la console Windows utilise cp1252 par
     # defaut et leve UnicodeEncodeError sur un caractere hors de cette table.
-    logging.info("Simulateur de metriques M5 sur http://%s:%s/metrics", adresse, port)
+    _logger.info("Simulateur de metriques M5 sur http://%s:%s/metrics", adresse, port)
 
     while True:
         for _ in range(_rng.randint(2, 8)):

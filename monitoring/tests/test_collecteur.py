@@ -56,6 +56,14 @@ A_SUPPRIMER = (
     # énumérable — l'attaque est la liste des comptes, pas la collision.
     # Signalé par @taha588, issue #68.
     "enduser.id",
+    # L'URL complète : un paramètre de requête comme `document_name` sur
+    # `/documents/analyze` (M5) peut porter un nom de fichier source réel.
+    # Les deux noms couvrent les deux générations de conventions sémantiques
+    # HTTP d'OpenTelemetry. Signalé par @taha588, issue #82 (écart E-13).
+    "url.full",
+    "http.url",
+    "url.query",
+    "http.target",
 )
 
 # Ce que seule l'application peut produire — un pseudonyme sous la clé
