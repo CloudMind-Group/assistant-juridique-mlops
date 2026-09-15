@@ -41,7 +41,7 @@ const MEMBERS = [
       ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',1],
       ['Sélection et évaluation comparative des modèles d\'embedding multilingues',1],
       ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',1],
-      ['Fine-tuning paramétrique efficace (LoRA / QLoRA) sur corpus annoté questions-réponses',0],
+      ['Fine-tuning paramétrique (LoRA / QLoRA) — hors périmètre v0.2.0 par décision écrite (issue #64) : l\'infrastructure de préparation existe côté M2, mais aucun dataset QA juridique annoté ni modèle de base validé n\'est disponible',0],
       ['Compression du contexte et stratégie anti-hallucination (grounding strict sur sources)',0],
       ['Optimisation d\'inférence : quantification, batching et streaming des jetons',0]
     ],
