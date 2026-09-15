@@ -3,11 +3,21 @@ import json
 import pytest
 
 from src.m2_rag.config import RAGConfig
-from src.m2_rag.evaluation import RetrievalExample, benchmark_retrieval_latency, recall_at_k
-from src.m2_rag.finetuning.prepare import load_annotated_dataset, split_train_validation
+from src.m2_rag.evaluation import (
+    RetrievalExample,
+    benchmark_retrieval_latency,
+    recall_at_k,
+)
+from src.m2_rag.finetuning.prepare import (
+    load_annotated_dataset,
+    split_train_validation,
+)
 from src.m2_rag.finetuning.schema import LoRAConfig
 from src.m2_rag.models import RetrievedChunk
-from src.m2_rag.tracking import InMemoryTrackingHook, experiment_parameters
+from src.m2_rag.tracking import (
+    InMemoryTrackingHook,
+    experiment_parameters,
+)
 
 
 def _result(identifier):

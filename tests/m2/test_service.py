@@ -1,4 +1,3 @@
-from dataclasses import replace
 
 from src.m2_rag.config import RAGConfig
 from src.m2_rag.generator import FakeGroundedGenerator, GeneratedAnswer
