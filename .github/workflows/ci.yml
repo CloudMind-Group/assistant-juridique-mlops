@@ -140,9 +140,14 @@ jobs:
           python-version: '3.11'
 
       - name: Installation des analyseurs
+        # Versions épinglées : une nouvelle règle Bandit publiée en amont
+        # rougirait la CI sur une PR qui n'y est pour rien — le reproche fait à
+        # Ruff non épinglé sur la PR #77 vaut pour ce job. Les avis de pip-audit
+        # ne dépendent pas de sa version : la base est interrogée à chaque
+        # exécution. Monter ces versions dans une PR dédiée, jamais en passant.
         run: |
           python -m pip install --upgrade pip
-          pip install bandit pip-audit
+          pip install bandit==1.9.4 pip-audit==2.10.1
 
       - name: Analyse statique du code (Bandit)
         # `monitoring` ajouté avec la pile d'observabilité de M7 : le code

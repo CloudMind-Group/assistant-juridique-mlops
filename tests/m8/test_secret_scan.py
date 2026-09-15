@@ -8,10 +8,10 @@ qui produit du bruit sur sa propre suite de tests finit désactivé.
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 from src.m8_compliance.secret_scan import (
-    Finding,
     scan_text,
     scan_tree,
 )
@@ -241,9 +241,6 @@ def test_une_ligne_n_est_signalee_qu_une_fois():
 # — répertoire exclu, nom sans extension, valeur non citée. Lever une seule
 # des trois n'aurait rien changé, en donnant l'impression du contraire.
 # --------------------------------------------------------------------------
-
-import tempfile
-from pathlib import Path
 
 # Jeton fabriqué, assemblé en deux morceaux comme le reste du fichier.
 _JETON = "a1b2c3" + "d4e5f60718293a4b5c6d7e8f90123456789abcd"
