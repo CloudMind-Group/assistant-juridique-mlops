@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Iterable
 
 from src.m1_ingestion.anonymization_schema import anonymize_text
