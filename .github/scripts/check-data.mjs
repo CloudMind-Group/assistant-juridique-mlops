@@ -9,7 +9,7 @@ import { createContext, runInContext } from 'node:vm';
 
 /* data.js déclare ses données avec `const` : on les remonte sur l'objet global
    du contexte pour pouvoir les inspecter depuis ce script. */
-const EXPORTS = 'STATUS,MEMBERS,STAGES,LANES,STACK,QUALITY,TIMELINE,DELIVERABLES,SUPPORTS,WEEKS,RACI_LEGEND,raciRole';
+const EXPORTS = 'STATUS,MEMBERS,STAGES,LANES,STACK,QUALITY,TIMELINE,DELIVERABLES,SUPPORTS,WEEKS,RACI_LEGEND,raciRole,DEPENDENCIES,RELEASES,ROADMAP';
 const source = readFileSync('assets/js/data.js', 'utf8')
   + `\n;Object.assign(globalThis,{${EXPORTS}});`;
 
@@ -18,7 +18,7 @@ runInContext(source, ctx, { filename: 'data.js' });
 
 const {
   STATUS, MEMBERS, STAGES, LANES, STACK, QUALITY, TIMELINE, DELIVERABLES,
-  SUPPORTS, WEEKS, raciRole
+  SUPPORTS, WEEKS, raciRole, DEPENDENCIES, RELEASES, ROADMAP
 } = ctx;
 
 const errors = [];
@@ -77,6 +77,97 @@ check(TIMELINE.length === 4, `TIMELINE doit compter 4 jalons hebdomadaires (trou
 check(DELIVERABLES.length === MEMBERS.length,
       `DELIVERABLES doit compter un artefact par module (trouvé ${DELIVERABLES.length})`);
 
+/* ------------------------------------------------------- dépendances */
+const ids = new Set(MEMBERS.map(m => m.id));
+
+DEPENDENCIES.forEach((d, i) => {
+  check(ids.has(d.from), `DEPENDENCIES[${i}] : module inconnu « ${d.from} »`);
+  check(ids.has(d.on),   `DEPENDENCIES[${i}] : module inconnu « ${d.on} »`);
+  check(d.from !== d.on, `DEPENDENCIES[${i}] : ${d.from} ne peut pas dépendre de lui-même`);
+  check(typeof d.what === 'string' && d.what.length > 0,
+        `DEPENDENCIES[${i}] : ${d.from} → ${d.on} sans objet de dépendance`);
+});
+
+check(new Set(DEPENDENCIES.map(d => `${d.from}->${d.on}`)).size === DEPENDENCIES.length,
+      'DEPENDENCIES : une même dépendance est déclarée deux fois');
+
+/* Un cycle rendrait le graphe insatisfaisable : chaque module attendrait un
+   module qui l'attend. Le cas ne se lit pas à l'œil dès quatre arêtes, d'où
+   ce contrôle — parcours en profondeur, pile courante marquée. */
+const sortants = new Map(MEMBERS.map(m => [m.id, DEPENDENCIES.filter(d => d.from === m.id).map(d => d.on)]));
+const VIERGE = 0, EN_COURS = 1, CLOS = 2;
+const etat = new Map(MEMBERS.map(m => [m.id, VIERGE]));
+/* Un ensemble, pas un tableau : deux arêtes parallèles font découvrir le même
+   cycle deux fois, et le signaler deux fois n'apprend rien de plus. */
+const cycles = new Set();
+
+function explorer(id, chemin){
+  etat.set(id, EN_COURS);
+  for (const suivant of sortants.get(id) || []) {
+    if (etat.get(suivant) === EN_COURS) {
+      cycles.add([...chemin.slice(chemin.indexOf(suivant)), suivant].join(' → '));
+    } else if (etat.get(suivant) === VIERGE) {
+      explorer(suivant, [...chemin, suivant]);
+    }
+  }
+  etat.set(id, CLOS);
+}
+for (const m of MEMBERS) if (etat.get(m.id) === VIERGE) explorer(m.id, [m.id]);
+for (const c of cycles) check(false, `DEPENDENCIES : dépendance circulaire — ${c}`);
+
+/* ---------------------------------------------------- feuille de route */
+check(RELEASES.length > 0, 'RELEASES : aucune version déclarée');
+RELEASES.forEach((r, i) => {
+  check(/^v\d+\.\d+\.\d+$/.test(r.id), `RELEASES[${i}] : « ${r.id} » n'est pas une version sémantique`);
+  check(Object.hasOwn(STATUS, r.state), `RELEASES[${i}] (${r.id}) : statut inconnu « ${r.state} »`);
+});
+
+check(Object.keys(ROADMAP).length === MEMBERS.length,
+      `ROADMAP doit couvrir les ${MEMBERS.length} modules (trouvé ${Object.keys(ROADMAP).length})`);
+for (const [id, cells] of Object.entries(ROADMAP)) {
+  check(ids.has(id), `ROADMAP : module inconnu « ${id} »`);
+  check(cells.length === RELEASES.length,
+        `ROADMAP[${id}] : ${cells.length} case(s) pour ${RELEASES.length} version(s)`);
+  cells.forEach((cell, i) => {
+    if (cell === null) return;
+    check(Object.hasOwn(STATUS, cell[0]), `ROADMAP[${id}][${i}] : statut inconnu « ${cell[0]} »`);
+    check(typeof cell[1] === 'string' && cell[1].length > 0, `ROADMAP[${id}][${i}] : libellé vide`);
+  });
+}
+
+/* ------------------------------------------- RACI : data.js ↔ TEAM.md
+   La même matrice est écrite à deux endroits : ici sous forme de `SUPPORTS`,
+   et dans docs/TEAM.md sous forme de tableau. Rien ne les reliait, et elles
+   ont divergé — la PR #58 a fait passer Taha de `I` à `C` sur M2 dans
+   TEAM.md sans toucher `SUPPORTS`, si bien que le registre et le tableau de
+   bord affichaient deux rôles différents pour la même case, CI au vert.
+
+   Le contrôle compare cellule par cellule plutôt que de recopier une valeur :
+   une seule des deux sources peut être modifiée sans que l'autre suive, et
+   c'est exactement ce qu'il faut attraper. */
+const TEAM_MD = 'docs/TEAM.md';
+const teamRows = readFileSync(TEAM_MD, 'utf8')
+  .split('\n')
+  .map(line => line.match(/^\|\s*([^|]+?)\s*\|((?:\s*\**[ACI]\**\s*\|){8})/))
+  .filter(Boolean);
+
+check(teamRows.length === MEMBERS.length,
+      `${TEAM_MD} : ${teamRows.length} ligne(s) RACI pour ${MEMBERS.length} membres`);
+
+for (const [, nom, cellules] of teamRows) {
+  const membre = MEMBERS.find(m => m.name === nom);
+  if (!membre) { check(false, `${TEAM_MD} : membre inconnu « ${nom} »`); continue; }
+
+  cellules.split('|').slice(0, -1).forEach((cellule, i) => {
+    const moduleId = `M${i + 1}`;
+    const attendu = raciRole(membre, moduleId);
+    const declare = cellule.replaceAll('*', '').trim();
+    check(declare === attendu,
+          `RACI ${nom} / ${moduleId} : ${TEAM_MD} dit « ${declare} », ` +
+          `data.js dit « ${attendu} » (via SUPPORTS[${membre.id}])`);
+  });
+}
+
 /* ----------------------------------------------------------------- bilan */
 if (errors.length) {
   for (const e of errors) console.error(`::error::${e}`);
@@ -92,3 +183,5 @@ console.log(`  · 8 modules, 8 pilotes uniques`);
 console.log(`  · sous-tâches : ${done}/${subs} terminées`);
 console.log(`  · avancement global : ${global}%`);
 console.log(`  · planning : ${TIMELINE.length} semaines`);
+console.log(`  · dépendances : ${DEPENDENCIES.length} arêtes, aucun cycle`);
+console.log(`  · feuille de route : ${RELEASES.length} versions × ${MEMBERS.length} modules`);

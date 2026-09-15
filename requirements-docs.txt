@@ -1,0 +1,9 @@
+# Documentation MkDocs — construite en CI avec `mkdocs build --strict`.
+#
+# Versions epinglees pour que la construction soit reproductible, et
+# choisies au-dessus des seuils corriges : les versions initialement
+# retenues portaient trois vulnerabilites que pip-audit a signalees avant
+# la premiere execution en CI.
+mkdocs==1.6.1
+mkdocs-material==9.7.7
+pymdown-extensions==11.0.2

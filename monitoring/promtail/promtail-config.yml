@@ -1,0 +1,51 @@
+# Promtail — acheminement du journal d'audit vers Loki.
+#
+# Le journal respecte le contrat docs/OBSERVABILITE.md §2 : une ligne JSON par
+# événement. Seuls des champs à faible cardinalité sont promus en étiquettes ;
+# `actor_id` et `query_hash` restent dans le corps du message, jamais en
+# étiquette — ils sont pseudonymes mais suffisamment variés pour saturer
+# l'index.
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: journal-audit
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: audit
+          projet: assistant-juridique
+          __path__: /var/log/cloudmind/audit-*.jsonl
+
+    pipeline_stages:
+      - json:
+          expressions:
+            ts: ts
+            event_type: event_type
+            outcome: outcome
+            module: module
+
+      - timestamp:
+          source: ts
+          format: RFC3339
+
+      # Étiquettes volontairement limitées à des ensembles finis et petits.
+      - labels:
+          event_type:
+          outcome:
+
+      # Garde-fou : une ligne contenant un champ interdit par le contrat §2.3
+      # est écartée plutôt qu'indexée. Mieux vaut perdre un événement que
+      # constituer un second traitement de données personnelles.
+      - match:
+          selector: '{job="audit"} |~ "\"(query_text|answer_text|client_ip)\""'
+          action: drop
+          drop_counter_reason: champ_interdit_contrat_audit

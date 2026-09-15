@@ -1,0 +1,16 @@
+services:
+  m1-ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assistant-juridique-m1
+
+    user: "${UID:-10001}:${GID:-10001}"
+
+    volumes:
+      - ./data:/app/data
+
+    command: >
+      python -m src.m1_ingestion.ingest
+      --raw-dir data/raw
+      --out-dir data/processed

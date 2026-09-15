@@ -1,0 +1,56 @@
+# Loki — stockage des journaux applicatifs et du journal d'audit.
+#
+# La durée de rétention applique la décision A-4 de l'AIPD : trois ans à
+# compter de l'écriture. 3 ans = 26 280 h. Ne pas réduire cette valeur sans
+# rouvrir la décision avec M8 : elle est ce qui rend le journal d'audit
+# opposable.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: "2026-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 26280h        # 3 ans — décision A-4
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  max_query_series: 5000
+
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  retention_enabled: true
+  retention_delete_delay: 2h
+
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+
+analytics:
+  reporting_enabled: false

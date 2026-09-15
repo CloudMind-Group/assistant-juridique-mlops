@@ -1,0 +1,72 @@
+# Routage des alertes M7 — sous-tâche « alerting multi-niveaux avec routage ».
+#
+# Aucune URL de webhook ni mot de passe dans ce fichier : Alertmanager lit les
+# secrets depuis des fichiers montés (`*_file`), eux-mêmes ignorés par Git.
+# Voir monitoring/README.md pour la création de ces fichiers.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: equipe-slack
+  group_by: [alertname, module]
+  group_wait: 30s
+  group_interval: 5m
+  # Une alerte non résolue n'est pas répétée avant 4 h : au-delà, la
+  # notification devient du bruit et cesse d'être lue.
+  repeat_interval: 4h
+
+  routes:
+    # `critical` part sur les deux canaux : Slack pour la réactivité,
+    # courriel pour la trace écrite.
+    - matchers: [severity="critical"]
+      receiver: astreinte
+      group_wait: 0s
+      repeat_interval: 1h
+
+    - matchers: [severity="warning"]
+      receiver: equipe-slack
+
+inhibit_rules:
+  # Si la cible est injoignable, taire les alertes de latence et d'erreur
+  # qu'elle provoque mécaniquement.
+  - source_matchers: [alertname="CibleInjoignable"]
+    target_matchers: [severity="warning"]
+    equal: [module]
+
+  # Le critique masque le warning de même nom.
+  - source_matchers: [severity="critical"]
+    target_matchers: [severity="warning"]
+    equal: [alertname, module]
+
+receivers:
+  - name: equipe-slack
+    slack_configs:
+      - api_url_file: /etc/alertmanager/secrets/slack_url
+        channel: "#cloudmind-alertes"
+        title: "[{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}{{ .Annotations.resume }}
+          {{ .Annotations.detail }}
+          Procédure : {{ .Annotations.runbook }}
+          {{ end }}
+        send_resolved: true
+
+  - name: astreinte
+    slack_configs:
+      - api_url_file: /etc/alertmanager/secrets/slack_url
+        channel: "#cloudmind-astreinte"
+        title: "[CRITIQUE] {{ .CommonLabels.alertname }}"
+        text: >-
+          {{ range .Alerts }}{{ .Annotations.resume }}
+          {{ .Annotations.detail }}
+          Procédure : {{ .Annotations.runbook }}
+          {{ end }}
+        send_resolved: true
+    email_configs:
+      - to: equipe-cloudmind@example.invalid
+        from: alertes@example.invalid
+        smarthost: smtp.example.invalid:587
+        auth_username: alertes@example.invalid
+        auth_password_file: /etc/alertmanager/secrets/smtp_password
+        send_resolved: true

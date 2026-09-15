@@ -21,11 +21,13 @@ _DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}-\d{2})?$")
 
 
 class SourceType(str, Enum):
-    """The 3 legal sources selected for the M1 sample corpus."""
+    """The legal sources recognized by the M1 pipeline."""
 
     BULLETIN_OFFICIEL = "Bulletin Officiel"
     JURISPRUDENCE = "Jurisprudence"
     CONTRAT_TYPE = "Contrat Type"
+    PORTAIL_OFFICIEL = "Portail Officiel"
+    DEPOT_INTERNE = "Dépôt Interne"
 
 
 class Language(str, Enum):
@@ -49,6 +51,32 @@ class DocumentMetadata(BaseModel):
     language: Language
     file_path: str = Field(
         ..., description="Path to the clean text file, relative to repo root"
+    )
+
+    # --- Ingestion/quality tracking fields (additive, all optional with
+    # defaults) --------------------------------------------------------
+    # Added for per-document pipeline observability. Existing consumers that
+    # only read the fields above (doc_id/title/source/date/category/
+    # language/file_path) are unaffected — nothing above was renamed or
+    # made required. Coordinate with Imane (M2) before relying on these in
+    # her indexing pipeline.
+    # No `original_filename` field: the raw file name routinely carries a
+    # party's name (see ingest.make_doc_id) and must never reach the
+    # metadata index, even as a debugging convenience.
+    source_format: str = Field(default="", description="Original file extension, e.g. '.pdf'")
+    extraction_method: str = Field(
+        default="",
+        description="How text was obtained: 'text' | 'pdf_direct' | 'ocr_pdf' | 'ocr_image'",
+    )
+    char_count_raw: int = Field(default=0, ge=0, description="Chars before cleaning")
+    word_count_raw: int = Field(default=0, ge=0, description="Words before cleaning")
+    char_count_clean: int = Field(default=0, ge=0, description="Chars in the saved (clean+anonymized) text")
+    word_count_clean: int = Field(default=0, ge=0, description="Words in the saved (clean+anonymized) text")
+    anonymized: bool = Field(default=False, description="Whether anonymize_text() was applied")
+    status: str = Field(default="SUCCESS", description="'SUCCESS' — only successful docs reach metadata.jsonl")
+    processed_at: str = Field(default="", description="ISO-8601 UTC timestamp of processing")
+    segment_count: int = Field(
+        default=0, ge=0, description="Articles/alineas detectes (voir segments.jsonl)"
     )
 
     model_config = {"use_enum_values": True}

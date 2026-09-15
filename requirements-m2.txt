@@ -1,0 +1,2 @@
+# Optional Qdrant runtime. Core/light dependencies remain in requirements.txt.
+qdrant-client>=1.9,<2

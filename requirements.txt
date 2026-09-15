@@ -5,7 +5,29 @@ pytesseract>=0.3.10
 Pillow>=10.0
 requests>=2.31
 
+# Contrôle qualité déclaratif du jeu de données (CdC carte 02 : « Great
+# Expectations, exécuté dans la CI — un jeu non conforme bloque la chaîne »).
+# pandas est la dépendance de calcul de GE ; elle est déclarée explicitement
+# parce que src/m1_ingestion/expectations.py l'importe directement.
+great-expectations>=1.0
+pandas>=2.0
+
+# Tests (exécutés en CI : `python -m pytest tests/`)
+pytest>=8.0
+
 # Orchestration / versioning (only needed to run dags/legal_ingest_v2.py
 # and `dvc repro` — not required for `python -m src.m1_ingestion.*` CLIs)
 # apache-airflow>=2.8
 # dvc>=3.0
+fastapi==0.138.0
+uvicorn==0.47.0
+redis==8.1.0
+celery==5.6.3
+passlib==1.7.4
+bcrypt==4.0.1
+slowapi==0.1.10
+locust==2.46.0
+PyJWT==2.13.0
+httpx==0.28.1
+pytest==9.1.1
+python-multipart>=0.0.31

@@ -1,4 +1,4 @@
 [core]
     remote = dagshub
-[remote "dagshub"]
-    url = https://dagshub.com/DOUAEM449/assistant-juridique-mlops.dvc
+['remote "dagshub"']
+    url = https://dagshub.com/CloudMind-Group/assistant-juridique-mlops.dvc

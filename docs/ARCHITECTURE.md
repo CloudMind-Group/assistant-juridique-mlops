@@ -35,7 +35,7 @@ jusqu'à la réponse supervisée en production.
 Collecte multi-sources (portails officiels, dépôts internes PDF/DOCX), extraction du texte,
 OCR des documents scannés avec correction orthographique adaptée au vocabulaire juridique.
 
-**Outils :** Apache Airflow, Tesseract/PaddleOCR, MinIO/S3
+**Outils :** Apache Airflow, Tesseract/PaddleOCR, DAGsHub (remote DVC)
 **Sortie :** documents bruts normalisés, horodatés et tracés
 
 ### 02 — Nettoyage, chunking & versioning · *M1, Douae Moussaoui*

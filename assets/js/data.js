@@ -12,31 +12,35 @@ const MEMBERS = [
   {
     id:'M1', name:'Douae Moussaoui', role:'Data Engineer — Lead Data Pipeline',
     module:'Module 1 · Data Pipeline & Preprocessing', icon:'i-db',
-    c1:'#6366f1', c2:'#22d3ee', status:'progress', progress:43,
+    c1:'#6366f1', c2:'#22d3ee', status:'done', progress:100,
     desc:"Construction de la chaîne d'ingestion des corpus juridiques (codes, jurisprudence, contrats), nettoyage, OCR et versioning reproductible des jeux de données.",
     subs:[
       ['Pipeline d\'ingestion structuré par source (Bulletin Officiel, Jurisprudence, Contrats Types) avec schéma de métadonnées validé (Pydantic)',1],
       ['Corpus de test synthétique généré (50-100 documents FR/AR) pour débloquer M2 sans attendre la collecte réelle',1],
       ['Versioning DVC local (dvc.yaml + dvc.lock) et contrôles de qualité automatisés configurables',1],
-      ['Pipeline OCR pour documents scannés (Tesseract / PaddleOCR) — dépendance déclarée, non encore branchée',0],
-      ['Dé-duplication et segmentation par articles et alinéas — nettoyage actuel limité à la normalisation de base',0],
-      ['Anonymisation des données personnelles (schéma défini avec Taha) — non encore appliquée avant indexation',0],
-      ['Stockage distant S3/MinIO, chunking sémantique, embeddings et intégration Great Expectations en CI',0]
+      ['Pipeline OCR pour PDF scannés et images (Tesseract, fra+ara) avec fallback direct-texte -> OCR, dégradation sans crash si le binaire est absent',1],
+      ['Dé-duplication (SHA-256 avant anonymisation) et segmentation par articles et alinéas (fr/ar) exportée dans segments.jsonl',1],
+      ['Anonymisation des données personnelles intégrée au pipeline (raw -> clean -> anonymize -> save) — règles à valider avec Taha avant mise en production',1],
+      ['Stockage distant du corpus versionné : remote DVC configuré et opérationnel (DAGsHub)',1],
+      ['Great Expectations exécuté dans la CI — un jeu non conforme bloque la chaîne',1],
+      ['Data Card du corpus générée par le pipeline DVC et la CI (data_card.json + DATA_CARD.md) : volumétrie, répartition par source et statut du corpus',1],
+      ['Correction orthographique adossée à un lexique juridique fermé, appliquée aux seuls textes océrisés (accents et confusions OCR), arabe laissé intact et corrections tracées',1]
     ],
-    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR (à intégrer)','Great Expectations (à intégrer)','MinIO / S3 (à intégrer)'],
-    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et les schémas d'anonymisation à <b>Taha</b> (conformité RGPD) — l'intégration entre les deux reste à finaliser. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
-    deliverables:['DAG Airflow <code>legal_ingest_v2</code> (structure prête, exécution quotidienne à valider)','Registre <code>dvc.yaml</code> versionné localement','Rapport de qualité de données généré à chaque exécution']
+    tools:['Python','Pydantic','Apache Airflow','DVC','Tesseract OCR','PyMuPDF','Great Expectations','DAGsHub (remote DVC)'],
+    collab:"Fournit les jeux de données versionnés à <b>Imane</b> (indexation vectorielle) et applique le schéma d'anonymisation défini avec <b>Taha</b> (conformité RGPD) — règles à valider par Taha avant mise en production. Les DAG Airflow sont conteneurisés avec <b>Salma</b>.",
+    deliverables:['DAG Airflow <code>legal_ingest_v2</code> : ingestion, contrôle qualité, Great Expectations puis notification de M2','Registre <code>dvc.yaml</code> versionné, poussé sur le remote DAGsHub','Rapports générés à chaque exécution : ingestion, qualité par document, Great Expectations et Data Card du corpus']
   },
   {
     id:'M2', name:'Imane Ibnchakroune', role:'ML / LLM Engineer — Lead Modélisation',
     module:'Module 2 · Model Engineering & Fine-Tuning', icon:'i-brain',
-    c1:'#22d3ee', c2:'#818cf8', status:'planned', progress:0,
+    c1:'#22d3ee', c2:'#818cf8', status:'progress', progress:63,
     desc:"Conception de l'architecture RAG, indexation vectorielle, ingénierie de prompts et fine-tuning léger du LLM sur le domaine juridique.",
     subs:[
-      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',0],
-      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',0],
-      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',0],
-      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',0],
+      ['Architecture RAG complète : retriever hybride (BM25 + dense) et re-ranking par cross-encoder',1],
+      ['Découpage sémantique des documents M1 en fragments de 512 jetons avec chevauchement de 64, sensible à la structure (articles/sections, fr et ar)',1],
+      ['Indexation vectorielle Qdrant/ChromaDB : configuration HNSW, filtres par juridiction et par date',1],
+      ['Sélection et évaluation comparative des modèles d\'embedding multilingues',1],
+      ['Ingénierie des prompts système : ton juridique, obligation de citation, refus hors périmètre',1],
       ['Fine-tuning paramétrique efficace (LoRA / QLoRA) sur corpus annoté questions-réponses',0],
       ['Compression du contexte et stratégie anti-hallucination (grounding strict sur sources)',0],
       ['Optimisation d\'inférence : quantification, batching et streaming des jetons',0]
@@ -48,20 +52,24 @@ const MEMBERS = [
   {
     id:'M3', name:'Amal El Guerdani', role:'MLOps Engineer — Lead Expérimentation',
     module:'Module 3 · Experiment Tracking & Model Registry', icon:'i-flask',
-    c1:'#a78bfa', c2:'#22d3ee', status:'planned', progress:0,
+    c1:'#a78bfa', c2:'#22d3ee', status:'progress', progress:86,
     desc:"Traçabilité complète des expérimentations, registre de modèles gouverné et cadre d'évaluation reproductible des réponses juridiques.",
     subs:[
-      ['Déploiement du serveur MLflow (backend PostgreSQL + artefacts S3) pour toute l\'équipe',0],
-      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',0],
-      ['Model Registry avec cycle de promotion Staging → Production et validation à deux approbations',0],
-      ['Suite d\'évaluation RAG : fidélité, pertinence du contexte, exactitude des citations (RAGAS)',0],
+      ['Tracking MLflow avec configuration centralisée et intégration M1 → M2 → M3 validée localement',1],
+      ['Convention de nommage des runs, tags et paramètres normalisés entre modules',1],
+      ['Model Registry avec politique de promotion et contrôles de qualité',1],
+      ['Suite d\'évaluation RAG : préparation RAGAS, métriques et Evaluation Runner',1],
       ['Benchmark « LLM-as-a-judge » sur 1 200 questions juridiques annotées par des experts',0],
-      ['Comparaison automatisée des expérimentations et rapports de régression par pull request',0],
-      ['Model Cards documentant limites, biais et périmètre d\'usage de chaque version',0]
+      ['Comparaison automatisée des expérimentations et rapports de régression',1],
+      ['Model Cards documentant métriques, limitations et périmètre d\'usage',1]
     ],
-    tools:['MLflow','RAGAS','Weights & Biases','PostgreSQL','Optuna','Pytest','Jupyter'],
+    tools:['MLflow','RAGAS','Pytest','Python'],
     collab:"Arbitre la promotion des modèles produits par <b>Imane</b>, publie les seuils de qualité consommés par la CI de <b>Salma</b> et alimente les tableaux de bord de <b>Youssef</b>.",
-    deliverables:['Serveur MLflow partagé + 137 runs tracés','Registre de modèles avec gouvernance de promotion','Rapport d\'évaluation comparatif par version']
+    deliverables:[
+      'Tracking MLflow et intégration M1 → M2 → M3 validés',
+      'Registre de modèles avec politique de promotion',
+      'Cadre d\'évaluation RAGAS, rapports de régression et Model Cards'
+    ]
   },
   {
     id:'M4', name:'Salma El Ouarrate', role:'DevOps / Platform Engineer — Lead CI/CD',
@@ -120,38 +128,38 @@ const MEMBERS = [
   {
     id:'M7', name:'Youssef El Alem', role:'SRE / ML Observability — Lead Monitoring',
     module:'Module 7 · Model Monitoring & Observability', icon:'i-activity',
-    c1:'#22d3ee', c2:'#34d399', status:'planned', progress:0,
+    c1:'#22d3ee', c2:'#34d399', status:'progress', progress:57,
     desc:"Supervision du système et du modèle en production : dérive, qualité des réponses, latence, coûts et boucle de rétroaction.",
     subs:[
-      ['Instrumentation Prometheus : latence, débit, taux d\'erreur, consommation de jetons',0],
-      ['Tableaux de bord Grafana par domaine (API, retriever, LLM, infrastructure)',0],
-      ['Détection de dérive des données et des embeddings (Evidently) sur les requêtes entrantes',0],
-      ['Surveillance de la qualité des réponses en production (échantillonnage + juge automatique)',0],
-      ['Traçage distribué de bout en bout des requêtes RAG (OpenTelemetry)',0],
-      ['Alerting multi-niveaux avec routage Slack/e-mail et politiques d\'astreinte',0],
-      ['Boucle de rétroaction : collecte des retours et déclenchement du ré-entraînement',0]
+      ['Contrats d\'interface figés : métriques attendues de M5 et journal d\'audit fourni à M8 (docs/OBSERVABILITE.md)',1],
+      ['Alerting multi-niveaux : 8 règles sur deux gravités, routage Slack/e-mail, inhibitions et procédure par alerte',1],
+      ['Tableaux de bord Grafana provisionnés pour les domaines API, retriever et LLM — le domaine infrastructure attend M4',1],
+      ['Instrumentation Prometheus : module réutilisable écrit et vérifié, branchement sur les endpoints en attente de M5',0],
+      ['Traçage distribué des requêtes RAG (OpenTelemetry) : collecteur déployé, expurgation mesurée (onze attributs → deux conservés), simulateur émettant vers Tempo — le squelette d\'instrumentation attend l\'API réelle de M5',1],
+      ['Détection de dérive des données et des embeddings (Evidently) — exige un flux de requêtes réel (M2 + M5)',0],
+      ['Surveillance de la qualité des réponses et boucle de rétroaction vers le ré-entraînement — exige la chaîne complète',0]
     ],
-    tools:['Prometheus','Grafana','Evidently AI','OpenTelemetry','Loki','Alertmanager','Langfuse'],
-    collab:"Instrumente l'API de <b>Nouhaila</b> et l'infrastructure de <b>Salma</b>, corrèle les alertes de dérive avec les métriques d'<b>Amal</b> et renvoie les jeux de données de ré-entraînement à <b>Douae</b>.",
-    deliverables:['Pile d\'observabilité Prometheus + Grafana + Loki','Tableau de bord de dérive et de qualité des réponses','Règles d\'alerte et procédure de réponse à incident']
+    tools:['Prometheus','Grafana','Loki','Promtail','Alertmanager','OpenTelemetry (à brancher)','Evidently AI (à intégrer)','Langfuse (à intégrer)'],
+    collab:"Instrumente l'API de <b>Nouhaila</b> et l'infrastructure de <b>Salma</b>, corrèle les alertes de dérive avec les métriques d'<b>Amal</b> et renvoie les jeux de données de ré-entraînement à <b>Douae</b>. Le journal d'audit fourni à <b>Taha</b> clôt l'action A-5 de l'AIPD côté M7.",
+    deliverables:['Pile d\'observabilité Prometheus + Grafana + Loki + Alertmanager, vérifiée contre un simulateur conforme au contrat','Règles d\'alerte et procédure de réponse à incident (docs/RUNBOOK.md)','Tableau de bord de dérive et de qualité des réponses — bloqué tant que M2 et M5 ne tournent pas']
   },
   {
     id:'M8', name:'Taha Kachmar', role:'Security & Compliance Officer — Lead Gouvernance',
     module:'Module 8 · Security, Governance & Compliance', icon:'i-shield',
-    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:14,
+    c1:'#f472b6', c2:'#f59e0b', status:'progress', progress:57,
     desc:"Protection des données juridiques sensibles, conformité RGPD, contrôle d'accès et documentation d'ensemble du système.",
     subs:[
-      ['Cartographie des données à caractère personnel et registre des traitements RGPD',1],
-      ['Moteur de rédaction/anonymisation des entités sensibles avant indexation (Presidio)',0],
-      ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents',0],
+      ['Cartographie des données à caractère personnel, registre des traitements RGPD et analyse d\'impact (AIPD) — docs/RGPD.md et docs/AIPD.md',1],
+      ['Moteur d\'anonymisation branché dans le pipeline avant indexation — détection par règles et propagation des noms ; Presidio écarté faute de modèle arabe, la détection NER reste la réserve ouverte',0],
+      ['Contrôle d\'accès par rôles et cloisonnement multi-cabinets des documents — en attente de l\'API de M5',0],
       ['Chiffrement au repos et en transit, rotation des secrets et gestion des clés',0],
-      ['Journalisation d\'audit immuable des accès et des réponses générées',0],
-      ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique',0],
-      ['Documentation d\'architecture, guide de contribution et politique de sécurité',0]
+      ['Journalisation d\'audit immuable des accès et des réponses générées — contrat et écriture livrés ; la rétention relève de la configuration de Loki (M7)',1],
+      ['Analyse des risques IA (AI Act), garde-fous et clause de non-conseil juridique définis — implémentation à la charge de M2, M5 et M6',1],
+      ['Documentation d\'architecture, guide de contribution et politique de sécurité — Bandit, pip-audit, scan de secrets et contrôle des artefacts publiés intégrés à la CI ; documentation MkDocs construite en CI',1]
     ],
-    tools:['Microsoft Presidio','Vault','OPA / Casbin','Trivy','Bandit','MkDocs','TLS / KMS'],
+    tools:['Bandit','pip-audit','Pytest','HMAC-SHA-256','MkDocs'],
     collab:"Définit les règles d'anonymisation appliquées par <b>Douae</b>, valide les contrôles d'accès de <b>Nouhaila</b>, intègre les scans de sécurité dans la CI de <b>Salma</b> et audite les journaux collectés par <b>Youssef</b>.",
-    deliverables:['Registre RGPD + analyse d\'impact (AIPD)','Politique de sécurité et matrice des habilitations','Documentation technique complète (MkDocs)']
+    deliverables:['Registre RGPD + analyse d\'impact (AIPD) — livrés','Matrice des habilitations et politique de sécurité — livrées','Journal audit et contrôles de sécurité en CI — livrés']
   }
 ];
 
@@ -231,7 +239,7 @@ const SUPPORTS = {
   M5:['M2','M6','M7','M8'],
   M6:['M2','M5','M7'],
   M7:['M1','M3','M4','M5'],
-  M8:['M1','M4','M5','M7']
+  M8:['M1','M2','M4','M5','M7']
 };
 MEMBERS.forEach(m => { m.supports = SUPPORTS[m.id] || []; });
 
@@ -247,3 +255,102 @@ const WEEKS = {
   M5:'S2 → S3', M6:'S1 → S4', M7:'S3 → S4', M8:'S1 → S4'
 };
 MEMBERS.forEach(m => { m.week = WEEKS[m.id]; });
+
+/* =====================================================================
+   DÉPENDANCES INTER-MODULES
+
+   À ne pas confondre avec SUPPORTS, qui dit « qui aide qui ». Ceci dit
+   « qui ne peut pas commencer tant que l'autre n'a pas livré ». Un module
+   peut aider sans bloquer, et bloquer sans aider.
+
+   La distinction a une histoire : Oumaima a attendu Nouhaila, qui
+   attendait Douae pour des données que M5 n'a jamais requises. Personne
+   n'était en faute — la chaîne réelle n'était écrite nulle part. C'est ce
+   tableau qui manquait.
+
+   `from` ne démarre pas tant que `on` n'a pas fourni `what`.
+   ===================================================================== */
+const DEPENDENCIES = [
+  { from:'M2', on:'M1', what:'corpus nettoyé, segmenté et versionné' },
+  { from:'M3', on:'M2', what:'runs et modèles à tracer' },
+  { from:'M4', on:'M1', what:'pipeline à conteneuriser' },
+  { from:'M5', on:'M2', what:"chaîne d'inférence à exposer" },
+  { from:'M4', on:'M5', what:'service à déployer' },
+  { from:'M6', on:'M5', what:'API à consommer' },
+  { from:'M7', on:'M5', what:'endpoints à instrumenter' },
+  { from:'M7', on:'M4', what:'infrastructure à superviser' }
+];
+
+/* Ce dont un module a besoin avant de pouvoir avancer. */
+function blockedBy(moduleId){
+  return DEPENDENCIES.filter(d => d.from === moduleId);
+}
+
+/* Ce que ce module bloque chez les autres. */
+function blocking(moduleId){
+  return DEPENDENCIES.filter(d => d.on === moduleId);
+}
+
+/* =====================================================================
+   FEUILLE DE ROUTE PAR VERSION
+
+   Volontairement sans dates. Le calendrier S1 → S4 est un plan interne,
+   pas une échéance : y adosser un diagramme produirait une précision que
+   nous n'avons pas — le défaut même que ce tableau de bord a passé une
+   semaine à corriger.
+
+   Une version, elle, est un fait vérifiable. `v0.1.0` est étiquetée dans
+   le dépôt, et son contenu se lit dans son arbre : au 26 août, seul
+   `src/m1_ingestion` existait. Chaque case ci-dessous est adossée à ce
+   qui est réellement dans le dépôt, ou déclarée planifiée.
+   ===================================================================== */
+const RELEASES = [
+  { id:'v0.1.0', state:'done',     note:'étiquetée le 26 août 2026' },
+  { id:'v0.2.0', state:'progress', note:'en préparation — issue #19' },
+  { id:'v0.3.0', state:'planned',  note:'non ouverte' }
+];
+
+/* Une entrée par module et par version, dans l'ordre de RELEASES.
+   `null` = le module ne livre rien dans cette version. */
+const ROADMAP = {
+  M1:[
+    ['done',    "Schéma de métadonnées validé et pipeline d'ingestion"],
+    ['progress',"OCR, dé-duplication, segmentation, porte qualité en CI"],
+    null
+  ],
+  M2:[
+    null,
+    ['progress',"Découpage sémantique, indexation, chaîne RAG"],
+    ['planned', "Fine-tuning LoRA et optimisation d'inférence"]
+  ],
+  M3:[
+    null,
+    ['progress',"Suivi MLflow, registre de modèles, évaluation RAGAS"],
+    ['planned', "Benchmark « LLM-as-a-judge » sur corpus annoté"]
+  ],
+  M4:[
+    null,
+    ['progress',"Images Docker multi-stage et pipelines GitHub Actions"],
+    ['planned', "Kubernetes, Terraform, déploiement canari"]
+  ],
+  M5:[
+    null,
+    ['progress',"API FastAPI : santé, authentification, requête"],
+    ['planned', "Cache sémantique, streaming, SDK client"]
+  ],
+  M6:[
+    null,
+    ['progress',"Maquettes et garde-fous produit"],
+    ['planned', "Interface conversationnelle reliée à l'API"]
+  ],
+  M7:[
+    null,
+    ['progress',"Contrats d'interface, pile d'observabilité, alertes"],
+    ['planned', "Instrumentation branchée et détection de dérive"]
+  ],
+  M8:[
+    null,
+    ['progress',"Registre RGPD, anonymisation, journal d'audit"],
+    ['planned', "Détection NER et matrice des habilitations appliquée"]
+  ]
+};
