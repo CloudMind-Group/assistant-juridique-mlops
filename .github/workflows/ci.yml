@@ -102,7 +102,7 @@ jobs:
           python-version: '3.11'
 
       - name: Installation de Ruff
-        run: python -m pip install ruff
+        run: python -m pip install ruff==0.16.7
 
       - name: Analyse statique Python
         run: ruff check src dags monitoring tests
