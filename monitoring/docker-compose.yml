@@ -8,6 +8,54 @@
 #
 #   docker compose -f monitoring/docker-compose.yml up -d
 #   Grafana http://localhost:3000  ·  Prometheus http://localhost:9090
+#
+# ---------------------------------------------------------------------------
+# Ports : des variables, pas des constantes
+# ---------------------------------------------------------------------------
+#
+# Les valeurs par défaut ci-dessous sont celles d'un poste de travail, où l'on
+# est seul à écouter. Elles ne tiennent pas sur un serveur partagé.
+#
+# Constaté en déployant, le 9 septembre 2026, sur le serveur `vh3` de la
+# plateforme de la faculté, que dix-neuf groupes se partagent :
+#
+#     Bind for 0.0.0.0:8000 failed: port is already allocated
+#
+# Un autre groupe occupait 8000 — et l'ayant lié à `0.0.0.0`, il fermait aussi
+# `127.0.0.1:8000`. Les ports 3000, 9090, 9093 et 3100 courent le même risque :
+# ce sont les valeurs par défaut de Grafana, Prometheus, Alertmanager et Loki,
+# donc celles que tout le monde utilise.
+#
+# Plutôt que d'inscrire dans ce dépôt les numéros d'une plateforme particulière
+# — ce qui le rendrait inutilisable ailleurs — chaque port est une variable :
+#
+#     PROMETHEUS_PORT · ALERTMANAGER_PORT · LOKI_PORT · MOCK_PORT
+#     GRAFANA_PORT    · GRAFANA_BIND      · GF_SERVER_ROOT_URL
+#     TEMPO_PORT      · OTLP_GRPC_PORT    · OTLP_HTTP_PORT
+#
+# Sans `.env`, les valeurs par défaut s'appliquent et rien ne change pour qui
+# lance la pile sur sa machine. L'environnement de déploiement fournit les
+# siennes — c'est lui qui connaît sa plage de ports, pas le dépôt.
+#
+# Plage attribuée au groupe cloudmind sur cette plateforme : 36XX.
+#
+#     3601  Grafana, publié           GRAFANA_BIND=0.0.0.0  GRAFANA_PORT=3601
+#     3690  Prometheus, boucle locale PROMETHEUS_PORT=3690
+#     3691  Loki, boucle locale       LOKI_PORT=3691
+#     3692  Tempo, id.                TEMPO_PORT=3692
+#     3693  Alertmanager, id.         ALERTMANAGER_PORT=3693
+#     3695  simulateur, id.           MOCK_PORT=3695
+#     3696  collecteur OTLP gRPC      OTLP_GRPC_PORT=3696
+#     3697  collecteur OTLP HTTP      OTLP_HTTP_PORT=3697
+#
+# Les deux ports du collecteur méritent une note : 4317 et 4318 sont les
+# valeurs par défaut d'OpenTelemetry, donc parmi les plus disputées qui
+# soient sur une machine partagée entre projets d'observabilité.
+#
+# `GRAFANA_BIND` est la seule adresse de liaison variable, et c'est délibéré :
+# Grafana exige une authentification, les cinq autres services n'en ont
+# aucune. Loki sert le journal d'audit — trois ans de traces d'accès au
+# corpus. Les publier reviendrait à l'ouvrir à tout le segment réseau.
 
 name: cloudmind-observabilite
 
@@ -29,7 +77,11 @@ services:
       # publie sur 0.0.0.0 : Prometheus et Alertmanager n'ont aucune
       # authentification native, et Loki expose le journal d'audit. Sur un
       # réseau partagé, tout le segment pourrait les interroger.
-      - "127.0.0.1:9090:9090"
+      #
+      # Le numéro de port est une variable, pas une constante — voir l'en-tête
+      # de ce fichier, section « Ports ». La valeur par défaut est celle du
+      # poste de travail ; un serveur partagé fournit la sienne.
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
 
   alertmanager:
@@ -43,7 +95,7 @@ services:
       # depuis un fichier local ignoré par Git (voir monitoring/README.md).
       - ./alertmanager/secrets:/etc/alertmanager/secrets:ro
     ports:
-      - "127.0.0.1:9093:9093"
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
     restart: unless-stopped
 
   loki:
@@ -54,7 +106,7 @@ services:
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
       - loki-data:/loki
     ports:
-      - "127.0.0.1:3100:3100"
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
     restart: unless-stopped
 
   promtail:
@@ -84,6 +136,15 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD requis — voir monitoring/README.md}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # Un visiteur non authentifié ne voit rien, pas même en lecture seule :
+      # les tableaux de bord exposent les routes de l'API, les volumétries et
+      # les identifiants de documents cités.
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Nécessaire dès que le service n'est plus servi depuis `localhost` :
+      # sans cela, les liens produits par Grafana — partage de tableau de
+      # bord, retour d'authentification — pointent vers une adresse que le
+      # visiteur ne peut pas atteindre.
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost:3000}
     volumes:
       # Les deux sous-répertoires sont montés séparément : monter
       # `provisioning/` en entier masquerait `plugins/` et `alerting/`, que
@@ -94,7 +155,11 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "127.0.0.1:3000:3000"
+      # Seul service dont l'adresse de liaison est elle-même variable. C'est
+      # lui, et lui seul, qui a vocation à être joignable depuis l'extérieur
+      # d'un serveur : il porte une authentification, les cinq autres non.
+      # Par défaut il reste sur la boucle locale, comme eux.
+      - "${GRAFANA_BIND:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     depends_on:
       - prometheus
       - loki
@@ -112,7 +177,7 @@ services:
       # Grafana qui interroge Tempo, et le collecteur qui l'alimente — tous
       # deux depuis le réseau Docker. Publier les ports OTLP exposerait un
       # point d'écriture sans authentification.
-      - "127.0.0.1:3200:3200"
+      - "127.0.0.1:${TEMPO_PORT:-3200}:3200"
     restart: unless-stopped
 
   otel-collector:
@@ -124,8 +189,8 @@ services:
     ports:
       # Publiés parce qu'un service lancé hors Docker — l'API de M5 en
       # développement, par exemple — doit pouvoir émettre vers le collecteur.
-      - "127.0.0.1:4317:4317"
-      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:${OTLP_GRPC_PORT:-4317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_PORT:-4318}:4318"
     depends_on:
       - tempo
     restart: unless-stopped
@@ -139,7 +204,7 @@ services:
       # fait déjà pour les métriques.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${MOCK_PORT:-8000}:8000"
     depends_on:
       - otel-collector
     restart: unless-stopped

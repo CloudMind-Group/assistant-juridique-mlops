@@ -15,11 +15,11 @@ import pytest
 
 fastapi = pytest.importorskip("fastapi", reason="FastAPI requis pour ces tests")
 
-from fastapi import FastAPI, HTTPException  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from prometheus_client import REGISTRY  # noqa: E402
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from prometheus_client import REGISTRY
 
-from monitoring.instrumentation.metrics import (  # noqa: E402
+from monitoring.instrumentation.metrics import (
     declarer_version,
     enregistrer_cache,
     enregistrer_echec_modele,
@@ -205,9 +205,8 @@ def test_mesurer_recuperation_enregistre_duree_et_documents() -> None:
 def test_mesurer_recuperation_enregistre_la_duree_meme_si_le_bloc_leve() -> None:
     """Une récupération qui échoue lentement doit rester visible."""
     avant = _valeur("rag_retrieval_duration_seconds_count")
-    with pytest.raises(ValueError):
-        with mesurer_recuperation():
-            raise ValueError("index indisponible")
+    with pytest.raises(ValueError), mesurer_recuperation():
+        raise ValueError("index indisponible")
     assert _valeur("rag_retrieval_duration_seconds_count") == avant + 1
 
 

@@ -37,21 +37,28 @@ non ``request.url.path``.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - uniquement pour l'analyse statique
     from fastapi import FastAPI
 
 __all__ = [
-    "instrumenter",
-    "mesurer_recuperation",
-    "enregistrer_generation",
+    "declarer_version",
     "enregistrer_cache",
     "enregistrer_echec_modele",
-    "declarer_version",
+    "enregistrer_generation",
+    "instrumenter",
+    "mesurer_recuperation",
 ]
 
 # --- Intervalles : contrat §1.4 ----------------------------------------------
@@ -164,7 +171,7 @@ def enregistrer_cache(touche: bool) -> None:
     CACHE.labels(result="hit" if touche else "miss").inc()
 
 
-def instrumenter(app: "FastAPI", chemin: str = "/metrics") -> "FastAPI":
+def instrumenter(app: FastAPI, chemin: str = "/metrics") -> FastAPI:
     """Instrumente une application FastAPI et expose l'endpoint de collecte.
 
     Mesure automatiquement toutes les routes. Les requêtes vers ``chemin``
@@ -173,7 +180,7 @@ def instrumenter(app: "FastAPI", chemin: str = "/metrics") -> "FastAPI":
     from fastapi import Request, Response
 
     @app.middleware("http")
-    async def _mesurer(request: "Request", appel_suivant):  # type: ignore[no-untyped-def]
+    async def _mesurer(request: Request, appel_suivant):  # type: ignore[no-untyped-def]
         if request.url.path == chemin:
             return await appel_suivant(request)
 
@@ -198,7 +205,7 @@ def instrumenter(app: "FastAPI", chemin: str = "/metrics") -> "FastAPI":
         return reponse
 
     @app.get(chemin, include_in_schema=False)
-    async def _metriques() -> "Response":  # type: ignore[no-untyped-def]
+    async def _metriques() -> Response:  # type: ignore[no-untyped-def]
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     return app

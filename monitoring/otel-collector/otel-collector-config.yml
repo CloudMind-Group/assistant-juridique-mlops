@@ -47,6 +47,24 @@ processors:
       - key: llm.completion
         action: delete
 
+      # L'URL complète de la requête HTTP. `rag.question` ne suffit pas si un
+      # paramètre finit dans l'URL : `/documents/analyze?document_name=...`
+      # (M5) place un nom de document — potentiellement un nom de fichier
+      # source réel — dans une chaîne de requête, et l'instrumentation
+      # FastAPI la renseigne automatiquement sous l'un de ces deux noms selon
+      # la version des conventions sémantiques. Signalé par @taha588 (#82,
+      # écart E-13) à propos de `/chat`, qui n'y est en réalité pas exposé —
+      # la question y voyage dans le corps JSON — mais le principe s'applique
+      # à `/documents/analyze`.
+      - key: url.full
+        action: delete
+      - key: http.url
+        action: delete
+      - key: url.query
+        action: delete
+      - key: http.target
+        action: delete
+
       # Identité de l'appelant : supprimée, et non condensée.
       #
       # `action: hash` produit ici un SHA-256 **nu**, et le §2.2 du contrat

@@ -37,7 +37,7 @@ _logger = logging.getLogger(__name__)
 SEGMENTS = ("rag.retrieve", "rag.rerank", "rag.generate", "rag.cite")
 
 
-def activer_tracage(app: "FastAPI", service: str, version: str = "0.0.0") -> bool:
+def activer_tracage(app: FastAPI, service: str, version: str = "0.0.0") -> bool:
     """Active le traçage distribué sur une application FastAPI.
 
     Retourne ``True`` si le traçage est réellement actif, ``False`` si les
