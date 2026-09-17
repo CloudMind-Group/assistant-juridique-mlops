@@ -1,8 +1,49 @@
+# =============================================================================
+# Pile applicative — assistant juridique
+#
+# Jusqu'ici ce fichier ne déclarait qu'un service, `m1-ingestion`, et l'API de
+# M5 n'était démarrable qu'à la main (`uvicorn` n'était invoqué nulle part dans
+# le dépôt). Une démonstration reposait donc sur une commande retenue de
+# mémoire. Les quatre services ajoutés couvrent ce que l'API exige réellement
+# pour répondre : un Redis pour le cache et la file Celery, un worker qui
+# dépile, et un serveur MLflow pour montrer les expériences de M3.
+#
+#   docker compose up -d --build     démarre la pile
+#   docker compose ps                état et ports effectifs
+#   docker compose logs -f api       journaux de l'API
+#   docker compose run --rm m1-ingestion   rejoue l'ingestion M1 seule
+#
+# PORTS — les défauts évitent la pile d'observabilité de M7, qui publie déjà
+# 8000 (`MOCK_PORT`) sur la boucle locale. Sur le serveur partagé, reprendre
+# l'allocation 36xx de monitoring/docker-compose.yml :
+#
+#     3698  API FastAPI     API_PORT=3698
+#     3699  MLflow          MLFLOW_PORT=3699
+#
+# Tout est publié sur 127.0.0.1 : rien de cette pile n'a à être joignable
+# depuis l'extérieur de la machine.
+#
+# SECRET — `M5_JWT_SECRET` n'a pas de valeur par défaut, volontairement.
+# `src/m5_api/core/security.py` le lit avec `os.environ[...]` : une valeur de
+# repli ici deviendrait la clé de signature réellement utilisée, et une clé
+# écrite dans un fichier versionné n'est plus un secret. La syntaxe `:?`
+# arrête `docker compose` avec le message ci-dessous tant qu'elle est absente.
+#
+# Pour en produire une, puis l'exporter dans l'environnement du shell sous le
+# nom M5_JWT_SECRET — sans l'écrire dans un fichier du dépôt :
+#
+#     python -c "import secrets; print(secrets.token_hex(32))"
+# =============================================================================
+
 services:
+  # --- Ingestion M1 : tâche ponctuelle, pas un service ------------------------
+  # Sort dès que le corpus est traité. `restart` reste absent exprès : un
+  # redémarrage automatique rejouerait l'ingestion en boucle.
   m1-ingestion:
     build:
       context: .
       dockerfile: Dockerfile
+    image: assistant-juridique:latest
     container_name: assistant-juridique-m1
 
     user: "${UID:-10001}:${GID:-10001}"
@@ -14,3 +55,124 @@ services:
       python -m src.m1_ingestion.ingest
       --raw-dir data/raw
       --out-dir data/processed
+
+  # --- Cache sémantique et courtier de tâches --------------------------------
+  # Un seul Redis pour les deux usages : `cache.py` y range les réponses
+  # (clé `chat:<sha256>`, une heure) et Celery y dépose ses tâches. Aucun port
+  # publié — seuls `api` et `worker` y accèdent, par le réseau interne.
+  redis:
+    image: redis:7-alpine
+    container_name: assistant-juridique-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --- API M5 ----------------------------------------------------------------
+  # L'image est celle de M1 : `src/` et `monitoring/` y sont déjà, et l'API
+  # importe les deux (`src.m2_rag` pour la chaîne RAG, `monitoring.
+  # instrumentation.metrics` pour l'instrumentation Prometheus).
+  #
+  # `./data` est monté parce que le service lit le corpus au démarrage :
+  # `build_light_service(load_m1_corpus())` ouvre `data/processed/
+  # metadata.jsonl` dans `lifespan`. Sans corpus, l'API ne démarre pas — c'est
+  # le contrat M1 → M2 qui s'applique, et l'échec est voulu bruyant.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: assistant-juridique:latest
+    container_name: assistant-juridique-api
+    restart: unless-stopped
+
+    user: "${UID:-10001}:${GID:-10001}"
+
+    environment:
+      REDIS_HOST: redis
+      M5_JWT_SECRET: ${M5_JWT_SECRET:?définir M5_JWT_SECRET avant de démarrer — voir l'en-tête de ce fichier}
+      PYTHONUNBUFFERED: "1"
+
+    volumes:
+      - ./data:/app/data
+
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8000"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    command: >
+      uvicorn src.m5_api.main:app
+      --host 0.0.0.0
+      --port 8000
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # --- Worker Celery ---------------------------------------------------------
+  # Sans lui, `POST /documents/analyze` renvoie bien un `task_id`, mais
+  # `GET /documents/status/{id}` reste indéfiniment sur « processing » : la
+  # tâche est déposée dans Redis et personne ne la dépile. Les deux endpoints
+  # ne se démontrent qu'ensemble.
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: assistant-juridique:latest
+    container_name: assistant-juridique-worker
+    restart: unless-stopped
+
+    user: "${UID:-10001}:${GID:-10001}"
+
+    environment:
+      REDIS_HOST: redis
+      PYTHONUNBUFFERED: "1"
+
+    volumes:
+      - ./data:/app/data
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    command: >
+      celery --app src.m5_api.core.tasks.celery_app worker
+      --loglevel=info
+      --concurrency=2
+
+  # --- Serveur MLflow (M3) ---------------------------------------------------
+  # `MLflowConfig.tracking_uri` vaut `mlruns` par défaut, c'est-à-dire un
+  # répertoire local sans interface. Ce service sert le même répertoire en
+  # HTTP pour que les expériences soient montrables.
+  #
+  # Image officielle plutôt que notre image : `mlflow` n'est pas dans
+  # `requirements.txt`, et l'ajouter tirerait toute sa chaîne de dépendances
+  # dans l'image d'ingestion, qui n'en a aucun usage.
+  #
+  # Pour que les scripts de M3 écrivent ici plutôt que dans `./mlruns` :
+  #     export MLFLOW_TRACKING_URI=http://127.0.0.1:${MLFLOW_PORT:-5000}
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: assistant-juridique-mlflow
+    restart: unless-stopped
+
+    volumes:
+      - ./mlruns:/mlruns
+
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5000}:5000"
+
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri file:///mlruns
+      --default-artifact-root file:///mlruns
