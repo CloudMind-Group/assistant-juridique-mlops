@@ -174,14 +174,14 @@ prétend avoir documente une fiction.
 | Authentification | M5 | **Implémentée** (PR #54) — mot de passe OAuth2, jeton JWT HS256 vérifié côté serveur, clé lue dans `M5_JWT_SECRET`, expiration à 30 minutes. Exigée sur `/chat`, `/chat/stream` et `/documents/*` ; `/health`, `/login` et `/metrics` restent ouverts |
 | Rôles applicatifs | M5 | **Non implémentés** — le jeton ne porte que `sub` et `exp`, et un utilisateur de test unique est défini en dur — écart E-15 |
 | Cloisonnement multi-cabinets | M5 + M2 | **Non implémenté** — aucun `cabinet_id`, ni dans le jeton ni dans les requêtes — écart E-15 |
-| Droits de l'équipe sur le corpus | M1 + M8 | Partiellement appliqué — dépôt privé sur le compte de l'organisation, sans contrôle par rôle — écart E-16 |
+| Droits de l'équipe sur le corpus | M1 + M8 | Partiellement appliqué — dépôt de données DagsHub privé, sur le compte de l'organisation, sans contrôle par rôle — écart E-16. Le dépôt de code GitHub est public, et son historique garde une copie du corpus synthétique — écart E-18 |
 | Journal des accès au corpus | hébergeur | **Non disponible** — écart E-16 |
 | Écriture du journal d'audit | M5 + M8 | Module livré (PR #59) ; **l'API ne l'appelle pas** — écart E-14 |
 | Lecture du journal d'audit | M7 | Promtail et Loki en place, conservation de trois ans configurée ; rien à lire tant qu'E-14 est ouvert |
 
 **Ce qui est appliqué** : un jeton vérifié côté serveur avant toute consultation,
-et la restriction d'accès au dépôt et au corpus, qui repose sur les droits GitHub
-et DagsHub. **Ce qui ne l'est pas** : tout ce qui distingue un utilisateur d'un
+la restriction d'écriture sur le dépôt de code (GitHub, public en lecture) et la
+restriction d'accès au corpus (DagsHub, privé). **Ce qui ne l'est pas** : tout ce qui distingue un utilisateur d'un
 autre — son rôle, son cabinet, et la trace de ses accès.
 
 **E-14 ne se fermera pas sans E-15.** Le contrat du journal rend `actor_role`

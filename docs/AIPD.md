@@ -134,7 +134,7 @@ projet, direct.
 | Vraisemblance sans mesure | Importante |
 | Vraisemblance après mesures | Négligeable |
 
-**Mesures.** Dépôt passé en privé le 27/08/2026, puis **remote DVC migré vers le
+**Mesures.** Dépôt de données DagsHub passé en privé le 27/08/2026, puis **remote DVC migré vers le
 compte de l'organisation** le 29/08/2026 (PR #15). L'accès au corpus ne dépend
 plus d'une personne, et son administration revient à l'organisation. A-2 close.
 
@@ -148,7 +148,7 @@ l'intégralité du corpus. Aucun contrôle par rôle, aucun journal d'accès.
 | Gravité | Importante |
 | Vraisemblance | Limitée |
 
-**Mesures.** Le dépôt est privé et hébergé par l'organisation, ce qui rend le
+**Mesures.** Le dépôt de données DagsHub est privé et hébergé par l'organisation, ce qui rend le
 contrôle d'accès exerçable. Il n'est pas configuré pour autant, et la
 journalisation a désormais un contrat arrêté ([`OBSERVABILITE.md`](OBSERVABILITE.md)
 §2) mais aucune source d'événements — M5 n'existe pas (écart E-04) : l'absence de journal
@@ -264,7 +264,7 @@ lieu de la corriger, ce qui est précisément la raison du rejet de Presidio.
 | R-01 Divulgation d'identité | Maximale | Limitée | E-01 |
 | R-02 Effacement impossible | Importante | Négligeable | exigence transmise à M2 |
 | R-03 Perte de maîtrise | Limitée | Négligeable | migration du corpus — close |
-| R-04 Accès non autorisé | Importante | Limitée | E-14, E-15, E-16 |
+| R-04 Accès non autorisé | Importante | Limitée | E-14, E-15, E-16, E-18 |
 | R-05 Réponse erronée | Importante | Importante | §5 |
 | R-06 Ré-identification | Limitée | Importante | accepté, documenté |
 | R-07 Inégalité fr/ar | Importante | Importante | E-01 |

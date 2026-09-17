@@ -217,13 +217,23 @@ encore à la détection. Voir écart E-01.
 | **Support** | DVC — remote déclaré dans [`.dvc/config`](../.dvc/config) |
 | **Localisation** | `dagshub.com/CloudMind-Group` — **compte de l'organisation** (migré le 29/08/2026, PR #15) |
 | **Volume** | 121 fichiers · 37 Ko · corpus synthétique |
-| **Visibilité** | **Privé** — vérifié le 27/08/2026 (voir §6) |
+| **Visibilité** | **Privé** — dépôt de données DagsHub, vérifié le 27/08/2026 et revérifié le 17/09/2026 (voir §6). Le dépôt de **code** GitHub, lui, est public — voir E-18 |
 | **Contrôle d'accès** | Exerçable depuis la migration, **non configuré** — voir E-16 |
 | **Journal d'accès** | Indisponible — voir E-16 |
 | **Chiffrement au repos** | Non documenté |
 
 Le dépôt était public jusqu'au 27/08/2026 et a été passé en privé le jour même.
 Le corpus exposé était synthétique : aucune donnée personnelle n'a été publiée.
+
+**Deux dépôts, deux visibilités — précision du 17/09/2026 (issue #95).** Dans
+cette fiche, « le dépôt » désigne le dépôt de **données** DagsHub, où DVC stocke
+le corpus. Il est toujours privé : une session non authentifiée y est redirigée
+vers la page de connexion. Le dépôt de **code** GitHub est public. Dans son état
+courant, il ne versionne aucun fichier du corpus — `data/raw/` et
+`data/processed/` sont ignorés, seul le pointeur `data/raw.dvc` est suivi — mais
+son historique en conserve une copie synthétique : c'est l'écart E-18. L'issue
+#95 a lu cette fiche comme portant sur GitHub ; la formulation le permettait, elle
+est donc précisée.
 
 Le remote pointait jusqu'au 29/08/2026 vers le compte personnel de la
 responsable de M1. Deux risques en découlaient, indépendants du contenu : la
@@ -420,6 +430,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-15 | **La matrice des habilitations n'est pas appliquée.** L'authentification existe (PR #54) : jeton JWT vérifié côté serveur sur `/chat`, `/chat/stream` et `/documents/*`. Mais le jeton ne porte que l'identifiant (`sub`) et son expiration — aucun rôle, aucun `cabinet_id` — et un utilisateur de test unique est défini en dur. Aucune ligne de la matrice ne se distingue donc d'une autre, et le cloisonnement entre cabinets n'a pas de support. Vérifié le 17/09/2026 dans `src/m5_api/core/security.py`. La matrice annonçait que la différence entre sa spécification et l'état des lieux serait consignée dès que l'authentification existerait : c'est cet écart | Moyenne | M5 | avant ouverture du service |
 | E-16 | **Accès au corpus sur DagsHub : ni contrôle par rôle, ni journal exploitable** (fiche T-02). Le remote appartient à l'organisation depuis la PR #15, ce qui rend le contrôle exerçable, mais il n'est pas configuré, et l'hébergeur ne fournit pas de journal d'accès. Le corpus brut est pourtant le seul endroit où subsisteront des données personnelles non masquées ([`HABILITATIONS.md`](HABILITATIONS.md) §6.2). *Correction du 17/09/2026 : cette moitié était portée par l'ancien E-04 — E-R9, la matrice des habilitations et le risque R-04 de l'AIPD y renvoyaient — et a quitté le registre à sa fermeture en E-R14, qui ne traitait que le journal applicatif. Même mécanisme qu'en E-14 : un écart requalifié perd la moitié qui n'entre pas dans son nouvel intitulé.* | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
 | E-17 | **Le journal d'audit s'écrit sous un nom que Promtail ne collecte pas.** `audit.py` écrit dans `monitoring/audit/audit.jsonl` ; Promtail ne suit que `audit-*.jsonl` dans ce répertoire. Chaque événement serait écrit sur disque sans jamais atteindre Loki, et la conservation de trois ans de la fiche T-04 ne s'appliquerait à rien. Sans effet aujourd'hui, puisqu'aucun événement n'est émis (E-14) — c'est la raison de le corriger avant. Le test existant ne vérifiait que le répertoire. Correctif en revue : PR #97 — nom `audit-api.jsonl`, et un test qui lit le motif dans la configuration de Promtail | Faible | M8 | avant fermeture d'E-14 |
+| E-18 | **L'historique du dépôt de code, public, contient une copie du corpus synthétique.** 60 documents traités, `metadata.jsonl` et `quality_report.json` ont été versionnés dans Git du 05 au 24/08/2026, avant le passage à DVC (commit `06b32a1`), et restent lisibles dans l'historique de `develop` et des tags `v0.1.0` et `v0.2.0`. Aucun fichier de `data/raw/` n'a jamais été versionné. **Aucune donnée personnelle** : le corpus est synthétique (§2), et une recherche des civilités, titres arabes, numéros de CIN, e-mails et téléphones sur les 62 fichiers de l'historique n'a rien donné (17/09/2026). Le dépôt de code reste public pour l'évaluation académique ; réécrire l'historique la veille de la soutenance casserait les clones et les tags sans rien protéger. Avant toute collecte réelle : un contrôle en CI qui refuse tout fichier de `data/raw/` ou `data/processed/` dans Git, et une décision écrite sur la visibilité du dépôt de code. Relevé par @DOUAEM449 (issue #95) | Faible *(bloquante avant corpus réel)* | M8 + M1 | avant collecte réelle |
 
 ### Écarts résolus
 
@@ -429,7 +440,7 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R2 | Règle CIN masquant montants, numéros de dossier, de registre et de Bulletin Officiel | PR #16 |
 | E-R3 | `doc_id` et `title` dérivés du nom de fichier, propageant une identité jusque dans les citations | PR #16 |
 | E-R4 | Aucune vérification automatisée du masquage | PR #16 — 13 tests exécutés en CI |
-| E-R5 | Corpus accessible publiquement | Dépôt passé en privé le 27/08/2026 |
+| E-R5 | Corpus accessible publiquement | Dépôt de données DagsHub passé en privé le 27/08/2026, revérifié le 17/09/2026. *Précision du 17/09/2026 : cette résolution ne couvrait pas l'historique du dépôt de code GitHub, public — voir E-18* |
 | E-R6 | Aucune analyse de sécurité du code Python ni des dépendances ; le scan de secrets, limité à une recherche textuelle, ne détecterait pas une clé d'API dépourvue de mot-clé | Bandit et pip-audit ajoutés à la CI, exécutés à chaque pull request |
 | E-R7 | Durée de conservation non définie | Trois ans à compter de l'ingestion — décision d'équipe du 29/08/2026, motivée en [AIPD.md](AIPD.md) §6 |
 | E-R8 | Origine des décisions de justice non arrêtée | Recueils publiés déjà pseudonymisés — décision d'équipe du 29/08/2026, §1 ci-dessus |
@@ -583,7 +594,9 @@ gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).
 
 **Visibilité du dépôt de données** — vérifiée le 27/08/2026 depuis une session
 non authentifiée : le dépôt et son contenu ne sont pas accessibles
-publiquement.
+publiquement. Revérifiée le 17/09/2026 dans les mêmes conditions : redirection
+vers la page de connexion. Le dépôt de code GitHub, lui, est public
+(`gh repo view` : `PUBLIC`) — voir E-18.
 
 ## 7. Révision
 
