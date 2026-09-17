@@ -31,3 +31,7 @@ PyJWT==2.13.0
 httpx==0.28.1
 pytest==9.1.1
 python-multipart>=0.0.31
+
+# Instrumentation M7 : requis par monitoring.instrumentation.metrics,
+# branche dans src/m5_api/main.py via instrumenter(app).
+prometheus-client>=0.20
