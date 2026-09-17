@@ -27,13 +27,20 @@ jobs:
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Deux étiquettes, et la seconde n'est pas décorative : `latest` désigne
+      # une image qui change sous le même nom, et ne se rattache donc à aucun
+      # code. Le SHA du commit permet de dire quelle image tourne, et par là
+      # quelles règles d'anonymisation elle embarque — sans quoi un incident
+      # sur les données ne peut pas être rattaché à une version du pipeline.
       - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: ghcr.io/cloudmind-group/assistant-juridique-mlops:latest
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
