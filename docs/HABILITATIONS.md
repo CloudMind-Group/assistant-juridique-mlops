@@ -1,7 +1,7 @@
 # Matrice des habilitations
 
 **Responsable :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.0 — 2 septembre 2026
+**Version :** 1.1 — 17 septembre 2026
 **Documents liés :** [`RGPD.md`](RGPD.md) · [`AIPD.md`](AIPD.md) · [`OBSERVABILITE.md`](OBSERVABILITE.md)
 
 > Ce document est écrit **avant** que M5 n'implémente l'authentification. C'est
@@ -9,6 +9,9 @@
 > transmise à M2 avant qu'elle ne construise l'index (suppression ciblée par
 > `doc_id`) a montré ce que vaut une contrainte posée au bon moment — elle n'a
 > rien coûté à intégrer.
+>
+> Depuis la version 1.1, l'authentification existant, le §7 est un **état des
+> lieux** et non plus une intention.
 
 ---
 
@@ -66,7 +69,7 @@ La valeur de `actor_role` alimente le champ du même nom dans le journal d'audit
 | **Corpus brut** | `data/raw/` — remote DVC | Textes non anonymisés — **le seul endroit où subsistent des données personnelles** |
 | **Corpus traité** | `data/processed/` | Textes anonymisés, prêts pour l'indexation |
 | **Index vectoriel** | Qdrant / ChromaDB | Vecteurs et passages, anonymisés (fiche T-03) |
-| **Journal d'audit** | Loki | Identifiants pseudonymes sous HMAC, `doc_id`, aucune donnée personnelle |
+| **Journal d'audit** | Loki | Identifiants pseudonymes sous HMAC et `doc_id` — des données personnelles **pseudonymisées**, non anonymes (fiche T-04 du registre) |
 | **Métriques et tableaux de bord** | Prometheus / Grafana | Agrégats — aucune donnée personnelle |
 | **Registre de modèles** | MLflow | Métriques agrégées, Model Cards |
 | **Comptes utilisateurs** | Base applicative | Identités des utilisateurs du service |
@@ -150,8 +153,9 @@ Trois exigences en découlent :
 
 - l'accès passe par le compte de l'organisation, jamais par un compte personnel
   (écart E-R9, résolu le 29/08) ;
-- il est **journalisé** — c'est l'écart E-04, ouvert : DagsHub ne fournit pas
-  aujourd'hui de journal exploitable par l'organisation ;
+- il est **journalisé** — ce n'est pas le cas : DagsHub ne fournit pas de
+  journal exploitable par l'organisation (écart E-16, qui reprend la moitié de
+  l'ancien E-04 perdue à sa fermeture) ;
 - il est réexaminé à chaque départ d'un membre de l'équipe.
 
 ### 6.3 Le rôle est porté par le jeton, jamais par la requête
@@ -163,26 +167,39 @@ prétend avoir documente une fiction.
 
 ## 7. État de mise en œuvre
 
+État vérifié dans le code le 17 septembre 2026.
+
 | Élément | Dépend de | État |
 |---|---|---|
-| Rôles applicatifs | M5 | **Défini ici, non implémenté** — M5 n'a pas commencé |
-| Cloisonnement multi-cabinets | M5 + M2 | Défini, non implémenté |
-| Droits de l'équipe sur le corpus | M1 + M8 | Partiellement appliqué — dépôt privé sur le compte de l'organisation, sans contrôle par rôle |
-| Journal des accès au corpus | hébergeur | **Non disponible** — écart E-04 |
-| Lecture du journal d'audit | M7 | Contrat prêt, aucune source d'événements |
+| Authentification | M5 | **Implémentée** (PR #54) — mot de passe OAuth2, jeton JWT HS256 vérifié côté serveur, clé lue dans `M5_JWT_SECRET`, expiration à 30 minutes. Exigée sur `/chat`, `/chat/stream` et `/documents/*` ; `/health`, `/login` et `/metrics` restent ouverts |
+| Rôles applicatifs | M5 | **Non implémentés** — le jeton ne porte que `sub` et `exp`, et un utilisateur de test unique est défini en dur — écart E-15 |
+| Cloisonnement multi-cabinets | M5 + M2 | **Non implémenté** — aucun `cabinet_id`, ni dans le jeton ni dans les requêtes — écart E-15 |
+| Droits de l'équipe sur le corpus | M1 + M8 | Partiellement appliqué — dépôt privé sur le compte de l'organisation, sans contrôle par rôle — écart E-16 |
+| Journal des accès au corpus | hébergeur | **Non disponible** — écart E-16 |
+| Écriture du journal d'audit | M5 + M8 | Module livré (PR #59) ; **l'API ne l'appelle pas** — écart E-14 |
+| Lecture du journal d'audit | M7 | Promtail et Loki en place, conservation de trois ans configurée ; rien à lire tant qu'E-14 est ouvert |
 
-**Rien de ce document n'est appliqué techniquement à ce jour.** Le service
-n'existe pas : ni API, ni interface, ni utilisateurs. Ce qui est appliqué, c'est
-la restriction d'accès au dépôt et au corpus, et elle repose sur les droits
-GitHub et DagsHub, pas sur un modèle de rôles.
+**Ce qui est appliqué** : un jeton vérifié côté serveur avant toute consultation,
+et la restriction d'accès au dépôt et au corpus, qui repose sur les droits GitHub
+et DagsHub. **Ce qui ne l'est pas** : tout ce qui distingue un utilisateur d'un
+autre — son rôle, son cabinet, et la trace de ses accès.
 
-Ce document est donc une **spécification adressée à M5**, pas un état des lieux.
-Il sera repris en état des lieux quand l'authentification existera — et la
-différence entre les deux sera alors, elle aussi, un écart à consigner.
+**E-14 ne se fermera pas sans E-15.** Le contrat du journal rend `actor_role`
+obligatoire, et le §6.3 exige qu'il vienne du jeton. Tant que le jeton n'en porte
+aucun, brancher le journal obligerait à inscrire un rôle fixe pour l'utilisateur
+de test — exactement la fiction que le §6.3 interdit.
+
+> **Correction du 17/09/2026.** La version 1.0 écrivait ici que rien n'était
+> appliqué parce que le service n'existait pas, et que M5 n'avait pas commencé.
+> L'API existe depuis la PR #54. Comme annoncé, la différence entre la
+> spécification et l'état des lieux est consignée au registre : écarts E-14,
+> E-15 et E-16. Le §3 disait aussi le journal d'audit dépourvu de données
+> personnelles, reprenant l'erreur que la fiche T-04 du registre corrige : un
+> identifiant pseudonymisé reste une donnée personnelle tant que la clé existe.
 
 ---
 
 ## Révision
 
-À réviser lorsque M5 implémente l'authentification, lorsqu'un rôle est ajouté ou
-retiré, et à chaque départ d'un membre de l'équipe.
+À réviser lorsque M5 ajoute les rôles ou le cloisonnement (E-15), lorsqu'un rôle
+est ajouté ou retiré, et à chaque départ d'un membre de l'équipe.
