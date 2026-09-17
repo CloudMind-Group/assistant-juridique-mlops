@@ -92,16 +92,16 @@ const MEMBERS = [
   {
     id:'M5', name:'Nouhaila Fadli', role:'Backend Engineer — Lead API & Serving',
     module:'Module 5 · API & Serving Layer', icon:'i-server',
-    c1:'#f59e0b', c2:'#f472b6', status:'planned', progress:0,
+    c1:'#f59e0b', c2:'#f472b6', status:'progress', progress:43,
     desc:"Exposition du modèle via une API asynchrone performante, sécurisée, mise en cache et documentée.",
     subs:[
-      ['Service FastAPI : endpoints de requête, d\'upload documentaire et de gestion des conversations',0],
-      ['Réponses en streaming (SSE) pour restituer la génération jeton par jeton',0],
-      ['Authentification JWT + OAuth2, rôles et gestion des sessions utilisateur',0],
-      ['Mise en cache sémantique Redis des questions récurrentes et des embeddings',0],
-      ['Traitement asynchrone des documents volumineux via file de tâches Celery',0],
-      ['Limitation de débit, quotas par client et gestion d\'erreurs normalisée',0],
-      ['Documentation OpenAPI, SDK client et tests de charge (Locust)',0]
+      ['Service FastAPI : six endpoints servis, branchés sur la chaîne RAG de M2 (<code>build_light_service(load_m1_corpus())</code>) — requête, authentification, analyse documentaire et suivi de tâche',1],
+      ['Réponses en streaming (SSE) pour restituer la génération jeton par jeton',1],
+      ['Authentification JWT + OAuth2 : signature HS256, expiration 30 min et dépendance <code>get_current_user</code> sur les endpoints protégés. Restent hors périmètre à ce jour : les rôles et la gestion de sessions — un unique utilisateur de test est défini en dur',0],
+      ['Mise en cache Redis des questions récurrentes, clé <code>sha256</code> et expiration 1 h, avec repli sans cache si Redis est injoignable. La correspondance reste <b>exacte</b> : la version sémantique, qui rapprocherait deux formulations d\'une même question par leurs embeddings, n\'est pas faite',0],
+      ['Traitement asynchrone via file de tâches Celery : dépôt, identifiant de tâche et endpoint de suivi opérationnels. Le corps de l\'analyse est encore simulé',1],
+      ['Limitation de débit en place sur <code>/chat</code> et <code>/chat/stream</code> (slowapi, 5 req/min par adresse). Restent à faire : les quotas par client et le format d\'erreur normalisé',0],
+      ['Documentation OpenAPI générée automatiquement par FastAPI et scénario de charge Locust écrit (<code>tests/m5/locustfile.py</code>). Restent à faire : le SDK client et la campagne de charge elle-même',0]
     ],
     tools:['FastAPI','Pydantic','Redis','Celery','PostgreSQL','JWT / OAuth2','Uvicorn','Locust'],
     collab:"Encapsule les chaînes d'inférence d'<b>Imane</b>, consomme les contrats d'interface de <b>Oumaima</b>, expose les métriques applicatives à <b>Youssef</b> et applique les règles d'accès de <b>Taha</b>.",
