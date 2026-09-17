@@ -8,6 +8,9 @@ violation ne casse rien et ne se voit qu'à la relecture, trois ans plus tard.
 from __future__ import annotations
 
 import json
+import re
+from fnmatch import fnmatch
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -221,4 +224,22 @@ def test_le_module_n_expose_aucune_suppression():
 
 
 def test_le_chemin_par_defaut_est_celui_que_promtail_suit():
-    assert CHEMIN_DEFAUT.parts[:2] == ("monitoring", "audit")
+    """Le répertoire ne suffit pas : Promtail filtre aussi par nom de fichier.
+
+    La version précédente de ce test ne vérifiait que le répertoire, et le
+    journal s'écrivait dans `audit.jsonl`, que le motif `audit-*.jsonl` ne
+    collecte pas. Le motif est lu dans la configuration plutôt que recopié ici,
+    pour qu'un changement d'un côté fasse échouer ce test.
+    """
+    racine = Path(__file__).resolve().parents[2] / "monitoring"
+    promtail = (racine / "promtail" / "promtail-config.yml").read_text(encoding="utf-8")
+    compose = (racine / "docker-compose.yml").read_text(encoding="utf-8")
+
+    motif = PurePosixPath(re.search(r"__path__:\s*(\S*audit\S*)", promtail).group(1))
+    montage = re.search(r"-\s*\./(\S+):" + re.escape(str(motif.parent)), compose)
+
+    assert montage, f"{motif.parent} n'est monté nulle part dans monitoring/docker-compose.yml"
+    assert CHEMIN_DEFAUT.parent.as_posix() == f"monitoring/{montage.group(1)}"
+    assert fnmatch(CHEMIN_DEFAUT.name, motif.name), (
+        f"{CHEMIN_DEFAUT.name} n'est pas collecté par le motif {motif}"
+    )
