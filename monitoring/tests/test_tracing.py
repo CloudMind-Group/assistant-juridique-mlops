@@ -22,14 +22,13 @@ import pytest
 
 fastapi = pytest.importorskip("fastapi", reason="FastAPI requis pour ces tests")
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI
 
-from monitoring.instrumentation.tracing import (  # noqa: E402
+from monitoring.instrumentation.tracing import (
     SEGMENTS,
     activer_tracage,
     identifiant_trace_courant,
 )
-
 
 # --- dégradation : le comportement par défaut ---------------------------------
 
