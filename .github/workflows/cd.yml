@@ -1,0 +1,46 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: cloudmind-group/assistant-juridique-mlops
+
+jobs:
+  docker-build-push:
+    name: Build and Push Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Deux étiquettes, et la seconde n'est pas décorative : `latest` désigne
+      # une image qui change sous le même nom, et ne se rattache donc à aucun
+      # code. Le SHA du commit permet de dire quelle image tourne, et par là
+      # quelles règles d'anonymisation elle embarque — sans quoi un incident
+      # sur les données ne peut pas être rattaché à une version du pipeline.
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
