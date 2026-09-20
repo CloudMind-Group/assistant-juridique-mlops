@@ -52,3 +52,7 @@ mlflow.db
 site/
 .next/ 
 coverage/ 
+
+# Rapport academique : seul le PDF compile est versionne, sources et logs exclus
+rapport/*
+!rapport/rapport_final.pdf
