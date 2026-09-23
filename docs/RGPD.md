@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.7 — 14 septembre 2026
+**Version :** 1.9 — 17 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -217,13 +217,23 @@ encore à la détection. Voir écart E-01.
 | **Support** | DVC — remote déclaré dans [`.dvc/config`](../.dvc/config) |
 | **Localisation** | `dagshub.com/CloudMind-Group` — **compte de l'organisation** (migré le 29/08/2026, PR #15) |
 | **Volume** | 121 fichiers · 37 Ko · corpus synthétique |
-| **Visibilité** | **Privé** — vérifié le 27/08/2026 (voir §6) |
-| **Contrôle d'accès** | Non exerçable par l'organisation |
-| **Journal d'accès** | Indisponible |
+| **Visibilité** | **Privé** — dépôt de données DagsHub, vérifié le 27/08/2026 et revérifié le 17/09/2026 (voir §6). Le dépôt de **code** GitHub, lui, est public — voir E-18 |
+| **Contrôle d'accès** | Exerçable depuis la migration, **non configuré** — voir E-16 |
+| **Journal d'accès** | Indisponible — voir E-16 |
 | **Chiffrement au repos** | Non documenté |
 
 Le dépôt était public jusqu'au 27/08/2026 et a été passé en privé le jour même.
 Le corpus exposé était synthétique : aucune donnée personnelle n'a été publiée.
+
+**Deux dépôts, deux visibilités — précision du 17/09/2026 (issue #95).** Dans
+cette fiche, « le dépôt » désigne le dépôt de **données** DagsHub, où DVC stocke
+le corpus. Il est toujours privé : une session non authentifiée y est redirigée
+vers la page de connexion. Le dépôt de **code** GitHub est public. Dans son état
+courant, il ne versionne aucun fichier du corpus — `data/raw/` et
+`data/processed/` sont ignorés, seul le pointeur `data/raw.dvc` est suivi — mais
+son historique en conserve une copie synthétique : c'est l'écart E-18. L'issue
+#95 a lu cette fiche comme portant sur GitHub ; la formulation le permettait, elle
+est donc précisée.
 
 Le remote pointait jusqu'au 29/08/2026 vers le compte personnel de la
 responsable de M1. Deux risques en découlaient, indépendants du contenu : la
@@ -248,6 +258,15 @@ n'est conçu » et un écart « tout est conçu, personne n'émet » n'appellent
 même travail ni les mêmes personnes. Le chiffrement au repos demeure non documenté
 (E-06).
 
+> **Correction du 17/09/2026.** Trois affirmations de cette fiche ne tenaient
+> plus. L'API existe depuis la PR #54 et n'émet toujours aucun événement : ce
+> n'est plus l'absence de M5 qui prive le journal de source, c'est l'absence
+> d'appel — écart E-14. Le contrôle d'accès et la journalisation **du corpus sur
+> DagsHub**, que ce paragraphe rattachait à E-04, ne relevaient plus d'aucun
+> écart depuis sa fermeture en E-R14 — écart E-16. Et le tableau disait le
+> contrôle d'accès « non exerçable par l'organisation », ce que la migration du
+> 29/08 avait rendu faux le jour même.
+
 ### T-03 — Indexation vectorielle
 
 | | |
@@ -258,7 +277,8 @@ même travail ni les mêmes personnes. Le chiffrement au repos demeure non docum
 | **Provenance** | `data/processed/` uniquement, c'est-à-dire du texte déjà anonymisé par T-01 |
 | **Responsable opérationnel** | Imane Ibnchakroune (M2) |
 | **Durée de conservation** | Alignée sur T-01 — trois ans, l'index étant dérivé du corpus |
-| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **non implémenté** |
+| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **partielle** : `/chat` renvoie les passages cités (PR #54), mais l'interface tourne encore sur un transport simulé et le contrat entre les deux n'est pas écrit (#76) |
+| **Entraînement** | **Aucun.** Aucune donnée du corpus ne sert à entraîner ou adapter un modèle — décision écrite, #64 |
 
 **L'index est une seconde copie du corpus.** Les passages y sont stockés en
 clair à côté de leurs vecteurs, ce qui est nécessaire pour afficher les extraits
@@ -275,6 +295,20 @@ texte en clair y contribue d'ailleurs — un passage rangé à côté d'un `doc_
 supprime par filtre, là où un vecteur seul ne s'annule pas. Le risque R-02 de
 l'analyse d'impact passe de ce fait à une vraisemblance négligeable.
 
+**Ce qui garde cet effacement complet : aucun modèle n'est entraîné sur le
+corpus.** Le fine-tuning LoRA/QLoRA est hors périmètre de la v0.2.0 par
+décision écrite (#64), faute de jeu annoté validé par un juriste. La
+conséquence pour ce registre dépasse la feuille de route. Une donnée
+personnelle ne vit aujourd'hui qu'à deux endroits, `data/processed/` et l'index,
+et `doc_id` l'en retire dans les deux cas. Un modèle entraîné sur de la
+jurisprudence en retiendrait une partie dans ses poids, et un poids ne se
+supprime pas par filtre : l'effacement d'une personne, aujourd'hui une
+opération, redeviendrait un réentraînement.
+
+**Tout entraînement ou adaptation d'un modèle sur des données issues du corpus
+ouvre donc une fiche distincte et une révision de l'AIPD, avant
+l'entraînement** — voir §7.
+
 **Point de vigilance — journalisation des requêtes.** Le service expose un hook
 `log_query(request, response)` qui reçoit la question et la réponse complètes.
 L'implémentation actuelle n'empile qu'en mémoire et **rien n'est persisté**
@@ -287,13 +321,21 @@ reprendre si le hook est implémenté.
 **Reste hors périmètre à ce jour :** la restitution elle-même. M5 et M6
 n'existent pas, donc aucun utilisateur final n'accède au corpus.
 
+> **Correction du 16/09/2026.** La phrase ci-dessus, conservée telle qu'écrite,
+> était vraie à la rédaction de la fiche et ne l'est plus depuis la fusion de
+> l'API (PR #54) et de l'interface. La version 1.7 la reproduisait encore. L'API
+> renvoie les passages cités. L'interface, elle, n'appelle pas encore l'API
+> (#76) : **aucun passage n'est restitué par l'interface à ce jour**. La
+> conclusion tient, mais sa raison a changé, et elle cessera de tenir dès que
+> l'interface sera branchée.
+
 ### T-04 — Journal d'audit des accès
 
 | | |
 |---|---|
 | **Finalité** | Rendre compte des accès au corpus et des réponses produites — obligation de responsabilité, art. 5.2 RGPD |
 | **Base légale** | Obligation légale de rendre compte, et intérêt légitime à détecter un usage anormal |
-| **Support** | `monitoring/audit/audit.jsonl`, collecté par Promtail vers Loki |
+| **Support** | `monitoring/audit/`, collecté par Promtail vers Loki — **sous réserve du nom de fichier** : voir E-17 |
 | **Écriture** | [`src/m8_compliance/audit.py`](../src/m8_compliance/audit.py) (PR #59) |
 | **Contenu stocké** | Empreintes HMAC-SHA-256 de l'identifiant d'acteur et de la question, rôle applicatif, `doc_id` consultés, horodatage, résultat |
 | **Personnes concernées** | Utilisateurs du service — particuliers, juristes, gestionnaires, administrateurs |
@@ -384,7 +426,11 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-06 | Chiffrement au repos du corpus non documenté — l'hébergeur ne publie pas ses garanties et l'organisation ne peut pas les vérifier ; à traiter par le chiffrement côté client si le corpus réel l'exige | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
 | E-11 | `SourceType` mêle deux axes : trois catégories de document et deux canaux de collecte. Le canal ne détermine pas le contenu, donc pour un document arrivé par `Portail Officiel` ou `Dépôt Interne` le registre **ne peut déclarer aucune attente** en données personnelles — alors que c'est cette attente qui règle le niveau de vérification. Le masquage s'applique quoi qu'il arrive, l'écart porte sur la déclaration, pas sur la protection. Piste retenue avec @DOUAEM449 : renommer `Dépôt Interne` en un terme sans ambiguïté et porter la catégorie du document dans un champ distinct du canal | Faible | M8 + M1 | avant collecte réelle |
 | E-13 | `POST /documents/analyze` reçoit `document_name: str` sans modèle Pydantic : FastAPI en fait un paramètre de requête, quel que soit le verbe HTTP. Un nom de document — potentiellement un nom de fichier source, donc de partie — atteint l'URL. **La moitié traces est fermée** : la PR #85 supprime `url.full`, `http.url`, `url.query` et `http.target` au collecteur, les verrouille par un test, et figure dans `release/0.2.0` (vérifié le 14/09/2026). Reste ce qu'aucun collecteur ne couvre : journaux d'accès, reverse proxy, historique du navigateur. Correctif : porter `document_name` dans un modèle de corps de requête. Même famille qu'E-R13. *Correction du 13/09/2026 : la première version citait `/chat` ; `/chat` et `/chat/stream` reçoivent la question dans le corps JSON. Relevé par @youssefelalem.* | Faible | M5 | avant exposition du service |
-| E-14 | **Le journal d'audit n'a pas de source.** L'écriture existe (PR #59) et la rétention est configurée (E-R14), mais M5 — fusionnée dans `release/0.2.0` — n'appelle `journaliser()` nulle part : zéro occurrence dans `src/m5_api/`, vérifié le 14/09/2026. Aucun événement n'est écrit, et la fiche T-04 décrit un traitement qui n'a pas encore lieu. *Correction du 14/09/2026 : c'est l'énoncé exact de l'ancien E-04 — « ce n'est plus la conception qui manque mais la source d'événements ». En le requalifiant en version 1.6, j'ai gardé la moitié rétention et perdu la moitié source ; en le fermant en version 1.7, j'ai présenté le journal comme complet.* | Moyenne | M5 + M8 | avant ouverture du service |
+| E-14 | **Le journal d'audit n'a pas de source.** L'écriture existe (PR #59) et la rétention est configurée (E-R14), mais M5 — fusionnée dans `release/0.2.0` — n'appelle `journaliser()` nulle part : zéro occurrence dans `src/m5_api/`, vérifié le 14/09/2026. Aucun événement n'est écrit, et la fiche T-04 décrit un traitement qui n'a pas encore lieu. *Correction du 14/09/2026 : c'est l'énoncé exact de l'ancien E-04 — « ce n'est plus la conception qui manque mais la source d'événements ». En le requalifiant en version 1.6, j'ai gardé la moitié rétention et perdu la moitié source ; en le fermant en version 1.7, j'ai présenté le journal comme complet.* **Dépend d'E-15** : le contrat rend `actor_role` obligatoire et [`HABILITATIONS.md`](HABILITATIONS.md) §6.3 exige qu'il vienne du jeton — or le jeton n'en porte aucun, et inscrire un rôle fixe pour l'utilisateur de test documenterait une fiction | Moyenne | M5 + M8 | avant ouverture du service |
+| E-15 | **La matrice des habilitations n'est pas appliquée.** L'authentification existe (PR #54) : jeton JWT vérifié côté serveur sur `/chat`, `/chat/stream` et `/documents/*`. Mais le jeton ne porte que l'identifiant (`sub`) et son expiration — aucun rôle, aucun `cabinet_id` — et un utilisateur de test unique est défini en dur. Aucune ligne de la matrice ne se distingue donc d'une autre, et le cloisonnement entre cabinets n'a pas de support. Vérifié le 17/09/2026 dans `src/m5_api/core/security.py`. La matrice annonçait que la différence entre sa spécification et l'état des lieux serait consignée dès que l'authentification existerait : c'est cet écart | Moyenne | M5 | avant ouverture du service |
+| E-16 | **Accès au corpus sur DagsHub : ni contrôle par rôle, ni journal exploitable** (fiche T-02). Le remote appartient à l'organisation depuis la PR #15, ce qui rend le contrôle exerçable, mais il n'est pas configuré, et l'hébergeur ne fournit pas de journal d'accès. Le corpus brut est pourtant le seul endroit où subsisteront des données personnelles non masquées ([`HABILITATIONS.md`](HABILITATIONS.md) §6.2). *Correction du 17/09/2026 : cette moitié était portée par l'ancien E-04 — E-R9, la matrice des habilitations et le risque R-04 de l'AIPD y renvoyaient — et a quitté le registre à sa fermeture en E-R14, qui ne traitait que le journal applicatif. Même mécanisme qu'en E-14 : un écart requalifié perd la moitié qui n'entre pas dans son nouvel intitulé.* | Faible *(deviendra moyenne avec un corpus réel)* | M8 + M1 | avant collecte réelle |
+| E-17 | **Le journal d'audit s'écrit sous un nom que Promtail ne collecte pas.** `audit.py` écrit dans `monitoring/audit/audit.jsonl` ; Promtail ne suit que `audit-*.jsonl` dans ce répertoire. Chaque événement serait écrit sur disque sans jamais atteindre Loki, et la conservation de trois ans de la fiche T-04 ne s'appliquerait à rien. Sans effet aujourd'hui, puisqu'aucun événement n'est émis (E-14) — c'est la raison de le corriger avant. Le test existant ne vérifiait que le répertoire. Correctif en revue : PR #97 — nom `audit-api.jsonl`, et un test qui lit le motif dans la configuration de Promtail | Faible | M8 | avant fermeture d'E-14 |
+| E-18 | **L'historique du dépôt de code, public, contient une copie du corpus synthétique.** 60 documents traités, `metadata.jsonl` et `quality_report.json` ont été versionnés dans Git du 05 au 24/08/2026, avant le passage à DVC (commit `06b32a1`), et restent lisibles dans l'historique de `develop` et des tags `v0.1.0` et `v0.2.0`. Aucun fichier de `data/raw/` n'a jamais été versionné. **Aucune donnée personnelle** : le corpus est synthétique (§2), et une recherche des civilités, titres arabes, numéros de CIN, e-mails et téléphones sur les 62 fichiers de l'historique n'a rien donné (17/09/2026). Le dépôt de code reste public pour l'évaluation académique ; réécrire l'historique la veille de la soutenance casserait les clones et les tags sans rien protéger. Avant toute collecte réelle : un contrôle en CI qui refuse tout fichier de `data/raw/` ou `data/processed/` dans Git, et une décision écrite sur la visibilité du dépôt de code. Relevé par @DOUAEM449 (issue #95) | Faible *(bloquante avant corpus réel)* | M8 + M1 | avant collecte réelle |
 
 ### Écarts résolus
 
@@ -394,11 +440,11 @@ restera tant que l'exigence portée à la fiche T-03 sera respectée.
 | E-R2 | Règle CIN masquant montants, numéros de dossier, de registre et de Bulletin Officiel | PR #16 |
 | E-R3 | `doc_id` et `title` dérivés du nom de fichier, propageant une identité jusque dans les citations | PR #16 |
 | E-R4 | Aucune vérification automatisée du masquage | PR #16 — 13 tests exécutés en CI |
-| E-R5 | Corpus accessible publiquement | Dépôt passé en privé le 27/08/2026 |
+| E-R5 | Corpus accessible publiquement | Dépôt de données DagsHub passé en privé le 27/08/2026, revérifié le 17/09/2026. *Précision du 17/09/2026 : cette résolution ne couvrait pas l'historique du dépôt de code GitHub, public — voir E-18* |
 | E-R6 | Aucune analyse de sécurité du code Python ni des dépendances ; le scan de secrets, limité à une recherche textuelle, ne détecterait pas une clé d'API dépourvue de mot-clé | Bandit et pip-audit ajoutés à la CI, exécutés à chaque pull request |
 | E-R7 | Durée de conservation non définie | Trois ans à compter de l'ingestion — décision d'équipe du 29/08/2026, motivée en [AIPD.md](AIPD.md) §6 |
 | E-R8 | Origine des décisions de justice non arrêtée | Recueils publiés déjà pseudonymisés — décision d'équipe du 29/08/2026, §1 ci-dessus |
-| E-R9 | Corpus hébergé sur un compte personnel hors organisation | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15). Le contrôle d'accès et la journalisation restent à configurer — voir E-04 |
+| E-R9 | Corpus hébergé sur un compte personnel hors organisation | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15). Le contrôle d'accès et la journalisation restent à configurer — voir E-16 *(renvoi corrigé le 17/09/2026 : E-04, fermé, ne les portait plus)* |
 | E-R10 | Le contrôle « aucun secret » de la CI ne détectait aucun identifiant réel : sensible à la casse, et dépendant d'un mot-clé dans le *nom* de la variable | Remplacé par `src/m8_compliance/secret_scan.py`, qui reconnaît les *formes* d'identifiants. Mesuré : 0/7 avant, 7/7 après, zéro faux positif sur le dépôt |
 | E-R11 | M8 et M2 n'avaient aucune interface dans la matrice RACI, alors que M2 réalise l'opération après laquelle l'effacement cesse d'être une modification de texte | **L'interface existait dans le code, seule la matrice ne la déclarait pas.** Vérifié ligne à ligne le 06/09/2026 : `delete_document(doc_id)` sur les deux implémentations de `VectorStore` ([`vector_store.py:88`](../src/m2_rag/vector_store.py) en mémoire, [`:184`](../src/m2_rag/vector_store.py) pour Qdrant via un `FilterSelector` sur le payload `doc_id`, **sans recréation de la collection**), verrouillé par [`test_vector_store.py:42`](../tests/m2/test_vector_store.py). Et `data/raw` n'apparaît nulle part dans `src/m2_rag/` hors d'une ligne de documentation. L'effacement par `doc_id` est donc **techniquement praticable**, et l'engagement du registre tient. Références signalées par @youssefelalem (PR #28), vérifiées avant fermeture |
 | E-R12 | `Dockerfile` et `docker-compose.yml` ne relevaient d'aucune règle `CODEOWNERS` de l'équipe `security` : image de base, utilisateur d'exécution, montages et secrets d'exécution échappaient à la revue de conformité | PR #45 — les deux fichiers relèvent de `platform` **et** `security` ; la revue est doublée, pas déplacée. La revue de conteneur qui n'avait jamais eu lieu est faite : trois constats, dont le montage `./data` en lecture-écriture sur le corpus brut, laissés à l'arbitrage de M4 |
@@ -511,6 +557,14 @@ de fichier source.** Ce qui identifie un document dans un artefact publié est
 son `doc_id`. Un contrôle automatique portant sur l'ensemble de ces sorties
 reste à écrire — c'est la seule forme sous laquelle cette règle tiendra.
 
+> **Correction du 17/09/2026.** Ce contrôle existe depuis la PR #66 :
+> [`artefacts_publies.py`](../src/m8_compliance/artefacts_publies.py) parcourt
+> les sorties de `data/processed/` et échoue dès qu'il y trouve un chemin brut
+> ou un nom de fichier source. Il s'exécute en CI dans le job « Tests du
+> pipeline d'ingestion », requis avant toute fusion sur `develop` et `main`. La
+> phrase ci-dessus date d'avant, et aucune version du registre ne l'avait mise
+> à jour.
+
 **Périmètre du contrôle de secrets** — arrêté le 14/09/2026, issue #71. Le contrôle garde **le dépôt** : tout fichier versionné est lu, quel que soit son répertoire ou son extension (PR #81). Il y ajoute **un seul point du poste de travail**, `.git/config`, parce que c'est le seul par lequel un identifiant est réellement sorti — un `git remote -v` recopié. `.dvc/config.local` en reste exclu par construction : DVC exige qu'il contienne un jeton, et le signaler ferait échouer le contrôle sur une configuration correcte.
 
 Le contrôle ne garantit donc pas qu'aucun secret ne subsiste sur un poste. Il garantit qu'aucun n'entre dans le dépôt, et que l'URL du remote n'en porte pas. Les jetons de quarante caractères hexadécimaux sans préfixe ne sont pas reconnus, délibérément : c'est la forme d'un SHA-1 Git, et un tel motif signalerait tout hash de commit cité dans la documentation.
@@ -540,7 +594,9 @@ gabarits de [`dataset_generator.py`](../src/m1_ingestion/dataset_generator.py).
 
 **Visibilité du dépôt de données** — vérifiée le 27/08/2026 depuis une session
 non authentifiée : le dépôt et son contenu ne sont pas accessibles
-publiquement.
+publiquement. Revérifiée le 17/09/2026 dans les mêmes conditions : redirection
+vers la page de connexion. Le dépôt de code GitHub, lui, est public
+(`gh repo view` : `PUBLIC`) — voir E-18.
 
 ## 7. Révision
 
@@ -548,6 +604,8 @@ Ce registre est revu :
 
 - à chaque modification du pipeline d'ingestion, du stockage ou de l'indexation ;
 - **avant la première collecte d'un corpus réel** — révision bloquante ;
+- **avant tout entraînement ou adaptation d'un modèle sur des données issues du
+  corpus** — révision bloquante, AIPD comprise (T-03, #64) ;
 - à la revue de sécurité mensuelle (M8 et pilotes concernés).
 
 L'analyse d'impact requise par ce traitement — données judiciaires de personnes

@@ -1,7 +1,7 @@
 # Analyse d'impact relative à la protection des données (AIPD)
 
 **Responsable :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.2 — 30 août 2026
+**Version :** 1.3 — 17 septembre 2026
 **Traitement analysé :** Assistant juridique augmenté par IA générative — ingestion, indexation et restitution de textes juridiques marocains
 **Registre associé :** [`RGPD.md`](RGPD.md)
 
@@ -134,7 +134,7 @@ projet, direct.
 | Vraisemblance sans mesure | Importante |
 | Vraisemblance après mesures | Négligeable |
 
-**Mesures.** Dépôt passé en privé le 27/08/2026, puis **remote DVC migré vers le
+**Mesures.** Dépôt de données DagsHub passé en privé le 27/08/2026, puis **remote DVC migré vers le
 compte de l'organisation** le 29/08/2026 (PR #15). L'accès au corpus ne dépend
 plus d'une personne, et son administration revient à l'organisation. A-2 close.
 
@@ -148,11 +148,20 @@ l'intégralité du corpus. Aucun contrôle par rôle, aucun journal d'accès.
 | Gravité | Importante |
 | Vraisemblance | Limitée |
 
-**Mesures.** Le dépôt est privé et hébergé par l'organisation, ce qui rend le
+**Mesures.** Le dépôt de données DagsHub est privé et hébergé par l'organisation, ce qui rend le
 contrôle d'accès exerçable. Il n'est pas configuré pour autant, et la
 journalisation a désormais un contrat arrêté ([`OBSERVABILITE.md`](OBSERVABILITE.md)
 §2) mais aucune source d'événements — M5 n'existe pas (écart E-04) : l'absence de journal
 empêche aujourd'hui de répondre à « qui a consulté le corpus ».
+
+> **Correction — 17 septembre 2026.** « M5 n'existe pas » n'est plus vrai :
+> l'API est fusionnée (PR #54), et le risque porte désormais sur deux accès
+> distincts. **Le corpus brut sur DagsHub** : contrôle par rôle non configuré,
+> aucun journal d'accès (écart E-16, qui reprend la moitié de l'ancien E-04
+> perdue à sa fermeture). **Le service** : authentification réelle, mais sans
+> rôles ni cabinet (écart E-15), et un journal d'audit que l'API n'appelle pas
+> (écart E-14). La question « qui a consulté le corpus » reste sans réponse dans
+> les deux cas.
 
 ### R-05 — Réponse juridique erronée présentée comme fiable
 
@@ -255,7 +264,7 @@ lieu de la corriger, ce qui est précisément la raison du rejet de Presidio.
 | R-01 Divulgation d'identité | Maximale | Limitée | E-01 |
 | R-02 Effacement impossible | Importante | Négligeable | exigence transmise à M2 |
 | R-03 Perte de maîtrise | Limitée | Négligeable | migration du corpus — close |
-| R-04 Accès non autorisé | Importante | Limitée | E-04 |
+| R-04 Accès non autorisé | Importante | Limitée | E-14, E-15, E-16, E-18 |
 | R-05 Réponse erronée | Importante | Importante | §5 |
 | R-06 Ré-identification | Limitée | Importante | accepté, documenté |
 | R-07 Inégalité fr/ar | Importante | Importante | E-01 |
@@ -344,7 +353,9 @@ distincte, à créer lorsque M5 et M6 implémenteront le dépôt.
 | Réf | Action | Réduit | Responsable | Échéance |
 |---|---|---|---|---|
 | A-1 | Remplacer les règles regex par un détecteur NER, évalué séparément en fr et en ar. La propagation des noms (29/08/2026) a réduit l'écart sans le fermer : reste le nom jamais ancré | R-01, R-07 | M8 | S4 |
-| A-5 | Journal d'audit des accès au corpus et aux réponses. Contrat arrêté par M7 (`OBSERVABILITE.md` §2) ; reste la source d'événements | R-04 | M8 + M5 | avant ouverture du service |
+| A-5 | Journal d'audit des accès au corpus et aux réponses. Contrat arrêté par M7 (`OBSERVABILITE.md` §2), écriture livrée (PR #59) ; reste l'appel depuis l'API (E-14), qui suppose A-9 | R-04 | M8 + M5 | avant ouverture du service |
+| A-9 | Rôles et cloisonnement multi-cabinets portés par le jeton, conformément à la matrice des habilitations (E-15) | R-04 | M5 | avant ouverture du service |
+| A-10 | Contrôle d'accès par rôle et journal d'accès au corpus brut sur le remote DVC (E-16) | R-04 | M8 + M1 | avant collecte réelle |
 | A-6 | Intégrer les garde-fous du §5 aux prompts, à l'API et à l'interface | R-05 | M2, M5, M6 | S4 |
 
 ### Actions closes
@@ -364,7 +375,7 @@ Une quatrième action est close depuis, par une contribution de M1 :
 
 | Réf | Réalisation | Effet |
 |---|---|---|
-| A-2 | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15, 29/08/2026) | R-03 et R-04 réduits : l'accès au corpus ne dépend plus d'une personne. Le contrôle d'accès et la journalisation restent à configurer (A-5) |
+| A-2 | Remote DVC migré vers `dagshub.com/CloudMind-Group` (PR #15, 29/08/2026) | R-03 et R-04 réduits : l'accès au corpus ne dépend plus d'une personne. Le contrôle d'accès et la journalisation restent à configurer (A-10 ; A-5 pour le service) |
 | A-7 | Suppression ciblée par `doc_id` implémentée et testée par M2 (PR #28, vérifié le 02/09/2026) | R-02 ramené à une vraisemblance négligeable. L'exigence avait été transmise avant que M2 ne commence — c'est ce qui l'a rendue gratuite |
 
 **Portée de A-8 sur l'analyse.** C'est l'arbitrage qui change le plus la charge
