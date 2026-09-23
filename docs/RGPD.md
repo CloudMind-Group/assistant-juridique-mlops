@@ -1,7 +1,7 @@
 # Registre des traitements de données à caractère personnel
 
 **Responsable du registre :** Taha Kachmar — M8, Sécurité, Gouvernance & Conformité
-**Version :** 1.7 — 14 septembre 2026
+**Version :** 1.8 — 16 septembre 2026
 **Textes applicables :** Loi 09-08 (Maroc) · RGPD (UE), applicable si le service est ouvert à des résidents de l'Union
 **Autorité de contrôle :** CNDP
 
@@ -258,7 +258,8 @@ même travail ni les mêmes personnes. Le chiffrement au repos demeure non docum
 | **Provenance** | `data/processed/` uniquement, c'est-à-dire du texte déjà anonymisé par T-01 |
 | **Responsable opérationnel** | Imane Ibnchakroune (M2) |
 | **Durée de conservation** | Alignée sur T-01 — trois ans, l'index étant dérivé du corpus |
-| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **non implémenté** |
+| **Restitution** | M5 (API) → M6 (interface) → utilisateur final — **partielle** : `/chat` renvoie les passages cités (PR #54), mais l'interface tourne encore sur un transport simulé et le contrat entre les deux n'est pas écrit (#76) |
+| **Entraînement** | **Aucun.** Aucune donnée du corpus ne sert à entraîner ou adapter un modèle — décision écrite, #64 |
 
 **L'index est une seconde copie du corpus.** Les passages y sont stockés en
 clair à côté de leurs vecteurs, ce qui est nécessaire pour afficher les extraits
@@ -275,6 +276,20 @@ texte en clair y contribue d'ailleurs — un passage rangé à côté d'un `doc_
 supprime par filtre, là où un vecteur seul ne s'annule pas. Le risque R-02 de
 l'analyse d'impact passe de ce fait à une vraisemblance négligeable.
 
+**Ce qui garde cet effacement complet : aucun modèle n'est entraîné sur le
+corpus.** Le fine-tuning LoRA/QLoRA est hors périmètre de la v0.2.0 par
+décision écrite (#64), faute de jeu annoté validé par un juriste. La
+conséquence pour ce registre dépasse la feuille de route. Une donnée
+personnelle ne vit aujourd'hui qu'à deux endroits, `data/processed/` et l'index,
+et `doc_id` l'en retire dans les deux cas. Un modèle entraîné sur de la
+jurisprudence en retiendrait une partie dans ses poids, et un poids ne se
+supprime pas par filtre : l'effacement d'une personne, aujourd'hui une
+opération, redeviendrait un réentraînement.
+
+**Tout entraînement ou adaptation d'un modèle sur des données issues du corpus
+ouvre donc une fiche distincte et une révision de l'AIPD, avant
+l'entraînement** — voir §7.
+
 **Point de vigilance — journalisation des requêtes.** Le service expose un hook
 `log_query(request, response)` qui reçoit la question et la réponse complètes.
 L'implémentation actuelle n'empile qu'en mémoire et **rien n'est persisté**
@@ -286,6 +301,14 @@ reprendre si le hook est implémenté.
 
 **Reste hors périmètre à ce jour :** la restitution elle-même. M5 et M6
 n'existent pas, donc aucun utilisateur final n'accède au corpus.
+
+> **Correction du 16/09/2026.** La phrase ci-dessus, conservée telle qu'écrite,
+> était vraie à la rédaction de la fiche et ne l'est plus depuis la fusion de
+> l'API (PR #54) et de l'interface. La version 1.7 la reproduisait encore. L'API
+> renvoie les passages cités. L'interface, elle, n'appelle pas encore l'API
+> (#76) : **aucun passage n'est restitué par l'interface à ce jour**. La
+> conclusion tient, mais sa raison a changé, et elle cessera de tenir dès que
+> l'interface sera branchée.
 
 ### T-04 — Journal d'audit des accès
 
@@ -548,6 +571,8 @@ Ce registre est revu :
 
 - à chaque modification du pipeline d'ingestion, du stockage ou de l'indexation ;
 - **avant la première collecte d'un corpus réel** — révision bloquante ;
+- **avant tout entraînement ou adaptation d'un modèle sur des données issues du
+  corpus** — révision bloquante, AIPD comprise (T-03, #64) ;
 - à la revue de sécurité mensuelle (M8 et pilotes concernés).
 
 L'analyse d'impact requise par ce traitement — données judiciaires de personnes
