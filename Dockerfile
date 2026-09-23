@@ -36,6 +36,12 @@ ENV PYTHONUNBUFFERED=1
 # Copy only application source code
 COPY src ./src
 
+# `src/m5_api/main.py` fait `from monitoring.instrumentation.metrics import
+# instrumenter` : sans ce répertoire, l'image démarre l'ingestion M1 mais pas
+# l'API. Ajouté ici plutôt que monté par docker-compose, pour que l'image
+# reste exécutable seule.
+COPY monitoring ./monitoring
+
 # Create data directories without copying the corpus into the image
 RUN mkdir -p data/raw data/processed
 
