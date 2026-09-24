@@ -72,8 +72,10 @@ ROLES = ("particulier", "juriste", "gestionnaire", "admin")
 
 VARIABLE_CLE = "M8_AUDIT_HMAC_KEY"
 
-# Répertoire suivi par Promtail — docs/OBSERVABILITE.md §2.1.
-CHEMIN_DEFAUT = Path("monitoring/audit/audit.jsonl")
+# Suivi par Promtail : `monitoring/audit/` est monté sur /var/log/cloudmind, et
+# seul le motif `audit-*.jsonl` y est collecté (monitoring/promtail). Le nom
+# compte autant que le répertoire — un `audit.jsonl` serait écrit, jamais lu.
+CHEMIN_DEFAUT = Path("monitoring/audit/audit-api.jsonl")
 
 # --------------------------------------------------------------------------
 # §2.3 — ce qui ne doit jamais être journalisé
